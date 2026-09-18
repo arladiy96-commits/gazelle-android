@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -253,88 +254,2055 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final admin = session.role == AppRole.admin;
-
-    return _PageScaffold(
-      title: 'Главная',
-      subtitle: admin ? 'Обзор всей системы' : 'Сводка за сегодня',
-      trailing: _RoleBadge(role: session.role),
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 28),
       children: [
-        _WelcomeHeader(
-          session: session,
-          icon: admin
-              ? Icons.admin_panel_settings_outlined
-              : Icons.local_shipping_outlined,
-        ),
-        const SizedBox(height: 18),
-        _SalaryHero(admin: admin),
+        _HomeTopBar(session: session),
         const SizedBox(height: 14),
-        const Row(
+        const Divider(
+          height: 1,
+          color: Color(0xFF2A2119),
+        ),
+        const SizedBox(height: 16),
+        const _HomeTitleRow(),
+        const SizedBox(height: 14),
+        const _HomeMonthSelector(),
+        const SizedBox(height: 14),
+        const _HomeTruckHero(),
+        const SizedBox(height: 14),
+        _HomeSalaryCard(
+          onTap: () => _showSalarySheet(context),
+        ),
+        const SizedBox(height: 12),
+        Row(
           children: [
             Expanded(
-              child: _MetricCard(
-                title: 'Пробег',
-                value: '184 км',
-                caption: 'за смену',
-                icon: Icons.route_outlined,
-                accent: AppColors.blue,
+              child: _HomeTile(
+                title: 'ПРОБЕГ ЗА МЕСЯЦ',
+                value: '0 км',
+                icon: Icons.route_rounded,
+                accent: AppColors.green,
+                footer: const _HomeThinLine(
+                  color: AppColors.green,
+                  progress: 0.98,
+                ),
+                onTap: () => _showMileageSheet(context),
               ),
             ),
-            SizedBox(width: 12),
-            Expanded(
-              child: _MetricCard(
-                title: 'Рейсы',
-                value: '6',
-                caption: 'сегодня',
-                icon: Icons.alt_route_rounded,
+            const SizedBox(width: 10),
+            const Expanded(
+              child: _HomeTile(
+                title: 'РЕЙСОВ ВЫПОЛНЕНО',
+                value: '29',
+                subtitle: 'рейса',
+                icon: Icons.local_shipping_outlined,
                 accent: AppColors.orange,
+                footer: _HomeDots(),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _HomeTile(
+                title: 'ГОРОД',
+                value: '58 800 кг',
+                subtitle: '59%',
+                icon: Icons.location_city_rounded,
+                accent: AppColors.green,
+                footer: const _HomeProgressBar(
+                  color: AppColors.green,
+                  progress: 0.59,
+                ),
+                onTap: () => _showCitySheet(context),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _HomeTile(
+                title: 'РАЙОН',
+                value: '41 082 кг',
+                subtitle: '41%',
+                icon: Icons.terrain_rounded,
+                accent: AppColors.orange,
+                footer: const _HomeProgressBar(
+                  color: AppColors.orange,
+                  progress: 0.41,
+                ),
+                onTap: () => _showDistrictSheet(context),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _HomeSmallTile(
+                title: '🔥 ГАЗ',
+                value: '1 545 л',
+                subtitle: 'за месяц',
+                icon: Icons.local_gas_station_outlined,
+                accent: AppColors.blue,
+                onTap: () => _showGasSheet(context),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _HomeSmallTile(
+                title: '⛽ БЕНЗИН',
+                value: '20 л',
+                subtitle: 'за месяц',
+                icon: Icons.local_gas_station_rounded,
+                accent: AppColors.violet,
+                onTap: () => _showPetrolSheet(context),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _HomeSmallTile(
+                title: 'ПЛАТНЫЕ\nНАПРАВЛЕНИЯ',
+                value: '3',
+                subtitle: 'рейсов',
+                icon: Icons.route_outlined,
+                accent: AppColors.green,
+                onTap: () => _showPaidRoutesSheet(context),
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        const Row(
+        const _HomeMaintenanceCard(),
+        const SizedBox(height: 12),
+        const _HomeTonnageCard(),
+        const SizedBox(height: 12),
+        const _HomeDynamicsCard(),
+      ],
+    );
+  }
+}
+
+class _HomeTopBar extends StatelessWidget {
+  final AppSession session;
+
+  const _HomeTopBar({
+    required this.session,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _openHomeMenu(context, session),
+          child: const SizedBox(
+            width: 48,
+            height: 48,
+            child: Icon(
+              Icons.menu_rounded,
+              color: AppColors.text,
+              size: 34,
+            ),
+          ),
+        ),
+        const Spacer(),
+        const _HomeShiftPill(),
+      ],
+    );
+  }
+}
+
+class _HomeShiftPill extends StatelessWidget {
+  const _HomeShiftPill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 13,
+        vertical: 10,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D1710),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: const Color(0xFF2D7D3E),
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x3328D951),
+            blurRadius: 16,
+          ),
+        ],
+      ),
+      child: const Row(
+        children: [
+          _GlowDot(color: Color(0xFF60E765)),
+          SizedBox(width: 9),
+          Text(
+            'На смене',
+            style: TextStyle(
+              color: Color(0xFFA9EBAE),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeTitleRow extends StatelessWidget {
+  const _HomeTitleRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Главная',
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: 31,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -1.0,
+                ),
+              ),
+              SizedBox(height: 5),
+              Text(
+                'Текущий месяц',
+                style: TextStyle(
+                  color: AppColors.textSoft,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+        _HomeDatePill(),
+      ],
+    );
+  }
+}
+
+class _HomeDatePill extends StatelessWidget {
+  const _HomeDatePill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 13,
+        vertical: 10,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111113),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: const Color(0xFF9A4B18),
+        ),
+      ),
+      child: const Row(
+        children: [
+          Icon(
+            Icons.calendar_month_rounded,
+            color: AppColors.orangeSoft,
+            size: 16,
+          ),
+          SizedBox(width: 7),
+          Text(
+            '18.09.2026',
+            style: TextStyle(
+              color: AppColors.orangeSoft,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeMonthSelector extends StatelessWidget {
+  const _HomeMonthSelector();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _HomeArrowButton(
+          icon: Icons.chevron_left_rounded,
+          onTap: () => _showFeatureStub(
+            context,
+            'Месяц',
+            'Переключение месяцев подключим вместе с реальными данными.',
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Container(
+            height: 52,
+            alignment: Alignment.center,
+            decoration: _homePanelDecoration(
+              radius: 18,
+              borderColor: const Color(0xFF493224),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.calendar_view_month_rounded,
+                  size: 14,
+                  color: AppColors.textSoft,
+                ),
+                SizedBox(width: 7),
+                Text(
+                  'сентябрь 2026 г.',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        _HomeArrowButton(
+          icon: Icons.chevron_right_rounded,
+          muted: true,
+          onTap: null,
+        ),
+      ],
+    );
+  }
+}
+
+class _HomeArrowButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool muted;
+
+  const _HomeArrowButton({
+    required this.icon,
+    required this.onTap,
+    this.muted = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: Container(
+        width: 48,
+        height: 52,
+        decoration: _homePanelDecoration(
+          radius: 18,
+          borderColor: muted
+              ? const Color(0xFF202228)
+              : const Color(0xFF493224),
+        ),
+        child: Icon(
+          icon,
+          color: muted
+              ? const Color(0xFF343840)
+              : AppColors.textSoft,
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeTruckHero extends StatelessWidget {
+  const _HomeTruckHero();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 220,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: const Color(0xFFBA5B1D),
+          width: 1.2,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x2AFF7418),
+            blurRadius: 22,
+          ),
+          BoxShadow(
+            color: Color(0x99000000),
+            blurRadius: 26,
+            offset: Offset(0, 12),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(27),
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            Expanded(
-              child: _MetricCard(
-                title: 'Накладные',
-                value: '8',
-                caption: 'за сегодня',
-                icon: Icons.receipt_long_outlined,
-                accent: AppColors.violet,
+            Image.asset(
+              'assets/images/home_truck.jpg',
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+            ),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0x00000000),
+                    Color(0x16000000),
+                    Color(0xD0000000),
+                  ],
+                  stops: [0, 0.58, 1],
+                ),
               ),
             ),
-            SizedBox(width: 12),
-            Expanded(
-              child: _MetricCard(
-                title: 'Тоннаж',
-                value: '12.4 т',
-                caption: 'за смену',
-                icon: Icons.scale_outlined,
-                accent: AppColors.amber,
+            Positioned(
+              left: 18,
+              bottom: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 13,
+                  vertical: 9,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xC90B100B),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: const Color(0xFF5D3C1F),
+                  ),
+                ),
+                child: const Row(
+                  children: [
+                    _GlowDot(color: Color(0xFF50AE2E)),
+                    SizedBox(width: 9),
+                    Text(
+                      'Смена активна',
+                      style: TextStyle(
+                        color: Color(0xFF8FAF69),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
         ),
-        if (admin) ...[
-          const SizedBox(height: 18),
-          const _SectionTitle(
-            title: 'Управление',
-            caption: 'Администратор',
-          ),
-          const SizedBox(height: 10),
-          const _AdminEmployeesCard(),
-        ],
-        const SizedBox(height: 18),
-        const _ShiftStrip(),
-        const SizedBox(height: 18),
-        const _SectionTitle(
-          title: 'Последняя активность',
-          caption: 'Сегодня',
+      ),
+    );
+  }
+}
+
+class _HomeSalaryCard extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _HomeSalaryCard({
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(27),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: Container(
+        height: 154,
+        padding: const EdgeInsets.all(16),
+        decoration: _homePanelDecoration(
+          radius: 27,
+          borderColor: const Color(0xFF4A3425),
+          glow: const Color(0x1FFF7418),
         ),
-        const SizedBox(height: 10),
-        const _ActivityCard(),
+        child: Row(
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ЗАРПЛАТА ЗА СЕНТЯБРЬ 2026 Г.',
+                    style: TextStyle(
+                      color: AppColors.textSoft,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.7,
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    '312 105,8 ₸',
+                    style: TextStyle(
+                      color: AppColors.text,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.8,
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    '154 / 176 ч',
+                    style: TextStyle(
+                      color: AppColors.textSoft,
+                      fontSize: 11,
+                    ),
+                  ),
+                  Spacer(),
+                  _HomeSalaryProgress(),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            const _HomeSalaryRing(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeSalaryProgress extends StatelessWidget {
+  const _HomeSalaryProgress();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 7,
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2A2A),
+        borderRadius: BorderRadius.circular(100),
+      ),
+      child: FractionallySizedBox(
+        alignment: Alignment.centerLeft,
+        widthFactor: 0.88,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(100),
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFFFF5C00),
+                Color(0xFFFF8517),
+                Color(0xFFFFC35A),
+              ],
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x55FF7418),
+                blurRadius: 7,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeSalaryRing extends StatelessWidget {
+  const _HomeSalaryRing();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 104,
+      height: 104,
+      child: CustomPaint(
+        painter: _HomeRingPainter(
+          progress: 0.88,
+        ),
+        child: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '88%',
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              SizedBox(height: 3),
+              Text(
+                'план',
+                style: TextStyle(
+                  color: AppColors.textSoft,
+                  fontSize: 8,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeRingPainter extends CustomPainter {
+  final double progress;
+
+  _HomeRingPainter({
+    required this.progress,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = 10.0;
+    final rect = Rect.fromLTWH(
+      stroke / 2,
+      stroke / 2,
+      size.width - stroke,
+      size.height - stroke,
+    );
+
+    final bg = Paint()
+      ..color = const Color(0xFF2C2D30)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke;
+
+    final fg = Paint()
+      ..shader = const SweepGradient(
+        colors: [
+          Color(0xFFFF5E00),
+          Color(0xFFFF8B18),
+          Color(0xFFFFB84A),
+          Color(0xFFFF5E00),
+        ],
+      ).createShader(rect)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      math.pi * 2,
+      false,
+      bg,
+    );
+
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      math.pi * 2 * progress,
+      false,
+      fg,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _HomeRingPainter oldDelegate) {
+    return oldDelegate.progress != progress;
+  }
+}
+
+class _HomeTile extends StatelessWidget {
+  final String title;
+  final String value;
+  final String? subtitle;
+  final IconData icon;
+  final Color accent;
+  final Widget footer;
+  final VoidCallback? onTap;
+
+  const _HomeTile({
+    required this.title,
+    required this.value,
+    this.subtitle,
+    required this.icon,
+    required this.accent,
+    required this.footer,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(24),
+      onTap: onTap == null
+          ? null
+          : () {
+              HapticFeedback.selectionClick();
+              onTap!();
+            },
+      child: Container(
+        height: 142,
+        padding: const EdgeInsets.all(14),
+        decoration: _homePanelDecoration(
+          radius: 24,
+          borderColor: const Color(0xFF4A3425),
+          glow: accent.withValues(alpha: 0.05),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Icon(
+                icon,
+                size: 23,
+                color: accent,
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 30),
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      color: AppColors.textSoft,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.65,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: AppColors.text,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle!,
+                    style: const TextStyle(
+                      color: AppColors.textSoft,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+                const Spacer(),
+                footer,
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeSmallTile extends StatelessWidget {
+  final String title;
+  final String value;
+  final String subtitle;
+  final IconData icon;
+  final Color accent;
+  final VoidCallback onTap;
+
+  const _HomeSmallTile({
+    required this.title,
+    required this.value,
+    required this.subtitle,
+    required this.icon,
+    required this.accent,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(22),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: Container(
+        height: 146,
+        padding: const EdgeInsets.all(12),
+        decoration: _homePanelDecoration(
+          radius: 22,
+          borderColor: const Color(0xFF473223),
+          glow: accent.withValues(alpha: 0.05),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Icon(
+                icon,
+                size: 20,
+                color: accent,
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 8.7,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                    height: 1.25,
+                  ),
+                ),
+                const SizedBox(height: 9),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: AppColors.text,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 9.5,
+                  ),
+                ),
+                const Spacer(),
+                _HomeThinLine(
+                  color: accent,
+                  progress: 0.82,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeProgressBar extends StatelessWidget {
+  final Color color;
+  final double progress;
+
+  const _HomeProgressBar({
+    required this.color,
+    required this.progress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 7,
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2B2D),
+        borderRadius: BorderRadius.circular(100),
+      ),
+      child: FractionallySizedBox(
+        alignment: Alignment.centerLeft,
+        widthFactor: progress,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(100),
+            gradient: LinearGradient(
+              colors: [
+                color,
+                Color.lerp(color, Colors.white, 0.25)!,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeThinLine extends StatelessWidget {
+  final Color color;
+  final double progress;
+
+  const _HomeThinLine({
+    required this.color,
+    required this.progress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.centerLeft,
+      children: [
+        Container(
+          height: 2,
+          color: const Color(0xFF222428),
+        ),
+        FractionallySizedBox(
+          widthFactor: progress,
+          child: Container(
+            height: 2,
+            color: color,
+          ),
+        ),
+        Align(
+          alignment: Alignment(progress * 2 - 1, 0),
+          child: Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.45),
+                  blurRadius: 7,
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
+    );
+  }
+}
+
+class _HomeDots extends StatelessWidget {
+  const _HomeDots();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(
+        9,
+        (index) => Padding(
+          padding: const EdgeInsets.only(right: 7),
+          child: Container(
+            width: 7,
+            height: 7,
+            decoration: const BoxDecoration(
+              color: AppColors.orange,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0x55FF7418),
+                  blurRadius: 7,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeMaintenanceCard extends StatelessWidget {
+  const _HomeMaintenanceCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(17),
+      decoration: _homePanelDecoration(
+        radius: 24,
+        borderColor: const Color(0xFF4B3423),
+      ),
+      child: const Row(
+        children: [
+          SizedBox(
+            width: 54,
+            child: Icon(
+              Icons.handyman_outlined,
+              color: Color(0xFFB5B8C0),
+              size: 30,
+            ),
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'БЛИЖАЙШЕЕ ТО',
+                  style: TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.7,
+                  ),
+                ),
+                SizedBox(height: 5),
+                Text(
+                  'Через 5 406 км',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Добавь запись ТО',
+                  style: TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            Icons.arrow_forward_rounded,
+            color: AppColors.orange,
+            size: 28,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeTonnageCard extends StatelessWidget {
+  const _HomeTonnageCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(17),
+      decoration: _homePanelDecoration(
+        radius: 25,
+        borderColor: const Color(0xFF4A3425),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.balance_rounded,
+                color: Color(0xFFADB0B6),
+                size: 22,
+              ),
+              SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  'Тоннаж по направлениям',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Text(
+                '99 882 кг',
+                style: TextStyle(
+                  color: AppColors.textSoft,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Expanded(
+                child: SizedBox(
+                  height: 145,
+                  child: _HomeTonnageRing(),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  children: [
+                    _HomeLegendRow(
+                      color: AppColors.orange,
+                      title: 'Город',
+                      value: '58 800 кг (59%)',
+                    ),
+                    const SizedBox(height: 18),
+                    _HomeLegendRow(
+                      color: Color(0xFFFFC053),
+                      title: 'Район',
+                      value: '41 082 кг (41%)',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeTonnageRing extends StatelessWidget {
+  const _HomeTonnageRing();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _HomeTonnagePainter(),
+      child: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '99 882',
+              style: TextStyle(
+                color: AppColors.text,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            SizedBox(height: 3),
+            Text(
+              'кг',
+              style: TextStyle(
+                color: AppColors.textSoft,
+                fontSize: 8,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeTonnagePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = 15.0;
+    final d = math.min(size.width, size.height);
+    final rect = Rect.fromCircle(
+      center: Offset(size.width / 2, size.height / 2),
+      radius: d / 2 - stroke,
+    );
+
+    final bg = Paint()
+      ..color = const Color(0xFF24262A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke;
+
+    final city = Paint()
+      ..color = AppColors.orange
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.butt
+      ..strokeWidth = stroke;
+
+    final district = Paint()
+      ..color = const Color(0xFFFFC053)
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.butt
+      ..strokeWidth = stroke;
+
+    canvas.drawArc(rect, -math.pi / 2, math.pi * 2, false, bg);
+
+    const gap = 0.055;
+    const full = math.pi * 2;
+    final citySweep = full * 0.59 - gap;
+    final districtSweep = full * 0.41 - gap;
+
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      citySweep,
+      false,
+      city,
+    );
+
+    canvas.drawArc(
+      rect,
+      -math.pi / 2 + citySweep + gap * 2,
+      districtSweep,
+      false,
+      district,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _HomeLegendRow extends StatelessWidget {
+  final Color color;
+  final String title;
+  final String value;
+
+  const _HomeLegendRow({
+    required this.color,
+    required this.title,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          margin: const EdgeInsets.only(top: 4),
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.4),
+                blurRadius: 8,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppColors.textSoft,
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HomeDynamicsCard extends StatelessWidget {
+  const _HomeDynamicsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    const values = [
+      0.05,
+      0.82,
+      0.28,
+      0.61,
+      0.90,
+      0.39,
+      0.51,
+      0.68,
+      0.36,
+      0.58,
+      0.60,
+      1.0,
+    ];
+    const labels = [
+      '01.09',
+      '02.09',
+      '03.09',
+      '04.09',
+      '07.09',
+      '08.09',
+      '09.09',
+      '10.09',
+      '11.09',
+      '14.09',
+      '15.09',
+      '16.09',
+    ];
+    const numbers = [
+      '0',
+      '10 000',
+      '3 462',
+      '7 500',
+      '10 954',
+      '4 346',
+      '5 781',
+      '8 365',
+      '4 000',
+      '6 803',
+      '7 000',
+      '12 171',
+    ];
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      decoration: _homePanelDecoration(
+        radius: 25,
+        borderColor: const Color(0xFF4A3425),
+      ),
+      child: Column(
+        children: [
+          const Row(
+            children: [
+              Text(
+                'Динамика тоннажа',
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Spacer(),
+              Text(
+                'Месяц',
+                style: TextStyle(
+                  color: AppColors.textSoft,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            height: 195,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: List.generate(values.length, (index) {
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 2,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              numbers[index],
+                              maxLines: 1,
+                              overflow: TextOverflow.visible,
+                              style: const TextStyle(
+                                color: AppColors.textSoft,
+                                fontSize: 6.7,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              width: 13,
+                              height: 118 * values[index] + 6,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Color(0xFFFFC263),
+                                    Color(0xFFFF8D1A),
+                                    Color(0xFFFF6500),
+                                  ],
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x44FF7418),
+                                    blurRadius: 8,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 7),
+                            Text(
+                              labels[index],
+                              style: const TextStyle(
+                                color: AppColors.textDim,
+                                fontSize: 6.8,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+BoxDecoration _homePanelDecoration({
+  required double radius,
+  Color borderColor = AppColors.line,
+  Color glow = const Color(0x14000000),
+}) {
+  return BoxDecoration(
+    gradient: const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        Color(0xFF18191B),
+        Color(0xFF0F1012),
+      ],
+    ),
+    borderRadius: BorderRadius.circular(radius),
+    border: Border.all(
+      color: borderColor,
+      width: 1,
+    ),
+    boxShadow: [
+      const BoxShadow(
+        color: Color(0x88000000),
+        blurRadius: 22,
+        offset: Offset(0, 11),
+      ),
+      BoxShadow(
+        color: glow,
+        blurRadius: 22,
+      ),
+      const BoxShadow(
+        color: Color(0x552A1608),
+        blurRadius: 2,
+        offset: Offset(0, 4),
+      ),
+    ],
+  );
+}
+
+Future<void> _openHomeMenu(
+  BuildContext context,
+  AppSession session,
+) async {
+  HapticFeedback.selectionClick();
+
+  await showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (context) {
+      return Container(
+        margin: const EdgeInsets.all(10),
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+        decoration: _homePanelDecoration(
+          radius: 28,
+          borderColor: const Color(0xFF4A3425),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF34363A),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.grain_rounded,
+                    color: AppColors.orange,
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'ТАМЕРЛАН',
+                      style: TextStyle(
+                        color: AppColors.text,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    session.role.title,
+                    style: const TextStyle(
+                      color: AppColors.textSoft,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              if (session.role == AppRole.admin)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(
+                    Icons.groups_2_outlined,
+                    color: AppColors.orange,
+                  ),
+                  title: const Text('Сотрудники'),
+                  subtitle: const Text('Водители, грузчики, доступы'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showEmployees(context);
+                  },
+                ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(
+                  Icons.tune_rounded,
+                  color: AppColors.orange,
+                ),
+                title: const Text('Настройки'),
+                subtitle: const Text('Интерфейс, звук, уведомления'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showFeatureStub(
+                    context,
+                    'Настройки',
+                    'Этот раздел подключим после Главной.',
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+void _showSalarySheet(BuildContext context) {
+  const rows = [
+    ('Основной оклад', '166 250 ₸'),
+    ('Выходные', '0 ₸'),
+    ('Праздники', '0 ₸'),
+    ('Платные рейсы', '9 000 ₸'),
+    ('Городской вес', '58 800 ₸'),
+    ('Районный вес', '78 055,8 ₸'),
+  ];
+
+  _showHomeSheet(
+    context,
+    title: 'Зарплата',
+    icon: Icons.route_outlined,
+    maxHeightFactor: 0.66,
+    child: Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: _homePanelDecoration(
+            radius: 20,
+            borderColor: const Color(0xFF4A3425),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '312 105,8 ₸',
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.7,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Итого за сентябрь 2026 г.',
+                style: TextStyle(
+                  color: AppColors.textSoft,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        const _HomeSheetHeader(
+          columns: ['СОСТАВЛЯЮЩАЯ', 'СУММА'],
+          flexes: [3, 2],
+        ),
+        ...rows.map(
+          (row) => _HomeSheetRow(
+            cells: [row.$1, row.$2],
+            flexes: const [3, 2],
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Часы: 154 / 176 ч',
+            style: TextStyle(
+              color: AppColors.textSoft,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+void _showMileageSheet(BuildContext context) {
+  const rows = [
+    ('09-18', '— км'),
+    ('09-17', '0 км'),
+    ('09-16', '0 км'),
+    ('09-15', '0 км'),
+    ('09-14', '0 км'),
+    ('09-11', '0 км'),
+    ('09-10', '0 км'),
+    ('09-09', '0 км'),
+    ('09-08', '0 км'),
+    ('09-07', '0 км'),
+    ('09-04', '0 км'),
+    ('09-03', '0 км'),
+    ('09-02', '0 км'),
+    ('09-01', '0 км'),
+  ];
+
+  _showHomeTableSheet(
+    context,
+    title: 'Пробег по дням',
+    icon: Icons.route_rounded,
+    headers: const ['ДАТА', 'ПРОБЕГ'],
+    rows: rows,
+  );
+}
+
+void _showCitySheet(BuildContext context) {
+  const rows = [
+    ('09-18', '4 000 кг'),
+    ('09-17', '13 500 кг'),
+    ('09-16', '8 000 кг'),
+    ('09-15', '3 500 кг'),
+    ('09-14', '4 800 кг'),
+    ('09-11', '0 кг'),
+    ('09-10', '4 000 кг'),
+    ('09-09', '3 500 кг'),
+    ('09-08', '0 кг'),
+    ('09-07', '7 500 кг'),
+    ('09-04', '4 000 кг'),
+    ('09-03', '0 кг'),
+    ('09-02', '6 000 кг'),
+    ('09-01', '0 кг'),
+  ];
+
+  _showHomeTableSheet(
+    context,
+    title: 'Город по дням',
+    icon: Icons.location_city_rounded,
+    headers: const ['ДАТА', 'ГОРОД'],
+    rows: rows,
+  );
+}
+
+void _showDistrictSheet(BuildContext context) {
+  const rows = [
+    ('09-18', '0 кг'),
+    ('09-17', '2 000 кг'),
+    ('09-16', '4 171 кг'),
+    ('09-15', '3 500 кг'),
+    ('09-14', '2 003 кг'),
+    ('09-11', '4 000 кг'),
+    ('09-10', '4 365 кг'),
+    ('09-09', '2 281 кг'),
+    ('09-08', '4 346 кг'),
+    ('09-07', '3 454 кг'),
+    ('09-04', '3 500 кг'),
+    ('09-03', '3 462 кг'),
+    ('09-02', '4 000 кг'),
+    ('09-01', '0 кг'),
+  ];
+
+  _showHomeTableSheet(
+    context,
+    title: 'Район по дням',
+    icon: Icons.terrain_rounded,
+    headers: const ['ДАТА', 'РАЙОН'],
+    rows: rows,
+  );
+}
+
+void _showGasSheet(BuildContext context) {
+  const rows = [
+    ['09-15', '06:52', '500 л'],
+    ['09-09', '07:02', '400 л'],
+    ['09-01', '11:52', '500 л'],
+    ['09-01', '04:07', '145 л'],
+  ];
+
+  _showHomeSheet(
+    context,
+    title: 'Газ',
+    icon: Icons.local_gas_station_outlined,
+    maxHeightFactor: 0.42,
+    child: Column(
+      children: [
+        const _HomeSheetHeader(
+          columns: ['ДАТА', 'ВРЕМЯ', 'ЛИТРЫ'],
+          flexes: [2, 2, 2],
+        ),
+        ...rows.map(
+          (row) => _HomeSheetRow(
+            cells: row,
+            flexes: const [2, 2, 2],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+void _showPetrolSheet(BuildContext context) {
+  const rows = [
+    ['09-01', '11:52', '20 л'],
+  ];
+
+  _showHomeSheet(
+    context,
+    title: 'Бензин',
+    icon: Icons.local_gas_station_rounded,
+    maxHeightFactor: 0.32,
+    child: Column(
+      children: [
+        const _HomeSheetHeader(
+          columns: ['ДАТА', 'ВРЕМЯ', 'ЛИТРЫ'],
+          flexes: [2, 2, 2],
+        ),
+        ...rows.map(
+          (row) => _HomeSheetRow(
+            cells: row,
+            flexes: const [2, 2, 2],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+void _showPaidRoutesSheet(BuildContext context) {
+  const rows = [
+    ['09-11', 'Щучинск', 'район', '4 000 кг'],
+    ['09-04', 'Новоишимское', 'район', '3 500 кг'],
+    ['09-02', 'Щучинск', 'район', '4 000 кг'],
+  ];
+
+  _showHomeSheet(
+    context,
+    title: 'Платные направления',
+    icon: Icons.route_outlined,
+    maxHeightFactor: 0.38,
+    child: Column(
+      children: [
+        const _HomeSheetHeader(
+          columns: ['ДАТА', 'КУДА', 'ТИП', 'ВЕС'],
+          flexes: [2, 3, 2, 2],
+        ),
+        ...rows.map(
+          (row) => _HomeSheetRow(
+            cells: row,
+            flexes: const [2, 3, 2, 2],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+void _showHomeTableSheet(
+  BuildContext context, {
+  required String title,
+  required IconData icon,
+  required List<String> headers,
+  required List<(String, String)> rows,
+}) {
+  _showHomeSheet(
+    context,
+    title: title,
+    icon: icon,
+    maxHeightFactor: 0.67,
+    child: Column(
+      children: [
+        _HomeSheetHeader(
+          columns: headers,
+          flexes: const [2, 3],
+        ),
+        ...rows.map(
+          (row) => _HomeSheetRow(
+            cells: [row.$1, row.$2],
+            flexes: const [2, 3],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Future<void> _showHomeSheet(
+  BuildContext context, {
+  required String title,
+  required IconData icon,
+  required Widget child,
+  required double maxHeightFactor,
+}) async {
+  HapticFeedback.mediumImpact();
+
+  await showGeneralDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: 'Закрыть',
+    barrierColor: Colors.transparent,
+    transitionDuration: const Duration(milliseconds: 260),
+    pageBuilder: (dialogContext, animation, secondaryAnimation) {
+      final height = MediaQuery.sizeOf(dialogContext).height;
+
+      return Material(
+        color: Colors.transparent,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => Navigator.of(dialogContext).pop(),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(
+                    sigmaX: 7,
+                    sigmaY: 7,
+                  ),
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.66),
+                  ),
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: SafeArea(
+                top: false,
+                child: Container(
+                  width: double.infinity,
+                  constraints: BoxConstraints(
+                    maxHeight: height * maxHeightFactor,
+                  ),
+                  margin: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 22),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF111214),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(31),
+                    ),
+                    border: Border.all(
+                      color: const Color(0xFF7A421C),
+                      width: 1,
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x66000000),
+                        blurRadius: 34,
+                        offset: Offset(0, -10),
+                      ),
+                      BoxShadow(
+                        color: Color(0x22FF7418),
+                        blurRadius: 32,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF17120E),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: const Color(0xFF693A18),
+                              ),
+                            ),
+                            child: Icon(
+                              icon,
+                              color: AppColors.orange,
+                              size: 21,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                color: AppColors.text,
+                                fontSize: 21,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () =>
+                                Navigator.of(dialogContext).pop(),
+                            style: IconButton.styleFrom(
+                              backgroundColor: const Color(0xFF171719),
+                              side: const BorderSide(
+                                color: Color(0xFF4B3525),
+                              ),
+                            ),
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: AppColors.textSoft,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      const Divider(
+                        height: 1,
+                        color: Color(0xFF3D281A),
+                      ),
+                      const SizedBox(height: 10),
+                      Flexible(
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          child: child,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+    transitionBuilder: (
+      context,
+      animation,
+      secondaryAnimation,
+      child,
+    ) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+
+      return FadeTransition(
+        opacity: curved,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.12),
+            end: Offset.zero,
+          ).animate(curved),
+          child: child,
+        ),
+      );
+    },
+  );
+}
+
+class _HomeSheetHeader extends StatelessWidget {
+  final List<String> columns;
+  final List<int> flexes;
+
+  const _HomeSheetHeader({
+    required this.columns,
+    required this.flexes,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 6,
+        vertical: 10,
+      ),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: Color(0xFF3B281B),
+          ),
+        ),
+      ),
+      child: Row(
+        children: List.generate(columns.length, (index) {
+          return Expanded(
+            flex: flexes[index],
+            child: Text(
+              columns[index],
+              style: const TextStyle(
+                color: AppColors.textSoft,
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _HomeSheetRow extends StatelessWidget {
+  final List<String> cells;
+  final List<int> flexes;
+
+  const _HomeSheetRow({
+    required this.cells,
+    required this.flexes,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 6,
+        vertical: 13,
+      ),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: Color(0xFF332217),
+          ),
+        ),
+      ),
+      child: Row(
+        children: List.generate(cells.length, (index) {
+          return Expanded(
+            flex: flexes[index],
+            child: Text(
+              cells[index],
+              style: const TextStyle(
+                color: AppColors.text,
+                fontSize: 12,
+                height: 1.2,
+              ),
+            ),
+          );
+        }),
+      ),
     );
   }
 }
