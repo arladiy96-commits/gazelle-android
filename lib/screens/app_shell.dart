@@ -3249,6 +3249,7 @@ class _TimelineRow extends StatelessWidget {
   }
 }
 
+
 class InvoicesPage extends StatelessWidget {
   final AppSession session;
 
@@ -3261,54 +3262,62 @@ class InvoicesPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return _PageScaffold(
       title: 'Накладные',
-      subtitle: 'Документы и загрузка',
+      subtitle: 'Сегодня • 3 документа',
       trailing: _RoundAction(
         icon: Icons.add_rounded,
         onTap: () => _showFeatureStub(
           context,
-          'Создание накладной',
-          'На следующем этапе подключим существующую механику накладных к серверу.',
+          'Новая накладная',
+          'Следующим шагом подключим сюда твою существующую механику позиций, веса и отметки загрузки.',
         ),
       ),
       children: [
-        _PrimaryActionCard(
-          icon: Icons.note_add_outlined,
-          title: 'Создать накладную',
-          caption: 'Добавить позиции и вес',
-          onTap: () => _showFeatureStub(
+        _InvoiceSummaryCard(
+          onCreate: () => _showFeatureStub(
             context,
-            'Создание накладной',
-            'Каркас готов. Здесь будет твоя текущая логика выбора товаров, веса и отметки загрузки.',
+            'Создать накладную',
+            'Интерфейс уже подготовлен под текущую серверную механику накладных.',
           ),
         ),
         const SizedBox(height: 18),
-        const _SectionTitle(
-          title: 'Сегодня',
-          caption: '3 документа',
-        ),
+        const _SectionTitle(title: 'Сегодня', caption: '12 383 кг'),
         const SizedBox(height: 10),
-        const _InvoiceCard(
+        const _InvoicePremiumCard(
           number: '№ 4821',
           direction: 'Пресновка',
           weight: '2 840 кг',
           time: '07:42',
           status: 'Загружено',
+          items: '6 позиций',
+          accent: AppColors.orange,
         ),
         const SizedBox(height: 10),
-        const _InvoiceCard(
+        const _InvoicePremiumCard(
           number: '№ 4820',
           direction: 'Бишкуль',
           weight: '1 960 кг',
           time: '06:18',
           status: 'Доставлено',
+          items: '4 позиции',
+          accent: AppColors.blue,
         ),
         const SizedBox(height: 10),
-        const _InvoiceCard(
+        const _InvoicePremiumCard(
           number: '№ 4819',
           direction: 'Мамлютка',
           weight: '3 120 кг',
           time: '05:25',
           status: 'Доставлено',
+          items: '8 позиций',
+          accent: AppColors.amber,
+        ),
+        const SizedBox(height: 18),
+        _InvoiceArchiveCard(
+          onTap: () => _showFeatureStub(
+            context,
+            'Архив накладных',
+            'Здесь будет поиск по дате, направлению и номеру накладной.',
+          ),
         ),
       ],
     );
@@ -3328,41 +3337,75 @@ class StatisticsPage extends StatelessWidget {
     return _PageScaffold(
       title: 'Статистика',
       subtitle: 'Сентябрь 2026',
-      trailing: const _StatusPill(
-        text: 'Месяц',
-        color: AppColors.violet,
-      ),
+      trailing: const _StatusPill(text: 'Месяц', color: AppColors.orange),
       children: const [
         _StatisticsHero(),
-        SizedBox(height: 14),
+        SizedBox(height: 12),
         Row(
           children: [
-            Expanded(
-              child: _MetricCard(
-                title: 'Пробег',
-                value: '2 418 км',
-                caption: 'за месяц',
-                icon: Icons.route_outlined,
-                accent: AppColors.blue,
-              ),
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: _MetricCard(
-                title: 'Тоннаж',
-                value: '164.8 т',
-                caption: 'за месяц',
-                icon: Icons.scale_outlined,
-                accent: AppColors.amber,
-              ),
-            ),
+            Expanded(child: _StatPremiumTile(
+              title: 'Пробег',
+              value: '0 км',
+              caption: 'за месяц',
+              icon: Icons.route_rounded,
+              accent: AppColors.blue,
+            )),
+            SizedBox(width: 10),
+            Expanded(child: _StatPremiumTile(
+              title: 'Рейсы',
+              value: '29',
+              caption: 'выполнено',
+              icon: Icons.local_shipping_outlined,
+              accent: AppColors.orange,
+            )),
           ],
         ),
-        SizedBox(height: 18),
-        _SectionTitle(
-          title: 'Динамика',
-          caption: 'Последние 14 дней',
+        SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(child: _StatPremiumTile(
+              title: 'Город',
+              value: '58 800 кг',
+              caption: '59%',
+              icon: Icons.apartment_rounded,
+              accent: Color(0xFF67E56A),
+            )),
+            SizedBox(width: 10),
+            Expanded(child: _StatPremiumTile(
+              title: 'Район',
+              value: '41 082 кг',
+              caption: '41%',
+              icon: Icons.landscape_outlined,
+              accent: AppColors.amber,
+            )),
+          ],
         ),
+        SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(child: _StatPremiumTile(
+              title: 'Газ',
+              value: '1 545 л',
+              caption: 'за месяц',
+              icon: Icons.local_gas_station_outlined,
+              accent: AppColors.blue,
+            )),
+            SizedBox(width: 10),
+            Expanded(child: _StatPremiumTile(
+              title: 'Бензин',
+              value: '20 л',
+              caption: 'за месяц',
+              icon: Icons.local_gas_station_rounded,
+              accent: AppColors.violet,
+            )),
+          ],
+        ),
+        SizedBox(height: 10),
+        _PaidRoutesStatCard(),
+        SizedBox(height: 18),
+        _TonnageSplitCard(),
+        SizedBox(height: 18),
+        _SectionTitle(title: 'Динамика тоннажа', caption: 'Месяц'),
         SizedBox(height: 10),
         _ChartCard(),
         SizedBox(height: 18),
@@ -3371,6 +3414,264 @@ class StatisticsPage extends StatelessWidget {
     );
   }
 }
+
+class _InvoiceSummaryCard extends StatelessWidget {
+  final VoidCallback onCreate;
+  const _InvoiceSummaryCard({required this.onCreate});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: _premiumDecoration(radius: 26),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const _SquareIcon(icon: Icons.receipt_long_rounded, color: AppColors.orange),
+              const SizedBox(width: 13),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Документы смены', style: TextStyle(color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w800)),
+                    SizedBox(height: 3),
+                    Text('3 накладные • 12 383 кг', style: TextStyle(color: AppColors.textSoft, fontSize: 11)),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0x1AFF7A1A),
+                  borderRadius: BorderRadius.circular(99),
+                  border: Border.all(color: const Color(0x664A3320)),
+                ),
+                child: const Text('СЕГОДНЯ', style: TextStyle(color: AppColors.orangeSoft, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: .8)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: () { HapticFeedback.selectionClick(); onCreate(); },
+            child: Container(
+              height: 52,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [Color(0xFFFF7417), Color(0xFFFFA51F)]),
+                borderRadius: BorderRadius.circular(17),
+                boxShadow: const [BoxShadow(color: Color(0x33FF7A1A), blurRadius: 18, offset: Offset(0, 7))],
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_rounded, color: Colors.black, size: 22),
+                  SizedBox(width: 8),
+                  Text('Создать накладную', style: TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.w900)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InvoicePremiumCard extends StatelessWidget {
+  final String number, direction, weight, time, status, items;
+  final Color accent;
+  const _InvoicePremiumCard({
+    required this.number, required this.direction, required this.weight,
+    required this.time, required this.status, required this.items, required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _premiumDecoration(radius: 22),
+      child: Row(
+        children: [
+          Container(
+            width: 48, height: 48,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: .09),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: accent.withValues(alpha: .35)),
+            ),
+            child: Icon(Icons.description_outlined, color: accent, size: 23),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Expanded(child: Text(direction, style: const TextStyle(color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w900))),
+                  Text(time, style: const TextStyle(color: AppColors.textDim, fontSize: 10)),
+                ]),
+                const SizedBox(height: 5),
+                Text('$weight  •  $items', style: const TextStyle(color: AppColors.textSoft, fontSize: 11)),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Text(number, style: const TextStyle(color: AppColors.textDim, fontSize: 10)),
+                  const Spacer(),
+                  Container(width: 6, height: 6, decoration: BoxDecoration(color: accent, shape: BoxShape.circle)),
+                  const SizedBox(width: 6),
+                  Text(status, style: TextStyle(color: accent, fontSize: 10, fontWeight: FontWeight.w800)),
+                ]),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Icon(Icons.chevron_right_rounded, color: AppColors.textDim, size: 20),
+        ],
+      ),
+    );
+  }
+}
+
+class _InvoiceArchiveCard extends StatelessWidget {
+  final VoidCallback onTap;
+  const _InvoiceArchiveCard({required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+        decoration: _premiumDecoration(radius: 20),
+        child: const Row(
+          children: [
+            Icon(Icons.history_rounded, color: AppColors.orange, size: 21),
+            SizedBox(width: 12),
+            Expanded(child: Text('Архив накладных', style: TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w800))),
+            Text('Поиск и история', style: TextStyle(color: AppColors.textDim, fontSize: 10)),
+            SizedBox(width: 5),
+            Icon(Icons.chevron_right_rounded, color: AppColors.orange, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatPremiumTile extends StatelessWidget {
+  final String title, value, caption;
+  final IconData icon;
+  final Color accent;
+  const _StatPremiumTile({required this.title, required this.value, required this.caption, required this.icon, required this.accent});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 126,
+      padding: const EdgeInsets.all(15),
+      decoration: _premiumDecoration(radius: 22),
+      child: Stack(
+        children: [
+          Positioned(top: 0, right: 0, child: Icon(icon, color: accent, size: 22)),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title.toUpperCase(), style: const TextStyle(color: AppColors.textSoft, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: .7)),
+              const Spacer(),
+              FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: const TextStyle(color: AppColors.text, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -.5))),
+              const SizedBox(height: 4),
+              Text(caption, style: const TextStyle(color: AppColors.textDim, fontSize: 10)),
+              const SizedBox(height: 9),
+              Container(height: 3, decoration: BoxDecoration(borderRadius: BorderRadius.circular(99), gradient: LinearGradient(colors: [accent, accent.withValues(alpha: .08)]))),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaidRoutesStatCard extends StatelessWidget {
+  const _PaidRoutesStatCard();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _premiumDecoration(radius: 22),
+      child: const Row(
+        children: [
+          _SquareIcon(icon: Icons.alt_route_rounded, color: AppColors.orange),
+          SizedBox(width: 13),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('ПЛАТНЫЕ НАПРАВЛЕНИЯ', style: TextStyle(color: AppColors.textSoft, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: .7)),
+              SizedBox(height: 5),
+              Text('3 рейса', style: TextStyle(color: AppColors.text, fontSize: 20, fontWeight: FontWeight.w900)),
+            ],
+          )),
+          Icon(Icons.arrow_forward_rounded, color: AppColors.orange, size: 21),
+        ],
+      ),
+    );
+  }
+}
+
+class _TonnageSplitCard extends StatelessWidget {
+  const _TonnageSplitCard();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: _premiumDecoration(radius: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.scale_outlined, color: AppColors.orange, size: 21),
+              SizedBox(width: 9),
+              Expanded(child: Text('Тоннаж по направлениям', style: TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w900))),
+              Text('99 882 кг', style: TextStyle(color: AppColors.textSoft, fontSize: 11)),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              const SizedBox(width: 120, height: 120, child: _RingProgress(progress: .59, centerTitle: '99 882', centerCaption: 'кг')),
+              const SizedBox(width: 18),
+              Expanded(child: Column(
+                children: [
+                  _TonnageLegend(color: AppColors.orange, title: 'Город', value: '58 800 кг', percent: '59%'),
+                  SizedBox(height: 15),
+                  _TonnageLegend(color: AppColors.amber, title: 'Район', value: '41 082 кг', percent: '41%'),
+                ],
+              )),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TonnageLegend extends StatelessWidget {
+  final Color color;
+  final String title, value, percent;
+  const _TonnageLegend({required this.color, required this.title, required this.value, required this.percent});
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(width: 9, height: 9, decoration: BoxDecoration(color: color, shape: BoxShape.circle, boxShadow: [BoxShadow(color: color.withValues(alpha: .35), blurRadius: 8)])),
+        const SizedBox(width: 9),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(color: AppColors.textSoft, fontSize: 11)),
+          const SizedBox(height: 3),
+          Text('$value ($percent)', style: const TextStyle(color: AppColors.text, fontSize: 11, fontWeight: FontWeight.w800)),
+        ])),
+      ],
+    );
+  }
+}
+
 
 class SearchPage extends StatefulWidget {
   final AppSession session;
@@ -4495,64 +4796,44 @@ class _InvoiceCard extends StatelessWidget {
   }
 }
 
+
 class _StatisticsHero extends StatelessWidget {
   const _StatisticsHero();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 174,
+      height: 184,
       padding: const EdgeInsets.all(19),
-      decoration: _premiumDecoration(),
+      decoration: _premiumDecoration(radius: 26),
       child: const Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Заработок',
-                  style: TextStyle(
-                    color: AppColors.textSoft,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  '286 400 ₸',
-                  style: TextStyle(
-                    color: AppColors.text,
-                    fontSize: 29,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -1,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  '+7.4% к прошлой неделе',
-                  style: TextStyle(
-                    color: AppColors.orangeSoft,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                Text('ЗАРПЛАТА ЗА СЕНТЯБРЬ 2026 Г.', style: TextStyle(color: AppColors.textSoft, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: .7)),
+                SizedBox(height: 9),
+                Text('312 105,8 ₸', style: TextStyle(color: AppColors.text, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -1)),
+                SizedBox(height: 7),
+                Text('154 / 176 ч', style: TextStyle(color: AppColors.textSoft, fontSize: 11)),
                 Spacer(),
-                Text(
-                  '87 рейсов • 14 рабочих дней',
-                  style: TextStyle(
-                    color: AppColors.textDim,
-                    fontSize: 10,
+                Text('Выполнение месячного плана', style: TextStyle(color: AppColors.textDim, fontSize: 9)),
+                SizedBox(height: 7),
+                ClipRRect(
+                  borderRadius: BorderRadius.all(Radius.circular(99)),
+                  child: LinearProgressIndicator(
+                    value: .88,
+                    minHeight: 5,
+                    backgroundColor: Color(0xFF24262A),
+                    color: AppColors.orange,
                   ),
                 ),
               ],
             ),
           ),
-          _RingProgress(
-            progress: 0.68,
-            centerTitle: '68%',
-            centerCaption: 'цель',
-          ),
+          SizedBox(width: 16),
+          _RingProgress(progress: .88, centerTitle: '88%', centerCaption: 'план'),
         ],
       ),
     );
@@ -4567,11 +4848,7 @@ class _ChartCard extends StatelessWidget {
     return Container(
       height: 190,
       padding: const EdgeInsets.fromLTRB(14, 20, 14, 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.line),
-      ),
+      decoration: _premiumDecoration(radius: 24),
       child: CustomPaint(
         painter: _ChartPainter(),
         child: const SizedBox.expand(),
