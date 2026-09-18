@@ -2885,14 +2885,20 @@ void _openSimpleEntry(BuildContext context, String title, String hint) {
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _EntryShell(
+    builder: (sheetContext) => _EntryShell(
       title: title,
       icon: title == 'Вес' ? Icons.scale_outlined : Icons.speed_rounded,
       child: Column(
         children: [
           _NumberField(controller: controller, hint: hint),
           const SizedBox(height: 18),
-          _SaveButton(text: 'Сохранить', onTap: () { HapticFeedback.mediumImpact(); Navigator.pop(_); }),
+          _SaveButton(
+            text: 'Сохранить',
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              Navigator.pop(sheetContext);
+            },
+          ),
         ],
       ),
     ),
@@ -4924,6 +4930,7 @@ class _AmbientGlow extends StatelessWidget {
 
 BoxDecoration _premiumDecoration({
   Color accent = AppColors.orange,
+  double radius = 28,
 }) {
   return BoxDecoration(
     gradient: const LinearGradient(
@@ -4934,7 +4941,7 @@ BoxDecoration _premiumDecoration({
         Color(0xFF111318),
       ],
     ),
-    borderRadius: BorderRadius.circular(28),
+    borderRadius: BorderRadius.circular(radius),
     border: Border.all(
       color: accent.withValues(alpha: 0.24),
     ),
