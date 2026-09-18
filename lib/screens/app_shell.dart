@@ -27,45 +27,17 @@ class _AppShellState extends State<AppShell> {
   List<_NavItem> get _items {
     if (widget.session.role == AppRole.loader) {
       return const [
-        _NavItem(
-          label: 'Смена',
-          icon: Icons.schedule_outlined,
-          activeIcon: Icons.schedule_rounded,
-        ),
-        _NavItem(
-          label: 'История',
-          icon: Icons.history_outlined,
-          activeIcon: Icons.history_rounded,
-        ),
+        _NavItem(label: 'Смена', icon: Icons.schedule_outlined, activeIcon: Icons.schedule_rounded),
+        _NavItem(label: 'История', icon: Icons.history_outlined, activeIcon: Icons.history_rounded),
       ];
     }
 
     return const [
-      _NavItem(
-        label: 'Главная',
-        icon: Icons.grid_view_outlined,
-        activeIcon: Icons.grid_view_rounded,
-      ),
-      _NavItem(
-        label: 'Работа',
-        icon: Icons.local_shipping_outlined,
-        activeIcon: Icons.local_shipping_rounded,
-      ),
-      _NavItem(
-        label: 'Накладные',
-        icon: Icons.receipt_long_outlined,
-        activeIcon: Icons.receipt_long_rounded,
-      ),
-      _NavItem(
-        label: 'Статистика',
-        icon: Icons.bar_chart_outlined,
-        activeIcon: Icons.bar_chart_rounded,
-      ),
-      _NavItem(
-        label: 'Поиск',
-        icon: Icons.search_outlined,
-        activeIcon: Icons.search_rounded,
-      ),
+      _NavItem(label: 'Главная', icon: Icons.home_outlined, activeIcon: Icons.home_rounded),
+      _NavItem(label: 'Работа', icon: Icons.local_shipping_outlined, activeIcon: Icons.local_shipping_rounded),
+      _NavItem(label: '', icon: Icons.add_rounded, activeIcon: Icons.add_rounded),
+      _NavItem(label: 'Накладные', icon: Icons.receipt_long_outlined, activeIcon: Icons.receipt_long_rounded),
+      _NavItem(label: 'Статистика', icon: Icons.bar_chart_outlined, activeIcon: Icons.bar_chart_rounded),
     ];
   }
 
@@ -82,8 +54,20 @@ class _AppShellState extends State<AppShell> {
       WorkPage(session: widget.session),
       InvoicesPage(session: widget.session),
       StatisticsPage(session: widget.session),
-      SearchPage(session: widget.session),
     ];
+  }
+
+  int get _pageIndex {
+    if (widget.session.role == AppRole.loader) return _index;
+    if (_index <= 1) return _index;
+    if (_index == 3) return 2;
+    if (_index == 4) return 3;
+    return 0;
+  }
+
+  void _openQuickAdd() {
+    HapticFeedback.mediumImpact();
+    _showQuickAddSheet(context);
   }
 
   Future<void> _logout() async {
@@ -116,7 +100,7 @@ class _AppShellState extends State<AppShell> {
           SafeArea(
             bottom: false,
             child: IndexedStack(
-              index: _index,
+              index: _pageIndex,
               children: pages,
             ),
           ),
@@ -126,6 +110,10 @@ class _AppShellState extends State<AppShell> {
         items: items,
         index: _index,
         onChanged: (value) {
+          if (widget.session.role != AppRole.loader && value == 2) {
+            _openQuickAdd();
+            return;
+          }
           HapticFeedback.selectionClick();
           setState(() => _index = value);
         },
@@ -162,30 +150,56 @@ class _BottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasCenterAdd = items.length == 5 && items[2].label.isEmpty;
+
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xF80B0D10),
-        border: Border(
-          top: BorderSide(color: AppColors.line),
-        ),
+        color: Color(0xFA090B0E),
+        border: Border(top: BorderSide(color: AppColors.line)),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black,
-            blurRadius: 24,
-            offset: Offset(0, -8),
-          ),
+          BoxShadow(color: Colors.black, blurRadius: 26, offset: Offset(0, -8)),
         ],
       ),
       padding: EdgeInsets.only(
         left: 8,
         right: 8,
-        top: 8,
+        top: 7,
         bottom: MediaQuery.paddingOf(context).bottom + 7,
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: List.generate(items.length, (i) {
           final item = items[i];
-          final active = i == index;
+          final center = hasCenterAdd && i == 2;
+          final active = !center && i == index;
+
+          if (center) {
+            return Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => onChanged(i),
+                child: Transform.translate(
+                  offset: const Offset(0, -9),
+                  child: Center(
+                    child: Container(
+                      width: 58,
+                      height: 58,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF17120E),
+                        border: Border.all(color: AppColors.orange, width: 1.4),
+                        boxShadow: const [
+                          BoxShadow(color: Color(0x66FF7818), blurRadius: 22),
+                          BoxShadow(color: Colors.black, blurRadius: 12, offset: Offset(0, 6)),
+                        ],
+                      ),
+                      child: const Icon(Icons.add_rounded, color: AppColors.orange, size: 32),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
 
           return Expanded(
             child: GestureDetector(
@@ -196,16 +210,13 @@ class _BottomNavigation extends StatelessWidget {
                 duration: const Duration(milliseconds: 190),
                 curve: Curves.easeOutCubic,
                 height: 58,
-                margin: const EdgeInsets.symmetric(horizontal: 2),
+                margin: const EdgeInsets.symmetric(horizontal: 1),
                 decoration: BoxDecoration(
-                  color: active
-                      ? const Color(0xFF19150F)
-                      : Colors.transparent,
+                  color: active ? const Color(0xFF19150F) : Colors.transparent,
                   borderRadius: BorderRadius.circular(18),
-                  border: active
-                      ? Border.all(
-                          color: const Color(0xFF3B2B1C),
-                        )
+                  border: active ? Border.all(color: const Color(0xFF49301B)) : null,
+                  boxShadow: active
+                      ? const [BoxShadow(color: Color(0x33FF7818), blurRadius: 16)]
                       : null,
                 ),
                 child: Column(
@@ -214,23 +225,16 @@ class _BottomNavigation extends StatelessWidget {
                     Icon(
                       active ? item.activeIcon : item.icon,
                       size: 22,
-                      color: active
-                          ? AppColors.orange
-                          : AppColors.textDim,
+                      color: active ? AppColors.orange : AppColors.textDim,
                     ),
                     const SizedBox(height: 4),
                     Text(
                       item.label,
                       maxLines: 1,
-                      overflow: TextOverflow.fade,
                       style: TextStyle(
-                        color: active
-                            ? AppColors.text
-                            : AppColors.textDim,
-                        fontSize: items.length > 3 ? 9.4 : 11,
-                        fontWeight: active
-                            ? FontWeight.w700
-                            : FontWeight.w600,
+                        color: active ? AppColors.orange : AppColors.textDim,
+                        fontSize: 9.2,
+                        fontWeight: active ? FontWeight.w700 : FontWeight.w600,
                       ),
                     ),
                   ],
@@ -410,8 +414,47 @@ class _HomeTopBar extends StatelessWidget {
           ),
         ),
         const Spacer(),
+        _HomeSearchButton(session: session),
+        const SizedBox(width: 8),
         const _HomeShiftPill(),
       ],
+    );
+  }
+}
+
+class _HomeSearchButton extends StatelessWidget {
+  final AppSession session;
+  const _HomeSearchButton({required this.session});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => Scaffold(
+              body: Stack(
+                children: [
+                  const _AppBackground(),
+                  SafeArea(child: SearchPage(session: session)),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: const Color(0xB5121418),
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(color: const Color(0xFF35271D)),
+        ),
+        child: const Icon(Icons.search_rounded, color: AppColors.textSoft, size: 23),
+      ),
     );
   }
 }
@@ -2319,47 +2362,720 @@ class WorkPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return _PageScaffold(
       title: 'Работа',
-      subtitle: 'Текущая открытая смена',
-      trailing: const _StatusPill(
-        text: 'Смена открыта',
-        color: AppColors.orange,
-      ),
+      subtitle: 'Текущая смена',
+      trailing: const _StatusPill(text: 'На смене', color: AppColors.green),
       children: const [
-        _WorkHero(),
-        SizedBox(height: 14),
-        Row(
-          children: [
-            Expanded(
-              child: _MetricCard(
-                title: 'Текущий пробег',
-                value: '184 км',
-                caption: 'GPS',
-                icon: Icons.speed_rounded,
-                accent: AppColors.blue,
+        _LiveRouteCard(),
+        SizedBox(height: 12),
+        _GpsStrip(),
+        SizedBox(height: 12),
+        _TodayMetrics(),
+        SizedBox(height: 12),
+        _OdometerCard(),
+        SizedBox(height: 12),
+        _FuelTodayCard(),
+        SizedBox(height: 18),
+        _SectionTitle(title: 'Ход смены', caption: 'Сегодня'),
+        SizedBox(height: 10),
+        _ShiftTimeline(),
+      ],
+    );
+  }
+}
+
+class _LiveRouteCard extends StatelessWidget {
+  const _LiveRouteCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: _premiumDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('МАРШРУТ СМЕНЫ', style: TextStyle(color: AppColors.textSoft, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.0)),
+                    SizedBox(height: 5),
+                    Text('Пресновка', style: TextStyle(color: AppColors.text, fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -.6)),
+                  ],
+                ),
+              ),
+              _StatusPill(text: 'LIVE', color: AppColors.orange),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            height: 205,
+            decoration: BoxDecoration(
+              color: const Color(0xFF0B0E12),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: const Color(0xFF4A3020)),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(21),
+              child: CustomPaint(
+                painter: _RoutePainter(),
+                child: const Stack(
+                  children: [
+                    Positioned(left: 14, bottom: 14, child: _MapMetric(icon: Icons.route_rounded, text: '19,18 км')),
+                    Positioned(right: 14, bottom: 14, child: _MapMetric(icon: Icons.gps_fixed_rounded, text: 'GPS активен')),
+                  ],
+                ),
               ),
             ),
-            SizedBox(width: 12),
-            Expanded(
-              child: _MetricCard(
-                title: 'В пути',
-                value: '5:42',
-                caption: 'часов',
-                icon: Icons.timer_outlined,
-                accent: AppColors.orange,
-              ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MapMetric extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _MapMetric({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xDD0B0D10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF3A2A1E)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.orange, size: 15),
+          const SizedBox(width: 6),
+          Text(text, style: const TextStyle(color: AppColors.text, fontSize: 10.5, fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
+}
+
+class _GpsStrip extends StatelessWidget {
+  const _GpsStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+      decoration: _premiumDecoration(radius: 20),
+      child: Row(
+        children: [
+          const _GlowDot(color: AppColors.green),
+          const SizedBox(width: 9),
+          const Expanded(
+            child: Text('GPS включён', style: TextStyle(color: AppColors.text, fontSize: 12, fontWeight: FontWeight.w700)),
+          ),
+          const Text('19,18 км', style: TextStyle(color: AppColors.orange, fontSize: 13, fontWeight: FontWeight.w800)),
+          const SizedBox(width: 10),
+          Container(width: 1, height: 24, color: AppColors.line),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: null,
+            child: Text('Пауза', style: TextStyle(color: AppColors.textSoft, fontSize: 11)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TodayMetrics extends StatelessWidget {
+  const _TodayMetrics();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      children: [
+        Expanded(child: _WorkMetricBox(label: 'РЕЙСОВ', value: '3', icon: Icons.local_shipping_outlined)),
+        SizedBox(width: 8),
+        Expanded(child: _WorkMetricBox(label: 'НАПРАВЛЕНИЙ', value: '2', icon: Icons.route_outlined)),
+        SizedBox(width: 8),
+        Expanded(child: _WorkMetricBox(label: 'ВЕС', value: '12 383', suffix: 'кг', icon: Icons.scale_outlined)),
+      ],
+    );
+  }
+}
+
+class _WorkMetricBox extends StatelessWidget {
+  final String label;
+  final String value;
+  final String? suffix;
+  final IconData icon;
+  const _WorkMetricBox({required this.label, required this.value, required this.icon, this.suffix});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 104,
+      padding: const EdgeInsets.all(13),
+      decoration: _premiumDecoration(radius: 20),
+      child: Stack(
+        children: [
+          Positioned(right: 0, top: 0, child: Icon(icon, color: AppColors.orange, size: 21)),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(color: AppColors.textSoft, fontSize: 8.5, letterSpacing: .6)),
+              const Spacer(),
+              Text(value, maxLines: 1, style: const TextStyle(color: AppColors.text, fontSize: 22, fontWeight: FontWeight.w800)),
+              if (suffix != null) Text(suffix!, style: const TextStyle(color: AppColors.textSoft, fontSize: 9)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OdometerCard extends StatelessWidget {
+  const _OdometerCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: _premiumDecoration(),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('ОДОМЕТР', style: TextStyle(color: AppColors.textSoft, fontSize: 10, letterSpacing: .8)),
+                SizedBox(height: 13),
+                Row(
+                  children: [
+                    _OdoValue(label: 'В НАЧАЛЕ', value: '253 546'),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Icon(Icons.arrow_forward_rounded, color: AppColors.orange, size: 22),
+                    ),
+                    _OdoValue(label: 'ТЕКУЩИЙ', value: '253 565'),
+                  ],
+                ),
+                SizedBox(height: 10),
+                Text('+19,18 км за смену', style: TextStyle(color: AppColors.orange, fontSize: 11, fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+          SizedBox(width: 8),
+          _SpeedGauge(value: 74),
+        ],
+      ),
+    );
+  }
+}
+
+class _OdoValue extends StatelessWidget {
+  final String label;
+  final String value;
+  const _OdoValue({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: AppColors.textDim, fontSize: 8)),
+        const SizedBox(height: 3),
+        Text(value, style: const TextStyle(color: AppColors.text, fontSize: 17, fontWeight: FontWeight.w800)),
+        const Text('км', style: TextStyle(color: AppColors.textSoft, fontSize: 8)),
+      ],
+    );
+  }
+}
+
+class _FuelTodayCard extends StatelessWidget {
+  const _FuelTodayCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: _premiumDecoration(),
+      child: const Column(
+        children: [
+          _FuelLine(label: 'ГАЗ', value: 'не заполнено', color: AppColors.blue),
+          SizedBox(height: 17),
+          _FuelLine(label: 'БЕНЗИН', value: 'не заполнено', color: AppColors.violet),
+        ],
+      ),
+    );
+  }
+}
+
+class _FuelLine extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _FuelLine({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(Icons.local_gas_station_rounded, color: color, size: 20),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(color: AppColors.text, fontSize: 11, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 3),
+              Text(value, style: const TextStyle(color: AppColors.textSoft, fontSize: 10)),
+            ],
+          ),
+        ),
+        Container(width: 80, height: 4, decoration: BoxDecoration(color: color.withValues(alpha: .20), borderRadius: BorderRadius.circular(10))),
+      ],
+    );
+  }
+}
+
+class _ShiftTimeline extends StatelessWidget {
+  const _ShiftTimeline();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      decoration: _premiumDecoration(),
+      child: const Column(
+        children: [
+          _TimelineItem(time: '05:48', title: 'Смена открыта', icon: Icons.play_arrow_rounded),
+          _TimelineItem(time: '06:15', title: 'Рейс · Пресновка', icon: Icons.local_shipping_outlined),
+          _TimelineItem(time: '07:02', title: 'Газ · 400 л', icon: Icons.local_gas_station_outlined),
+          _TimelineItem(time: '09:10', title: 'Рейс · Щучинск', icon: Icons.route_outlined, last: true),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimelineItem extends StatelessWidget {
+  final String time;
+  final String title;
+  final IconData icon;
+  final bool last;
+  const _TimelineItem({required this.time, required this.title, required this.icon, this.last = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 11),
+      decoration: BoxDecoration(border: last ? null : const Border(bottom: BorderSide(color: AppColors.line))),
+      child: Row(
+        children: [
+          Container(
+            width: 34, height: 34,
+            decoration: BoxDecoration(color: const Color(0xFF1A140F), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF4A301E))),
+            child: Icon(icon, color: AppColors.orange, size: 17),
+          ),
+          const SizedBox(width: 11),
+          Expanded(child: Text(title, style: const TextStyle(color: AppColors.text, fontSize: 11.5, fontWeight: FontWeight.w600))),
+          Text(time, style: const TextStyle(color: AppColors.textSoft, fontSize: 10)),
+        ],
+      ),
+    );
+  }
+}
+
+Future<void> _showQuickAddSheet(BuildContext context) async {
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withValues(alpha: .78),
+    builder: (sheetContext) => const _QuickAddSheet(),
+  );
+}
+
+class _QuickAddSheet extends StatelessWidget {
+  const _QuickAddSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+        padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF101114),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: const Color(0xFF5A361E)),
+          boxShadow: const [BoxShadow(color: Color(0x66FF7818), blurRadius: 28)],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 42, height: 4, decoration: BoxDecoration(color: const Color(0xFF4A4B50), borderRadius: BorderRadius.circular(8))),
+            const SizedBox(height: 16),
+            const Row(
+              children: [
+                Text('Добавить', style: TextStyle(color: AppColors.text, fontSize: 22, fontWeight: FontWeight.w800)),
+                Spacer(),
+                Text('Текущая смена', style: TextStyle(color: AppColors.textSoft, fontSize: 10)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(child: _QuickChoice(icon: Icons.local_shipping_outlined, title: 'Рейс', onTap: () => _openTripFlow(context))),
+                const SizedBox(width: 9),
+                Expanded(child: _QuickChoice(icon: Icons.scale_outlined, title: 'Вес', onTap: () => _openSimpleEntry(context, 'Вес', 'Введите вес, кг'))),
+              ],
+            ),
+            const SizedBox(height: 9),
+            Row(
+              children: [
+                Expanded(child: _QuickChoice(icon: Icons.local_gas_station_outlined, title: 'Топливо', onTap: () => _openFuelFlow(context))),
+                const SizedBox(width: 9),
+                Expanded(child: _QuickChoice(icon: Icons.speed_rounded, title: 'Одометр', onTap: () => _openSimpleEntry(context, 'Одометр', 'Текущее значение, км'))),
+              ],
             ),
           ],
         ),
-        SizedBox(height: 18),
-        _SectionTitle(
-          title: 'Маршрут смены',
-          caption: 'GPS',
+      ),
+    );
+  }
+}
+
+class _QuickChoice extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+  const _QuickChoice({required this.icon, required this.title, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: Container(
+        height: 92,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF151619),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFF3B2A1E)),
         ),
-        SizedBox(height: 10),
-        _RoutePreview(),
-        SizedBox(height: 18),
-        _ActionRow(),
-      ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: AppColors.orange, size: 23),
+            const Spacer(),
+            Text(title, style: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w700)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+void _openTripFlow(BuildContext context) {
+  Navigator.pop(context);
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => const _TripEntrySheet(),
+  );
+}
+
+class _TripEntrySheet extends StatefulWidget {
+  const _TripEntrySheet();
+  @override
+  State<_TripEntrySheet> createState() => _TripEntrySheetState();
+}
+
+class _TripEntrySheetState extends State<_TripEntrySheet> {
+  String type = 'Город';
+  String direction = 'Пресновка';
+
+  @override
+  Widget build(BuildContext context) {
+    final directions = type == 'Город'
+        ? const ['Петропавловск', 'Бишкуль']
+        : const ['Пресновка', 'Щучинск', 'Новоишимское'];
+    if (!directions.contains(direction)) direction = directions.first;
+
+    return _EntryShell(
+      title: 'Новый рейс',
+      icon: Icons.local_shipping_outlined,
+      child: Column(
+        children: [
+          _SegmentedChoice(values: const ['Город', 'Район'], selected: type, onChanged: (v) => setState(() { type = v; direction = v == 'Город' ? 'Петропавловск' : 'Пресновка'; })),
+          const SizedBox(height: 14),
+          _ChoiceField(
+            label: 'НАПРАВЛЕНИЕ',
+            value: direction,
+            onTap: () async {
+              final value = await _pickValue(context, 'Направление', directions);
+              if (value != null) setState(() => direction = value);
+            },
+          ),
+          const SizedBox(height: 18),
+          _SaveButton(text: 'Добавить рейс', onTap: () { HapticFeedback.mediumImpact(); Navigator.pop(context); }),
+        ],
+      ),
+    );
+  }
+}
+
+void _openFuelFlow(BuildContext context) {
+  Navigator.pop(context);
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => const _FuelEntrySheet(),
+  );
+}
+
+class _FuelEntrySheet extends StatefulWidget {
+  const _FuelEntrySheet();
+  @override
+  State<_FuelEntrySheet> createState() => _FuelEntrySheetState();
+}
+
+class _FuelEntrySheetState extends State<_FuelEntrySheet> {
+  String fuel = 'Газ';
+  final controller = TextEditingController();
+
+  @override
+  void dispose() { controller.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return _EntryShell(
+      title: 'Топливо',
+      icon: Icons.local_gas_station_outlined,
+      child: Column(
+        children: [
+          _SegmentedChoice(values: const ['Газ', 'Бензин'], selected: fuel, onChanged: (v) => setState(() => fuel = v)),
+          const SizedBox(height: 14),
+          _NumberField(controller: controller, hint: 'Литры'),
+          const SizedBox(height: 18),
+          _SaveButton(text: 'Сохранить', onTap: () { HapticFeedback.mediumImpact(); Navigator.pop(context); }),
+        ],
+      ),
+    );
+  }
+}
+
+void _openSimpleEntry(BuildContext context, String title, String hint) {
+  Navigator.pop(context);
+  final controller = TextEditingController();
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _EntryShell(
+      title: title,
+      icon: title == 'Вес' ? Icons.scale_outlined : Icons.speed_rounded,
+      child: Column(
+        children: [
+          _NumberField(controller: controller, hint: hint),
+          const SizedBox(height: 18),
+          _SaveButton(text: 'Сохранить', onTap: () { HapticFeedback.mediumImpact(); Navigator.pop(_); }),
+        ],
+      ),
+    ),
+  ).whenComplete(controller.dispose);
+}
+
+class _EntryShell extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Widget child;
+  const _EntryShell({required this.title, required this.icon, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF101114),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: const Color(0xFF5A361E)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 42, height: 4, decoration: BoxDecoration(color: const Color(0xFF4A4B50), borderRadius: BorderRadius.circular(8))),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(width: 42, height: 42, decoration: BoxDecoration(color: const Color(0xFF1A140F), borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFF5A361E))), child: Icon(icon, color: AppColors.orange)),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(title, style: const TextStyle(color: AppColors.text, fontSize: 20, fontWeight: FontWeight.w800))),
+                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded, color: AppColors.textSoft)),
+                ],
+              ),
+              const SizedBox(height: 18),
+              child,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SegmentedChoice extends StatelessWidget {
+  final List<String> values;
+  final String selected;
+  final ValueChanged<String> onChanged;
+  const _SegmentedChoice({required this.values, required this.selected, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: values.map((v) {
+        final active = v == selected;
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(right: v == values.first ? 5 : 0, left: v == values.last ? 5 : 0),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () { HapticFeedback.selectionClick(); onChanged(v); },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                height: 50,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: active ? const Color(0xFF25170E) : const Color(0xFF151619),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: active ? AppColors.orange : AppColors.line),
+                ),
+                child: Text(v, style: TextStyle(color: active ? AppColors.orange : AppColors.textSoft, fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _ChoiceField extends StatelessWidget {
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+  const _ChoiceField({required this.label, required this.value, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(17),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(color: const Color(0xFF151619), borderRadius: BorderRadius.circular(17), border: Border.all(color: AppColors.line)),
+        child: Row(
+          children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(label, style: const TextStyle(color: AppColors.textDim, fontSize: 8.5, letterSpacing: .7)),
+              const SizedBox(height: 5),
+              Text(value, style: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w700)),
+            ])),
+            const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.orange),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+Future<String?> _pickValue(BuildContext context, String title, List<String> values) {
+  return showModalBottomSheet<String>(
+    context: context,
+    backgroundColor: const Color(0xFF111215),
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+    builder: (context) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title, style: const TextStyle(color: AppColors.text, fontSize: 17, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 10),
+            ...values.map((v) => ListTile(
+              title: Text(v, style: const TextStyle(color: AppColors.text)),
+              trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.orange),
+              onTap: () => Navigator.pop(context, v),
+            )),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _NumberField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  const _NumberField({required this.controller, required this.hint});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      style: const TextStyle(color: AppColors.text, fontSize: 20, fontWeight: FontWeight.w700),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: AppColors.textDim, fontSize: 14),
+        filled: true,
+        fillColor: const Color(0xFF151619),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(17), borderSide: const BorderSide(color: AppColors.line)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(17), borderSide: const BorderSide(color: AppColors.orange)),
+      ),
+    );
+  }
+}
+
+class _SaveButton extends StatelessWidget {
+  final String text;
+  final VoidCallback onTap;
+  const _SaveButton({required this.text, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.orange,
+          side: const BorderSide(color: AppColors.orange),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17)),
+        ),
+        child: Text(text, style: const TextStyle(fontWeight: FontWeight.w800)),
+      ),
     );
   }
 }
