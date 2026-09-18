@@ -1,0 +1,3079 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../models/app_role.dart';
+import '../services/session_service.dart';
+import '../theme/app_theme.dart';
+import 'login_screen.dart';
+
+class AppShell extends StatefulWidget {
+  final AppSession session;
+
+  const AppShell({
+    super.key,
+    required this.session,
+  });
+
+  @override
+  State<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends State<AppShell> {
+  int _index = 0;
+
+  List<_NavItem> get _items {
+    if (widget.session.role == AppRole.loader) {
+      return const [
+        _NavItem(
+          label: 'Смена',
+          icon: Icons.schedule_outlined,
+          activeIcon: Icons.schedule_rounded,
+        ),
+        _NavItem(
+          label: 'История',
+          icon: Icons.history_outlined,
+          activeIcon: Icons.history_rounded,
+        ),
+      ];
+    }
+
+    return const [
+      _NavItem(
+        label: 'Главная',
+        icon: Icons.grid_view_outlined,
+        activeIcon: Icons.grid_view_rounded,
+      ),
+      _NavItem(
+        label: 'Работа',
+        icon: Icons.local_shipping_outlined,
+        activeIcon: Icons.local_shipping_rounded,
+      ),
+      _NavItem(
+        label: 'Накладные',
+        icon: Icons.receipt_long_outlined,
+        activeIcon: Icons.receipt_long_rounded,
+      ),
+      _NavItem(
+        label: 'Статистика',
+        icon: Icons.bar_chart_outlined,
+        activeIcon: Icons.bar_chart_rounded,
+      ),
+      _NavItem(
+        label: 'Поиск',
+        icon: Icons.search_outlined,
+        activeIcon: Icons.search_rounded,
+      ),
+    ];
+  }
+
+  List<Widget> get _pages {
+    if (widget.session.role == AppRole.loader) {
+      return [
+        LoaderShiftPage(session: widget.session),
+        LoaderHistoryPage(session: widget.session),
+      ];
+    }
+
+    return [
+      HomePage(session: widget.session),
+      WorkPage(session: widget.session),
+      InvoicesPage(session: widget.session),
+      StatisticsPage(session: widget.session),
+      SearchPage(session: widget.session),
+    ];
+  }
+
+  Future<void> _logout() async {
+    HapticFeedback.mediumImpact();
+    await SessionService.clear();
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(
+        builder: (_) => const LoginScreen(),
+      ),
+      (_) => false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = _items;
+    final pages = _pages;
+
+    if (_index >= pages.length) {
+      _index = 0;
+    }
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          const _AppBackground(),
+          SafeArea(
+            bottom: false,
+            child: IndexedStack(
+              index: _index,
+              children: pages,
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: _BottomNavigation(
+        items: items,
+        index: _index,
+        onChanged: (value) {
+          HapticFeedback.selectionClick();
+          setState(() => _index = value);
+        },
+        onLongPressLogo: _logout,
+      ),
+    );
+  }
+}
+
+class _NavItem {
+  final String label;
+  final IconData icon;
+  final IconData activeIcon;
+
+  const _NavItem({
+    required this.label,
+    required this.icon,
+    required this.activeIcon,
+  });
+}
+
+class _BottomNavigation extends StatelessWidget {
+  final List<_NavItem> items;
+  final int index;
+  final ValueChanged<int> onChanged;
+  final VoidCallback onLongPressLogo;
+
+  const _BottomNavigation({
+    required this.items,
+    required this.index,
+    required this.onChanged,
+    required this.onLongPressLogo,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xF80B0D10),
+        border: Border(
+          top: BorderSide(color: AppColors.line),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black,
+            blurRadius: 24,
+            offset: Offset(0, -8),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.only(
+        left: 8,
+        right: 8,
+        top: 8,
+        bottom: MediaQuery.paddingOf(context).bottom + 7,
+      ),
+      child: Row(
+        children: List.generate(items.length, (i) {
+          final item = items[i];
+          final active = i == index;
+
+          return Expanded(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => onChanged(i),
+              onLongPress: i == 0 ? onLongPressLogo : null,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 190),
+                curve: Curves.easeOutCubic,
+                height: 58,
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                decoration: BoxDecoration(
+                  color: active
+                      ? const Color(0xFF19150F)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(18),
+                  border: active
+                      ? Border.all(
+                          color: const Color(0xFF3B2B1C),
+                        )
+                      : null,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      active ? item.activeIcon : item.icon,
+                      size: 22,
+                      color: active
+                          ? AppColors.orange
+                          : AppColors.textDim,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.fade,
+                      style: TextStyle(
+                        color: active
+                            ? AppColors.text
+                            : AppColors.textDim,
+                        fontSize: items.length > 3 ? 9.4 : 11,
+                        fontWeight: active
+                            ? FontWeight.w700
+                            : FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class HomePage extends StatelessWidget {
+  final AppSession session;
+
+  const HomePage({
+    super.key,
+    required this.session,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final admin = session.role == AppRole.admin;
+
+    return _PageScaffold(
+      title: 'Главная',
+      subtitle: admin ? 'Обзор всей системы' : 'Сводка за сегодня',
+      trailing: _RoleBadge(role: session.role),
+      children: [
+        _WelcomeHeader(
+          session: session,
+          icon: admin
+              ? Icons.admin_panel_settings_outlined
+              : Icons.local_shipping_outlined,
+        ),
+        const SizedBox(height: 18),
+        _SalaryHero(admin: admin),
+        const SizedBox(height: 14),
+        const Row(
+          children: [
+            Expanded(
+              child: _MetricCard(
+                title: 'Пробег',
+                value: '184 км',
+                caption: 'за смену',
+                icon: Icons.route_outlined,
+                accent: AppColors.blue,
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: _MetricCard(
+                title: 'Рейсы',
+                value: '6',
+                caption: 'сегодня',
+                icon: Icons.alt_route_rounded,
+                accent: AppColors.orange,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        const Row(
+          children: [
+            Expanded(
+              child: _MetricCard(
+                title: 'Накладные',
+                value: '8',
+                caption: 'за сегодня',
+                icon: Icons.receipt_long_outlined,
+                accent: AppColors.violet,
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: _MetricCard(
+                title: 'Тоннаж',
+                value: '12.4 т',
+                caption: 'за смену',
+                icon: Icons.scale_outlined,
+                accent: AppColors.amber,
+              ),
+            ),
+          ],
+        ),
+        if (admin) ...[
+          const SizedBox(height: 18),
+          const _SectionTitle(
+            title: 'Управление',
+            caption: 'Администратор',
+          ),
+          const SizedBox(height: 10),
+          const _AdminEmployeesCard(),
+        ],
+        const SizedBox(height: 18),
+        const _ShiftStrip(),
+        const SizedBox(height: 18),
+        const _SectionTitle(
+          title: 'Последняя активность',
+          caption: 'Сегодня',
+        ),
+        const SizedBox(height: 10),
+        const _ActivityCard(),
+      ],
+    );
+  }
+}
+
+class WorkPage extends StatelessWidget {
+  final AppSession session;
+
+  const WorkPage({
+    super.key,
+    required this.session,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _PageScaffold(
+      title: 'Работа',
+      subtitle: 'Текущая открытая смена',
+      trailing: const _StatusPill(
+        text: 'Смена открыта',
+        color: AppColors.orange,
+      ),
+      children: const [
+        _WorkHero(),
+        SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: _MetricCard(
+                title: 'Текущий пробег',
+                value: '184 км',
+                caption: 'GPS',
+                icon: Icons.speed_rounded,
+                accent: AppColors.blue,
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: _MetricCard(
+                title: 'В пути',
+                value: '5:42',
+                caption: 'часов',
+                icon: Icons.timer_outlined,
+                accent: AppColors.orange,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 18),
+        _SectionTitle(
+          title: 'Маршрут смены',
+          caption: 'GPS',
+        ),
+        SizedBox(height: 10),
+        _RoutePreview(),
+        SizedBox(height: 18),
+        _ActionRow(),
+      ],
+    );
+  }
+}
+
+class InvoicesPage extends StatelessWidget {
+  final AppSession session;
+
+  const InvoicesPage({
+    super.key,
+    required this.session,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _PageScaffold(
+      title: 'Накладные',
+      subtitle: 'Документы и загрузка',
+      trailing: _RoundAction(
+        icon: Icons.add_rounded,
+        onTap: () => _showFeatureStub(
+          context,
+          'Создание накладной',
+          'На следующем этапе подключим существующую механику накладных к серверу.',
+        ),
+      ),
+      children: [
+        _PrimaryActionCard(
+          icon: Icons.note_add_outlined,
+          title: 'Создать накладную',
+          caption: 'Добавить позиции и вес',
+          onTap: () => _showFeatureStub(
+            context,
+            'Создание накладной',
+            'Каркас готов. Здесь будет твоя текущая логика выбора товаров, веса и отметки загрузки.',
+          ),
+        ),
+        const SizedBox(height: 18),
+        const _SectionTitle(
+          title: 'Сегодня',
+          caption: '3 документа',
+        ),
+        const SizedBox(height: 10),
+        const _InvoiceCard(
+          number: '№ 4821',
+          direction: 'Пресновка',
+          weight: '2 840 кг',
+          time: '07:42',
+          status: 'Загружено',
+        ),
+        const SizedBox(height: 10),
+        const _InvoiceCard(
+          number: '№ 4820',
+          direction: 'Бишкуль',
+          weight: '1 960 кг',
+          time: '06:18',
+          status: 'Доставлено',
+        ),
+        const SizedBox(height: 10),
+        const _InvoiceCard(
+          number: '№ 4819',
+          direction: 'Мамлютка',
+          weight: '3 120 кг',
+          time: '05:25',
+          status: 'Доставлено',
+        ),
+      ],
+    );
+  }
+}
+
+class StatisticsPage extends StatelessWidget {
+  final AppSession session;
+
+  const StatisticsPage({
+    super.key,
+    required this.session,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _PageScaffold(
+      title: 'Статистика',
+      subtitle: 'Сентябрь 2026',
+      trailing: const _StatusPill(
+        text: 'Месяц',
+        color: AppColors.violet,
+      ),
+      children: const [
+        _StatisticsHero(),
+        SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: _MetricCard(
+                title: 'Пробег',
+                value: '2 418 км',
+                caption: 'за месяц',
+                icon: Icons.route_outlined,
+                accent: AppColors.blue,
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: _MetricCard(
+                title: 'Тоннаж',
+                value: '164.8 т',
+                caption: 'за месяц',
+                icon: Icons.scale_outlined,
+                accent: AppColors.amber,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 18),
+        _SectionTitle(
+          title: 'Динамика',
+          caption: 'Последние 14 дней',
+        ),
+        SizedBox(height: 10),
+        _ChartCard(),
+        SizedBox(height: 18),
+        _DirectionStats(),
+      ],
+    );
+  }
+}
+
+class SearchPage extends StatefulWidget {
+  final AppSession session;
+
+  const SearchPage({
+    super.key,
+    required this.session,
+  });
+
+  @override
+  State<SearchPage> createState() => _SearchPageState();
+}
+
+class _SearchPageState extends State<SearchPage> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final admin = widget.session.role == AppRole.admin;
+
+    return _PageScaffold(
+      title: 'Поиск',
+      subtitle: 'Данные и история',
+      trailing: const _StatusPill(
+        text: 'Быстрый',
+        color: AppColors.blue,
+      ),
+      children: [
+        TextField(
+          controller: _controller,
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            hintText: 'Маршрут, дата, накладная...',
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: _controller.text.isEmpty
+                ? null
+                : IconButton(
+                    onPressed: () {
+                      _controller.clear();
+                      setState(() {});
+                    },
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        const _SectionTitle(
+          title: 'Быстрый доступ',
+          caption: 'Разделы',
+        ),
+        const SizedBox(height: 10),
+        const _SearchShortcut(
+          icon: Icons.receipt_long_outlined,
+          title: 'Накладные',
+          caption: 'По номеру, дате и направлению',
+          accent: AppColors.violet,
+        ),
+        const SizedBox(height: 10),
+        const _SearchShortcut(
+          icon: Icons.route_outlined,
+          title: 'Маршруты',
+          caption: 'История поездок и GPS',
+          accent: AppColors.blue,
+        ),
+        const SizedBox(height: 10),
+        const _SearchShortcut(
+          icon: Icons.payments_outlined,
+          title: 'Заработок',
+          caption: 'Смена, месяц, начисления',
+          accent: AppColors.orange,
+        ),
+        if (admin) ...[
+          const SizedBox(height: 18),
+          const _SectionTitle(
+            title: 'Администратор',
+            caption: 'Сотрудники',
+          ),
+          const SizedBox(height: 10),
+          _SearchShortcut(
+            icon: Icons.groups_2_outlined,
+            title: 'Сотрудники',
+            caption: 'Водители, грузчики и права доступа',
+            accent: AppColors.amber,
+            onTap: () => _showEmployees(context),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class LoaderShiftPage extends StatelessWidget {
+  final AppSession session;
+
+  const LoaderShiftPage({
+    super.key,
+    required this.session,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _PageScaffold(
+      title: 'Смена',
+      subtitle: 'Кабинет грузчика',
+      trailing: const _StatusPill(
+        text: 'Активна',
+        color: AppColors.blue,
+      ),
+      children: [
+        _WelcomeHeader(
+          session: session,
+          icon: Icons.inventory_2_outlined,
+        ),
+        const SizedBox(height: 18),
+        const _LoaderHero(),
+        const SizedBox(height: 14),
+        const Row(
+          children: [
+            Expanded(
+              child: _MetricCard(
+                title: 'Ставка',
+                value: '1 365 ₸',
+                caption: 'в час',
+                icon: Icons.payments_outlined,
+                accent: AppColors.orange,
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: _MetricCard(
+                title: 'Уже учтено',
+                value: '124 ч',
+                caption: 'в сентябре',
+                icon: Icons.history_toggle_off_rounded,
+                accent: AppColors.blue,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        const _LoaderMonthCard(),
+        const SizedBox(height: 18),
+        _PrimaryActionCard(
+          icon: Icons.play_arrow_rounded,
+          title: 'Начать смену',
+          caption: 'Запустить учёт рабочего времени',
+          onTap: () => _showFeatureStub(
+            context,
+            'Смена грузчика',
+            'На следующем этапе эта кнопка будет работать через твой текущий сервер.',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class LoaderHistoryPage extends StatelessWidget {
+  final AppSession session;
+
+  const LoaderHistoryPage({
+    super.key,
+    required this.session,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _PageScaffold(
+      title: 'История',
+      subtitle: 'Смены грузчика',
+      trailing: const _StatusPill(
+        text: 'Сентябрь',
+        color: AppColors.blue,
+      ),
+      children: const [
+        _LoaderHistorySummary(),
+        SizedBox(height: 18),
+        _SectionTitle(
+          title: 'Последние смены',
+          caption: 'Сентябрь 2026',
+        ),
+        SizedBox(height: 10),
+        _LoaderHistoryRow(
+          date: '17 сентября',
+          hours: '8 ч 30 мин',
+          amount: '11 603 ₸',
+        ),
+        SizedBox(height: 10),
+        _LoaderHistoryRow(
+          date: '16 сентября',
+          hours: '9 ч 10 мин',
+          amount: '12 513 ₸',
+        ),
+        SizedBox(height: 10),
+        _LoaderHistoryRow(
+          date: '15 сентября',
+          hours: '8 ч 00 мин',
+          amount: '10 920 ₸',
+        ),
+      ],
+    );
+  }
+}
+
+class _PageScaffold extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final Widget trailing;
+  final List<Widget> children;
+
+  const _PageScaffold({
+    required this.title,
+    required this.subtitle,
+    required this.trailing,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
+      children: [
+        _PageHeader(
+          title: title,
+          subtitle: subtitle,
+          trailing: trailing,
+        ),
+        const SizedBox(height: 22),
+        ...children,
+      ],
+    );
+  }
+}
+
+class _PageHeader extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final Widget trailing;
+
+  const _PageHeader({
+    required this.title,
+    required this.subtitle,
+    required this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.8,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: AppColors.textSoft,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        trailing,
+      ],
+    );
+  }
+}
+
+class _WelcomeHeader extends StatelessWidget {
+  final AppSession session;
+  final IconData icon;
+
+  const _WelcomeHeader({
+    required this.session,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.line),
+          ),
+          child: Icon(
+            icon,
+            color: AppColors.orange,
+            size: 24,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                session.displayName,
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                session.role.title,
+                style: const TextStyle(
+                  color: AppColors.textSoft,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const _TamerlanMiniLogo(),
+      ],
+    );
+  }
+}
+
+class _TamerlanMiniLogo extends StatelessWidget {
+  const _TamerlanMiniLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          'ТАМЕРЛАН',
+          style: TextStyle(
+            color: AppColors.text,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.3,
+          ),
+        ),
+        SizedBox(height: 2),
+        Text(
+          'MILLING SYSTEM',
+          style: TextStyle(
+            color: AppColors.textDim,
+            fontSize: 7,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RoleBadge extends StatelessWidget {
+  final AppRole role;
+
+  const _RoleBadge({
+    required this.role,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Color color;
+    IconData icon;
+
+    switch (role) {
+      case AppRole.admin:
+        color = AppColors.violet;
+        icon = Icons.admin_panel_settings_outlined;
+        break;
+      case AppRole.driver:
+        color = AppColors.orange;
+        icon = Icons.local_shipping_outlined;
+        break;
+      case AppRole.loader:
+        color = AppColors.blue;
+        icon = Icons.inventory_2_outlined;
+        break;
+    }
+
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: color.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Icon(
+        icon,
+        color: color,
+        size: 20,
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  final String text;
+  final Color color;
+
+  const _StatusPill({
+    required this.text,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 11,
+        vertical: 8,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(100),
+        border: Border.all(
+          color: color.withValues(alpha: 0.28),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.65),
+                  blurRadius: 8,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 7),
+          Text(
+            text,
+            style: const TextStyle(
+              color: AppColors.text,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SalaryHero extends StatelessWidget {
+  final bool admin;
+
+  const _SalaryHero({
+    required this.admin,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 190,
+      padding: const EdgeInsets.all(20),
+      decoration: _premiumDecoration(),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  admin ? 'Система за месяц' : 'Заработок за сентябрь',
+                  style: const TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  admin ? '87 рейсов' : '286 400 ₸',
+                  style: const TextStyle(
+                    color: AppColors.text,
+                    fontSize: 31,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -1.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  admin ? '4 сотрудника активны' : '+18 600 ₸ за неделю',
+                  style: const TextStyle(
+                    color: AppColors.orangeSoft,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                const Row(
+                  children: [
+                    _TinyStat(
+                      label: 'Город',
+                      value: '54%',
+                    ),
+                    SizedBox(width: 18),
+                    _TinyStat(
+                      label: 'Район',
+                      value: '46%',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          const _RingProgress(
+            progress: 0.72,
+            centerTitle: '72%',
+            centerCaption: 'месяц',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final String caption;
+  final IconData icon;
+  final Color accent;
+
+  const _MetricCard({
+    required this.title,
+    required this.value,
+    required this.caption,
+    required this.icon,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 126,
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.line),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x55000000),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: 0,
+            right: 0,
+            child: Icon(
+              icon,
+              color: accent,
+              size: 22,
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppColors.textSoft,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                caption,
+                style: const TextStyle(
+                  color: AppColors.textDim,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShiftStrip extends StatelessWidget {
+  const _ShiftStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        color: const Color(0xFF121316),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFF3B2A1C)),
+      ),
+      child: const Row(
+        children: [
+          _GlowDot(color: AppColors.orange),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Смена открыта',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'Маршрут: Пресновка • с 05:48',
+                  style: TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            Icons.chevron_right_rounded,
+            color: AppColors.textDim,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GlowDot extends StatelessWidget {
+  final Color color;
+
+  const _GlowDot({
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 11,
+      height: 11,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.7),
+            blurRadius: 12,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityCard extends StatelessWidget {
+  const _ActivityCard();
+
+  @override
+  Widget build(BuildContext context) {
+    const rows = [
+      ('07:42', 'Накладная №4821', 'Пресновка • 2 840 кг'),
+      ('06:18', 'Завершён рейс', 'Бишкуль • 64 км'),
+      ('05:48', 'Открыта смена', 'Одометр 184 220 км'),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        children: List.generate(rows.length, (index) {
+          final row = rows[index];
+
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 44,
+                      child: Text(
+                        row.$1,
+                        style: const TextStyle(
+                          color: AppColors.orangeSoft,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: AppColors.orange,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            row.$2,
+                            style: const TextStyle(
+                              color: AppColors.text,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            row.$3,
+                            style: const TextStyle(
+                              color: AppColors.textSoft,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (index != rows.length - 1)
+                const Divider(
+                  height: 1,
+                  indent: 16,
+                  endIndent: 16,
+                ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _AdminEmployeesCard extends StatelessWidget {
+  const _AdminEmployeesCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _showEmployees(context),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: AppColors.violet.withValues(alpha: 0.24),
+          ),
+        ),
+        child: const Row(
+          children: [
+            _SquareIcon(
+              icon: Icons.groups_2_outlined,
+              color: AppColors.violet,
+            ),
+            SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Сотрудники',
+                    style: TextStyle(
+                      color: AppColors.text,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Водители, грузчики, доступы',
+                    style: TextStyle(
+                      color: AppColors.textSoft,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              '4',
+              style: TextStyle(
+                color: AppColors.text,
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            SizedBox(width: 8),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textDim,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkHero extends StatelessWidget {
+  const _WorkHero();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 240,
+      padding: const EdgeInsets.all(20),
+      decoration: _premiumDecoration(),
+      child: Stack(
+        children: [
+          const Positioned(
+            top: 0,
+            left: 0,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Пресновка',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 27,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.8,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'активный маршрут',
+                  style: TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Positioned(
+            right: 0,
+            top: 0,
+            child: _SpeedGauge(
+              value: 67,
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              height: 82,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xA60A0C0F),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFF30271F)),
+              ),
+              child: const Row(
+                children: [
+                  _WorkMini(
+                    icon: Icons.route_outlined,
+                    label: 'Пробег',
+                    value: '184 км',
+                  ),
+                  _VerticalDivider(),
+                  _WorkMini(
+                    icon: Icons.local_shipping_outlined,
+                    label: 'Рейсы',
+                    value: '6',
+                  ),
+                  _VerticalDivider(),
+                  _WorkMini(
+                    icon: Icons.scale_outlined,
+                    label: 'Вес',
+                    value: '12.4 т',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SpeedGauge extends StatelessWidget {
+  final int value;
+
+  const _SpeedGauge({
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 118,
+      height: 118,
+      child: CustomPaint(
+        painter: _GaugePainter(
+          progress: value / 120,
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$value',
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  height: 0.95,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'км/ч',
+                style: TextStyle(
+                  color: AppColors.textSoft,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GaugePainter extends CustomPainter {
+  final double progress;
+
+  _GaugePainter({
+    required this.progress,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(
+      size.width / 2,
+      size.height / 2,
+    );
+    final radius = size.width / 2 - 8;
+    final rect = Rect.fromCircle(
+      center: center,
+      radius: radius,
+    );
+
+    final bg = Paint()
+      ..color = const Color(0xFF2A2D33)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 7
+      ..strokeCap = StrokeCap.round;
+
+    final fg = Paint()
+      ..shader = const SweepGradient(
+        colors: [
+          AppColors.orange,
+          AppColors.orangeSoft,
+          AppColors.orange,
+        ],
+      ).createShader(rect)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 7
+      ..strokeCap = StrokeCap.round;
+
+    const start = math.pi * 0.75;
+    const sweep = math.pi * 1.5;
+
+    canvas.drawArc(
+      rect,
+      start,
+      sweep,
+      false,
+      bg,
+    );
+
+    canvas.drawArc(
+      rect,
+      start,
+      sweep * progress.clamp(0.0, 1.0).toDouble(),
+      false,
+      fg,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _GaugePainter oldDelegate) {
+    return oldDelegate.progress != progress;
+  }
+}
+
+class _WorkMini extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _WorkMini({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            color: AppColors.orange,
+            size: 17,
+          ),
+          const SizedBox(width: 8),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.textSoft,
+                  fontSize: 9,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VerticalDivider extends StatelessWidget {
+  const _VerticalDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 34,
+      color: AppColors.line,
+    );
+  }
+}
+
+class _RoutePreview extends StatelessWidget {
+  const _RoutePreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 170,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(23),
+        child: CustomPaint(
+          painter: _RoutePainter(),
+          child: const Stack(
+            children: [
+              Positioned(
+                left: 16,
+                top: 16,
+                child: _StatusPill(
+                  text: '184 км',
+                  color: AppColors.blue,
+                ),
+              ),
+              Positioned(
+                right: 16,
+                bottom: 14,
+                child: Text(
+                  'GPS маршрут смены',
+                  style: TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RoutePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final grid = Paint()
+      ..color = const Color(0xFF1A1D22)
+      ..strokeWidth = 1;
+
+    for (double x = 0; x < size.width; x += 36) {
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x, size.height),
+        grid,
+      );
+    }
+
+    for (double y = 0; y < size.height; y += 36) {
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y),
+        grid,
+      );
+    }
+
+    final path = Path()
+      ..moveTo(size.width * 0.08, size.height * 0.76)
+      ..cubicTo(
+        size.width * 0.22,
+        size.height * 0.62,
+        size.width * 0.20,
+        size.height * 0.34,
+        size.width * 0.40,
+        size.height * 0.45,
+      )
+      ..cubicTo(
+        size.width * 0.58,
+        size.height * 0.54,
+        size.width * 0.62,
+        size.height * 0.18,
+        size.width * 0.88,
+        size.height * 0.28,
+      );
+
+    final glow = Paint()
+      ..color = const Color(0x555E9BFF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 11
+      ..strokeCap = StrokeCap.round;
+
+    final line = Paint()
+      ..shader = const LinearGradient(
+        colors: [
+          AppColors.blue,
+          AppColors.orangeSoft,
+        ],
+      ).createShader(
+        Rect.fromLTWH(
+          0,
+          0,
+          size.width,
+          size.height,
+        ),
+      )
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawPath(path, glow);
+    canvas.drawPath(path, line);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _ActionRow extends StatelessWidget {
+  const _ActionRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _OutlineAction(
+            icon: Icons.add_location_alt_outlined,
+            label: 'Точка',
+            onTap: () => _showFeatureStub(
+              context,
+              'Контрольные точки',
+              'Подключим существующие геозоны и уведомления из текущего сервера.',
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _OutlineAction(
+            icon: Icons.flag_outlined,
+            label: 'Завершить',
+            onTap: () => _showFeatureStub(
+              context,
+              'Завершение смены',
+              'Позже здесь будет реальное завершение смены и корректировка итогового пробега.',
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OutlineAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _OutlineAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 52,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        icon: Icon(
+          icon,
+          size: 18,
+        ),
+        label: Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.orangeSoft,
+          side: const BorderSide(
+            color: Color(0xFF4A3320),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(17),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PrimaryActionCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String caption;
+  final VoidCallback onTap;
+
+  const _PrimaryActionCard({
+    required this.icon,
+    required this.title,
+    required this.caption,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFF1D1711),
+              Color(0xFF121316),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: const Color(0xFF4A3320),
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x22000000),
+              blurRadius: 22,
+              offset: Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            _SquareIcon(
+              icon: icon,
+              color: AppColors.orange,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: AppColors.text,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    caption,
+                    style: const TextStyle(
+                      color: AppColors.textSoft,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_rounded,
+              color: AppColors.orange,
+              size: 21,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InvoiceCard extends StatelessWidget {
+  final String number;
+  final String direction;
+  final String weight;
+  final String time;
+  final String status;
+
+  const _InvoiceCard({
+    required this.number,
+    required this.direction,
+    required this.weight,
+    required this.time,
+    required this.status,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(21),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Row(
+        children: [
+          const _SquareIcon(
+            icon: Icons.receipt_long_outlined,
+            color: AppColors.violet,
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        direction,
+                        style: const TextStyle(
+                          color: AppColors.text,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      time,
+                      style: const TextStyle(
+                        color: AppColors.textDim,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  '$number • $weight',
+                  style: const TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  status,
+                  style: const TextStyle(
+                    color: AppColors.orangeSoft,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatisticsHero extends StatelessWidget {
+  const _StatisticsHero();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 174,
+      padding: const EdgeInsets.all(19),
+      decoration: _premiumDecoration(),
+      child: const Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Заработок',
+                  style: TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  '286 400 ₸',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 29,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -1,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  '+7.4% к прошлой неделе',
+                  style: TextStyle(
+                    color: AppColors.orangeSoft,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Spacer(),
+                Text(
+                  '87 рейсов • 14 рабочих дней',
+                  style: TextStyle(
+                    color: AppColors.textDim,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _RingProgress(
+            progress: 0.68,
+            centerTitle: '68%',
+            centerCaption: 'цель',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChartCard extends StatelessWidget {
+  const _ChartCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 190,
+      padding: const EdgeInsets.fromLTRB(14, 20, 14, 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: CustomPaint(
+        painter: _ChartPainter(),
+        child: const SizedBox.expand(),
+      ),
+    );
+  }
+}
+
+class _ChartPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final grid = Paint()
+      ..color = const Color(0xFF1D2026)
+      ..strokeWidth = 1;
+
+    for (int i = 1; i < 4; i++) {
+      final y = size.height * i / 4;
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y),
+        grid,
+      );
+    }
+
+    final values = [
+      0.70,
+      0.52,
+      0.60,
+      0.38,
+      0.45,
+      0.28,
+      0.35,
+      0.20,
+      0.33,
+      0.24,
+      0.16,
+      0.23,
+      0.14,
+      0.11,
+    ];
+
+    final path = Path();
+    final dx = size.width / (values.length - 1);
+
+    for (int i = 0; i < values.length; i++) {
+      final x = i * dx;
+      final y = size.height * values[i];
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    final glow = Paint()
+      ..color = const Color(0x44FF7A1A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 10
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final line = Paint()
+      ..shader = const LinearGradient(
+        colors: [
+          AppColors.orange,
+          AppColors.orangeSoft,
+        ],
+      ).createShader(
+        Rect.fromLTWH(
+          0,
+          0,
+          size.width,
+          size.height,
+        ),
+      )
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    canvas.drawPath(path, glow);
+    canvas.drawPath(path, line);
+
+    final dot = Paint()
+      ..color = AppColors.orange
+      ..style = PaintingStyle.fill;
+
+    for (int i = 0; i < values.length; i += 3) {
+      canvas.drawCircle(
+        Offset(
+          i * dx,
+          size.height * values[i],
+        ),
+        3.5,
+        dot,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _DirectionStats extends StatelessWidget {
+  const _DirectionStats();
+
+  @override
+  Widget build(BuildContext context) {
+    const items = [
+      ('Город', 0.74, '62 рейса'),
+      ('Район', 0.52, '25 рейсов'),
+      ('Платные', 0.28, '11 рейсов'),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        children: List.generate(items.length, (index) {
+          final item = items[index];
+
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: index == items.length - 1 ? 0 : 16,
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.$1,
+                        style: const TextStyle(
+                          color: AppColors.text,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      item.$3,
+                      style: const TextStyle(
+                        color: AppColors.textSoft,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(100),
+                  child: LinearProgressIndicator(
+                    value: item.$2,
+                    minHeight: 5,
+                    backgroundColor: const Color(0xFF23262C),
+                    color: AppColors.orange,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _SearchShortcut extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String caption;
+  final Color accent;
+  final VoidCallback? onTap;
+
+  const _SearchShortcut({
+    required this.icon,
+    required this.title,
+    required this.caption,
+    required this.accent,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.line),
+        ),
+        child: Row(
+          children: [
+            _SquareIcon(
+              icon: icon,
+              color: accent,
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: AppColors.text,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    caption,
+                    style: const TextStyle(
+                      color: AppColors.textSoft,
+                      fontSize: 10.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textDim,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LoaderHero extends StatelessWidget {
+  const _LoaderHero();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 188,
+      padding: const EdgeInsets.all(20),
+      decoration: _premiumDecoration(
+        accent: AppColors.blue,
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _GlowDot(color: AppColors.blue),
+              SizedBox(width: 9),
+              Text(
+                'Смена не запущена',
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          Spacer(),
+          Text(
+            '0:00',
+            style: TextStyle(
+              color: AppColors.text,
+              fontSize: 45,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -1.8,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'рабочее время сегодня',
+            style: TextStyle(
+              color: AppColors.textSoft,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoaderMonthCard extends StatelessWidget {
+  const _LoaderMonthCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: const Column(
+        children: [
+          Row(
+            children: [
+              Text(
+                'Сентябрь',
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Spacer(),
+              Text(
+                '124 ч',
+                style: TextStyle(
+                  color: AppColors.blue,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 14),
+          Divider(height: 1),
+          SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _TinyStat(
+                  label: 'Начислено',
+                  value: '169 260 ₸',
+                ),
+              ),
+              Expanded(
+                child: _TinyStat(
+                  label: 'Удержания',
+                  value: '40 000 ₸',
+                ),
+              ),
+              Expanded(
+                child: _TinyStat(
+                  label: 'Итого',
+                  value: '129 260 ₸',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoaderHistorySummary extends StatelessWidget {
+  const _LoaderHistorySummary();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(19),
+      decoration: _premiumDecoration(
+        accent: AppColors.blue,
+      ),
+      child: const Row(
+        children: [
+          Expanded(
+            child: _TinyStat(
+              label: 'Часы за месяц',
+              value: '149.7 ч',
+            ),
+          ),
+          Expanded(
+            child: _TinyStat(
+              label: 'Смен',
+              value: '17',
+            ),
+          ),
+          Expanded(
+            child: _TinyStat(
+              label: 'К выплате',
+              value: '164 341 ₸',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoaderHistoryRow extends StatelessWidget {
+  final String date;
+  final String hours;
+  final String amount;
+
+  const _LoaderHistoryRow({
+    required this.date,
+    required this.hours,
+    required this.amount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Row(
+        children: [
+          const _SquareIcon(
+            icon: Icons.schedule_outlined,
+            color: AppColors.blue,
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  date,
+                  style: const TextStyle(
+                    color: AppColors.text,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  hours,
+                  style: const TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 10.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            amount,
+            style: const TextStyle(
+              color: AppColors.text,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  final String caption;
+
+  const _SectionTitle({
+    required this.title,
+    required this.caption,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: AppColors.text,
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          caption,
+          style: const TextStyle(
+            color: AppColors.textDim,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SquareIcon extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+
+  const _SquareIcon({
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: color.withValues(alpha: 0.22),
+        ),
+      ),
+      child: Icon(
+        icon,
+        color: color,
+        size: 21,
+      ),
+    );
+  }
+}
+
+class _RoundAction extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _RoundAction({
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onTap,
+      style: IconButton.styleFrom(
+        backgroundColor: AppColors.surface,
+        side: const BorderSide(color: AppColors.line),
+      ),
+      icon: Icon(
+        icon,
+        color: AppColors.orange,
+      ),
+    );
+  }
+}
+
+class _TinyStat extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _TinyStat({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.textDim,
+            fontSize: 9,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.fade,
+          style: const TextStyle(
+            color: AppColors.text,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RingProgress extends StatelessWidget {
+  final double progress;
+  final String centerTitle;
+  final String centerCaption;
+
+  const _RingProgress({
+    required this.progress,
+    required this.centerTitle,
+    required this.centerCaption,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 112,
+      height: 112,
+      child: CustomPaint(
+        painter: _RingPainter(
+          progress: progress,
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                centerTitle,
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Text(
+                centerCaption,
+                style: const TextStyle(
+                  color: AppColors.textSoft,
+                  fontSize: 9,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  final double progress;
+
+  _RingPainter({
+    required this.progress,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = 8.0;
+    final rect = Rect.fromLTWH(
+      stroke / 2,
+      stroke / 2,
+      size.width - stroke,
+      size.height - stroke,
+    );
+
+    final bg = Paint()
+      ..color = const Color(0xFF2A2D33)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke;
+
+    final fg = Paint()
+      ..shader = const SweepGradient(
+        colors: [
+          AppColors.orange,
+          AppColors.orangeSoft,
+          AppColors.orange,
+        ],
+      ).createShader(rect)
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = stroke;
+
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      math.pi * 2,
+      false,
+      bg,
+    );
+
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      math.pi * 2 * progress.clamp(0.0, 1.0).toDouble(),
+      false,
+      fg,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _RingPainter oldDelegate) {
+    return oldDelegate.progress != progress;
+  }
+}
+
+class _AppBackground extends StatelessWidget {
+  const _AppBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF12100D),
+            AppColors.background,
+            Color(0xFF06070A),
+          ],
+          stops: [0, 0.35, 1],
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: -150,
+            right: -120,
+            child: _AmbientGlow(
+              size: 340,
+              color: Color(0x1AFF6B00),
+            ),
+          ),
+          Positioned(
+            left: -150,
+            bottom: 120,
+            child: _AmbientGlow(
+              size: 300,
+              color: Color(0x0D5E9BFF),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AmbientGlow extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _AmbientGlow({
+    required this.size,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: color,
+            blurRadius: 110,
+            spreadRadius: 45,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+BoxDecoration _premiumDecoration({
+  Color accent = AppColors.orange,
+}) {
+  return BoxDecoration(
+    gradient: const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        Color(0xFF1B1713),
+        Color(0xFF111318),
+      ],
+    ),
+    borderRadius: BorderRadius.circular(28),
+    border: Border.all(
+      color: accent.withValues(alpha: 0.24),
+    ),
+    boxShadow: [
+      const BoxShadow(
+        color: Color(0x66000000),
+        blurRadius: 28,
+        offset: Offset(0, 15),
+      ),
+      BoxShadow(
+        color: accent.withValues(alpha: 0.07),
+        blurRadius: 34,
+        spreadRadius: -4,
+      ),
+    ],
+  );
+}
+
+void _showFeatureStub(
+  BuildContext context,
+  String title,
+  String text,
+) {
+  HapticFeedback.selectionClick();
+
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (context) {
+      return Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+        decoration: BoxDecoration(
+          color: const Color(0xFF111318),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: AppColors.line),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black,
+              blurRadius: 30,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.line,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              title,
+              style: const TextStyle(
+                color: AppColors.text,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.textSoft,
+                height: 1.45,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.orangeSoft,
+                  side: const BorderSide(
+                    color: Color(0xFF4A3320),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(17),
+                  ),
+                ),
+                child: const Text(
+                  'Понятно',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+void _showEmployees(BuildContext context) {
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (context) {
+      return DraggableScrollableSheet(
+        initialChildSize: 0.72,
+        minChildSize: 0.55,
+        maxChildSize: 0.92,
+        expand: false,
+        builder: (context, controller) {
+          const employees = [
+            ('Администратор', 'Администратор', true),
+            ('Сергей', 'Водитель', true),
+            ('Алексей', 'Водитель', true),
+            ('Грузчик', 'Грузчик', true),
+          ];
+
+          return Container(
+            margin: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF101216),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: AppColors.line),
+            ),
+            child: ListView(
+              controller: controller,
+              padding: const EdgeInsets.all(18),
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.line,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Сотрудники',
+                        style: TextStyle(
+                          color: AppColors.text,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    _StatusPill(
+                      text: '4',
+                      color: AppColors.violet,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Пока это визуальный каркас. Следующим этапом подключим реальные app_users и права доступа с сервера.',
+                  style: TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 11,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                ...employees.map(
+                  (employee) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Container(
+                      padding: const EdgeInsets.all(15),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(19),
+                        border: Border.all(color: AppColors.line),
+                      ),
+                      child: Row(
+                        children: [
+                          const _SquareIcon(
+                            icon: Icons.person_outline_rounded,
+                            color: AppColors.violet,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  employee.$1,
+                                  style: const TextStyle(
+                                    color: AppColors.text,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  employee.$2,
+                                  style: const TextStyle(
+                                    color: AppColors.textSoft,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const _GlowDot(
+                            color: AppColors.orange,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    },
+  );
+}

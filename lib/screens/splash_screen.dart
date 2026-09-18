@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+import '../services/session_service.dart';
+import 'app_shell.dart';
 import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -22,9 +24,9 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-
-    _controller = VideoPlayerController.asset('assets/videos/tamerlan_intro.mp4');
-
+    _controller = VideoPlayerController.asset(
+      'assets/videos/tamerlan_intro.mp4',
+    );
     _initializeVideo();
   }
 
@@ -44,14 +46,21 @@ class _SplashScreenState extends State<SplashScreen> {
         _ready = true;
       });
 
-      _fallbackTimer = Timer(const Duration(seconds: 6), _goNext);
+      _fallbackTimer = Timer(
+        const Duration(seconds: 6),
+        _goNext,
+      );
     } catch (_) {
       if (!mounted) return;
+
       setState(() {
         _videoError = true;
       });
 
-      _fallbackTimer = Timer(const Duration(milliseconds: 700), _goNext);
+      _fallbackTimer = Timer(
+        const Duration(milliseconds: 700),
+        _goNext,
+      );
     }
   }
 
@@ -61,19 +70,27 @@ class _SplashScreenState extends State<SplashScreen> {
     final position = _controller.value.position;
     final duration = _controller.value.duration;
 
-    if (duration > Duration.zero && position >= duration - const Duration(milliseconds: 120)) {
+    if (duration > Duration.zero &&
+        position >= duration - const Duration(milliseconds: 120)) {
       _goNext();
     }
   }
 
-  void _goNext() {
+  Future<void> _goNext() async {
     if (!mounted || _navigated) return;
     _navigated = true;
 
+    final session = await SessionService.read();
+    if (!mounted) return;
+
+    final Widget next = session == null
+        ? const LoginScreen()
+        : AppShell(session: session);
+
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
-        transitionDuration: const Duration(milliseconds: 450),
-        pageBuilder: (_, animation, secondaryAnimation) => const LoginScreen(),
+        transitionDuration: const Duration(milliseconds: 420),
+        pageBuilder: (_, animation, secondaryAnimation) => next,
         transitionsBuilder: (_, animation, secondaryAnimation, child) {
           final curved = CurvedAnimation(
             parent: animation,
@@ -117,7 +134,6 @@ class _SplashScreenState extends State<SplashScreen> {
             )
           else
             const _SplashPlaceholder(),
-
           if (!_ready && !_videoError)
             const Positioned(
               left: 0,
@@ -158,9 +174,9 @@ class _LoadingMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return const Column(
       mainAxisSize: MainAxisSize.min,
-      children: const [
+      children: [
         SizedBox(
           width: 24,
           height: 24,

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/app_role.dart';
+import '../services/session_service.dart';
 import '../theme/app_theme.dart';
-import 'preview_home_screen.dart';
+import 'app_shell.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -27,8 +29,6 @@ class _LoginScreenState extends State<LoginScreen>
   late final Animation<Offset> _brandSlide;
   late final Animation<double> _contentOpacity;
   late final Animation<Offset> _contentSlide;
-  late final Animation<double> _panelOpacity;
-  late final Animation<double> _panelScale;
 
   @override
   void initState() {
@@ -36,51 +36,36 @@ class _LoginScreenState extends State<LoginScreen>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 850),
     );
 
     _brandOpacity = CurvedAnimation(
       parent: _controller,
-      curve: const Interval(0.00, 0.36, curve: Curves.easeOutCubic),
+      curve: const Interval(0, 0.45, curve: Curves.easeOutCubic),
     );
 
     _brandSlide = Tween<Offset>(
-      begin: const Offset(0, 0.04),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.00, 0.42, curve: Curves.easeOutCubic),
-      ),
-    );
-
-    _contentOpacity = CurvedAnimation(
-      parent: _controller,
-      curve: const Interval(0.16, 0.62, curve: Curves.easeOutCubic),
-    );
-
-    _contentSlide = Tween<Offset>(
       begin: const Offset(0, 0.05),
       end: Offset.zero,
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.16, 0.62, curve: Curves.easeOutCubic),
+        curve: const Interval(0, 0.50, curve: Curves.easeOutCubic),
       ),
     );
 
-    _panelOpacity = CurvedAnimation(
+    _contentOpacity = CurvedAnimation(
       parent: _controller,
-      curve: const Interval(0.28, 0.90, curve: Curves.easeOutCubic),
+      curve: const Interval(0.18, 1, curve: Curves.easeOutCubic),
     );
 
-    _panelScale = Tween<double>(
-      begin: 0.975,
-      end: 1,
+    _contentSlide = Tween<Offset>(
+      begin: const Offset(0, 0.04),
+      end: Offset.zero,
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.28, 0.90, curve: Curves.easeOutCubic),
+        curve: const Interval(0.18, 1, curve: Curves.easeOutCubic),
       ),
     );
 
@@ -97,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  Future<void> _previewLogin() async {
+  Future<void> _login() async {
     FocusScope.of(context).unfocus();
     setState(() => _error = null);
 
@@ -111,21 +96,29 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _busy = true);
     HapticFeedback.selectionClick();
 
-    await Future<void>.delayed(const Duration(milliseconds: 550));
+    await Future<void>.delayed(
+      const Duration(milliseconds: 450),
+    );
+
+    final session = await SessionService.createTestSession(
+      login: _loginController.text,
+    );
 
     if (!mounted) return;
+
     setState(() => _busy = false);
 
-    Navigator.of(context).push(
+    Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 420),
         pageBuilder: (_, animation, secondaryAnimation) =>
-            const PreviewHomeScreen(),
+            AppShell(session: session),
         transitionsBuilder: (_, animation, secondaryAnimation, child) {
           final curved = CurvedAnimation(
             parent: animation,
             curve: Curves.easeOutCubic,
           );
+
           return FadeTransition(
             opacity: curved,
             child: SlideTransition(
@@ -141,10 +134,11 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
+  AppRole get _previewRole =>
+      AppRole.fromTestLogin(_loginController.text);
+
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: Stack(
@@ -152,136 +146,116 @@ class _LoginScreenState extends State<LoginScreen>
         children: [
           const _LoginBackground(),
           SafeArea(
-            child: SingleChildScrollView(
-              keyboardDismissBehavior:
-                  ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: EdgeInsets.fromLTRB(
-                24,
-                22,
-                24,
-                bottomInset > 0 ? 28 : 38,
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: MediaQuery.sizeOf(context).height -
-                      MediaQuery.paddingOf(context).vertical -
-                      60,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    FadeTransition(
-                      opacity: _brandOpacity,
-                      child: SlideTransition(
-                        position: _brandSlide,
-                        child: const _BrandBlock(),
-                      ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight - 50,
                     ),
-                    const SizedBox(height: 58),
-                    FadeTransition(
-                      opacity: _contentOpacity,
-                      child: SlideTransition(
-                        position: _contentSlide,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Вход в систему',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .headlineLarge
-                                  ?.copyWith(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        FadeTransition(
+                          opacity: _brandOpacity,
+                          child: SlideTransition(
+                            position: _brandSlide,
+                            child: const _BrandBlock(),
+                          ),
+                        ),
+                        const SizedBox(height: 54),
+                        FadeTransition(
+                          opacity: _contentOpacity,
+                          child: SlideTransition(
+                            position: _contentSlide,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Вход в систему',
+                                  style: TextStyle(
+                                    color: AppColors.text,
                                     fontSize: 31,
+                                    fontWeight: FontWeight.w800,
                                     letterSpacing: -1,
                                   ),
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Рабочая система мельницы и логистики',
-                              style: TextStyle(
-                                color: AppColors.textSoft,
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    FadeTransition(
-                      opacity: _panelOpacity,
-                      child: ScaleTransition(
-                        scale: _panelScale,
-                        child: _FormPanel(
-                          loginField: TextField(
-                            controller: _loginController,
-                            focusNode: _loginFocus,
-                            textInputAction: TextInputAction.next,
-                            autofillHints: const [AutofillHints.username],
-                            onSubmitted: (_) => _passwordFocus.requestFocus(),
-                            decoration: const InputDecoration(
-                              hintText: 'Логин',
-                              prefixIcon:
-                                  Icon(Icons.person_outline_rounded),
-                            ),
-                          ),
-                          passwordField: TextField(
-                            controller: _passwordController,
-                            focusNode: _passwordFocus,
-                            obscureText: _hidePassword,
-                            textInputAction: TextInputAction.done,
-                            autofillHints: const [AutofillHints.password],
-                            onSubmitted: (_) => _previewLogin(),
-                            decoration: InputDecoration(
-                              hintText: 'Пароль',
-                              prefixIcon:
-                                  const Icon(Icons.lock_outline_rounded),
-                              suffixIcon: IconButton(
-                                onPressed: () {
-                                  setState(
-                                    () => _hidePassword = !_hidePassword,
-                                  );
-                                },
-                                icon: Icon(
-                                  _hidePassword
-                                      ? Icons.visibility_off_outlined
-                                      : Icons.visibility_outlined,
                                 ),
-                              ),
+                                const SizedBox(height: 10),
+                                const Text(
+                                  'Мельница • логистика • рабочие смены',
+                                  style: TextStyle(
+                                    color: AppColors.textSoft,
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 28),
+                                _FormPanel(
+                                  loginField: TextField(
+                                    controller: _loginController,
+                                    focusNode: _loginFocus,
+                                    textInputAction: TextInputAction.next,
+                                    autofillHints: const [
+                                      AutofillHints.username,
+                                    ],
+                                    onChanged: (_) => setState(() {}),
+                                    onSubmitted: (_) =>
+                                        _passwordFocus.requestFocus(),
+                                    decoration: const InputDecoration(
+                                      hintText: 'Логин',
+                                      prefixIcon:
+                                          Icon(Icons.person_outline_rounded),
+                                    ),
+                                  ),
+                                  passwordField: TextField(
+                                    controller: _passwordController,
+                                    focusNode: _passwordFocus,
+                                    obscureText: _hidePassword,
+                                    textInputAction: TextInputAction.done,
+                                    autofillHints: const [
+                                      AutofillHints.password,
+                                    ],
+                                    onSubmitted: (_) => _login(),
+                                    decoration: InputDecoration(
+                                      hintText: 'Пароль',
+                                      prefixIcon: const Icon(
+                                        Icons.lock_outline_rounded,
+                                      ),
+                                      suffixIcon: IconButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            _hidePassword = !_hidePassword;
+                                          });
+                                        },
+                                        icon: Icon(
+                                          _hidePassword
+                                              ? Icons.visibility_off_outlined
+                                              : Icons.visibility_outlined,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  error: _error,
+                                  busy: _busy,
+                                  onPressed: _busy ? null : _login,
+                                  role: _previewRole,
+                                ),
+                                const SizedBox(height: 18),
+                                const _TestHint(),
+                                const SizedBox(height: 46),
+                                const _BottomMeta(),
+                              ],
                             ),
                           ),
-                          error: _error,
-                          actionButton: _PrimaryButton(
-                            busy: _busy,
-                            onPressed: _busy ? null : _previewLogin,
-                          ),
                         ),
-                      ),
+                      ],
                     ),
-                    const SizedBox(height: 18),
-                    FadeTransition(
-                      opacity: _panelOpacity,
-                      child: const Center(
-                        child: Text(
-                          'Тестовый вход для проверки интерфейса',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Color(0xFF6C7079),
-                            fontSize: 11,
-                            letterSpacing: 0.15,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    FadeTransition(
-                      opacity: _panelOpacity,
-                      child: const _BottomMeta(),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -350,14 +324,18 @@ class _BrandBlock extends StatelessWidget {
 class _FormPanel extends StatelessWidget {
   final Widget loginField;
   final Widget passwordField;
-  final Widget actionButton;
   final String? error;
+  final bool busy;
+  final VoidCallback? onPressed;
+  final AppRole role;
 
   const _FormPanel({
     required this.loginField,
     required this.passwordField,
-    required this.actionButton,
     required this.error,
+    required this.busy,
+    required this.onPressed,
+    required this.role,
   });
 
   @override
@@ -366,9 +344,9 @@ class _FormPanel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xED101317),
+        color: const Color(0xF2111317),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFF292D34)),
+        border: Border.all(color: AppColors.line),
         boxShadow: const [
           BoxShadow(
             color: Colors.black,
@@ -385,7 +363,7 @@ class _FormPanel extends StatelessWidget {
       child: Column(
         children: [
           const _TopLineGlow(),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           loginField,
           const SizedBox(height: 14),
           passwordField,
@@ -393,7 +371,7 @@ class _FormPanel extends StatelessWidget {
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOut,
             child: error == null
-                ? const SizedBox(height: 0)
+                ? const SizedBox.shrink()
                 : Padding(
                     padding: const EdgeInsets.only(top: 13),
                     child: Row(
@@ -401,7 +379,7 @@ class _FormPanel extends StatelessWidget {
                         const Icon(
                           Icons.error_outline_rounded,
                           size: 17,
-                          color: Color(0xFFE47B6E),
+                          color: AppColors.red,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -417,17 +395,147 @@ class _FormPanel extends StatelessWidget {
                     ),
                   ),
           ),
-          const SizedBox(height: 20),
-          actionButton,
-          const SizedBox(height: 14),
-          const Row(
-            children: [
-              Expanded(child: _MiniInfoChip(text: 'Смена')),
-              SizedBox(width: 8),
-              Expanded(child: _MiniInfoChip(text: 'Логистика')),
-              SizedBox(width: 8),
-              Expanded(child: _MiniInfoChip(text: 'Учёт')),
-            ],
+          const SizedBox(height: 18),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: _RolePreview(
+              key: ValueKey(role),
+              role: role,
+            ),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFFFF882C),
+                    Color(0xFFE65A00),
+                  ],
+                ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x45FF6A00),
+                    blurRadius: 22,
+                    offset: Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: FilledButton(
+                onPressed: onPressed,
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  disabledBackgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: busy
+                      ? const SizedBox(
+                          key: ValueKey('loader'),
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Row(
+                          key: ValueKey('label'),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'ВОЙТИ',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            SizedBox(width: 9),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RolePreview extends StatelessWidget {
+  final AppRole role;
+
+  const _RolePreview({
+    super.key,
+    required this.role,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    IconData icon;
+    Color accent;
+
+    switch (role) {
+      case AppRole.admin:
+        icon = Icons.admin_panel_settings_outlined;
+        accent = AppColors.violet;
+        break;
+      case AppRole.driver:
+        icon = Icons.local_shipping_outlined;
+        accent = AppColors.orange;
+        break;
+      case AppRole.loader:
+        icon = Icons.inventory_2_outlined;
+        accent = AppColors.blue;
+        break;
+    }
+
+    return Container(
+      height: 46,
+      padding: const EdgeInsets.symmetric(horizontal: 13),
+      decoration: BoxDecoration(
+        color: const Color(0xFF15181D),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF252932)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: accent,
+          ),
+          const SizedBox(width: 10),
+          const Text(
+            'Режим:',
+            style: TextStyle(
+              color: AppColors.textDim,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            role.title,
+            style: const TextStyle(
+              color: AppColors.text,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -463,104 +571,24 @@ class _TopLineGlow extends StatelessWidget {
   }
 }
 
-class _MiniInfoChip extends StatelessWidget {
-  final String text;
-
-  const _MiniInfoChip({required this.text});
+class _TestHint extends StatelessWidget {
+  const _TestHint();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 36,
-      alignment: Alignment.center,
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF15181D),
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: const Color(0xFF252932)),
+        color: const Color(0x99101216),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF23272E)),
       ),
-      child: Text(
-        text,
-        style: const TextStyle(
+      child: const Text(
+        'Для проверки ролей: login admin → администратор, loader → грузчик, любой другой логин → водитель. Пароль пока тестовый — любой непустой.',
+        style: TextStyle(
           color: AppColors.textSoft,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _PrimaryButton extends StatelessWidget {
-  final bool busy;
-  final VoidCallback? onPressed;
-
-  const _PrimaryButton({
-    required this.busy,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFFFF882C),
-              Color(0xFFE65A00),
-            ],
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x45FF6A00),
-              blurRadius: 22,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: FilledButton(
-          onPressed: onPressed,
-          style: FilledButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            disabledBackgroundColor: Colors.transparent,
-            foregroundColor: Colors.white,
-            shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-            ),
-          ),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
-            child: busy
-                ? const SizedBox(
-                    key: ValueKey('loader'),
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Row(
-                    key: ValueKey('label'),
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'ВОЙТИ',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                      SizedBox(width: 9),
-                      Icon(Icons.arrow_forward_rounded, size: 20),
-                    ],
-                  ),
-          ),
+          height: 1.45,
+          fontSize: 12,
         ),
       ),
     );
@@ -572,10 +600,9 @@ class _BottomMeta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(top: 26),
+    return const Center(
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             Icons.shield_outlined,
@@ -608,7 +635,7 @@ class _LoginBackground extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Color(0xFF15100B),
+            Color(0xFF171008),
             AppColors.background,
             Color(0xFF050608),
           ],
