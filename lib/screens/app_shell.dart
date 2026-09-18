@@ -263,7 +263,7 @@ class _BottomNavigation extends StatelessWidget {
               onTap: () => onChanged(i),
               onLongPress: i == 0 ? onLongPressLogo : null,
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 190),
+                duration: const Duration(milliseconds: 130),
                 curve: Curves.easeOutCubic,
                 height: 62,
                 margin: const EdgeInsets.symmetric(horizontal: 1),
@@ -2455,24 +2455,19 @@ class _QuickAddMenu extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+        padding: const EdgeInsets.fromLTRB(18, 10, 18, 20),
         decoration: BoxDecoration(
-          color: const Color(0xFF101114),
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(
-            color: const Color(0xFF61391E),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF1A1511), Color(0xFF0D0F12)],
           ),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: const Color(0xFF6A3A1C)),
           boxShadow: const [
-            BoxShadow(
-              color: Color(0x44000000),
-              blurRadius: 32,
-              offset: Offset(0, -10),
-            ),
-            BoxShadow(
-              color: Color(0x22FF7A1A),
-              blurRadius: 28,
-            ),
+            BoxShadow(color: Color(0x55000000), blurRadius: 34, offset: Offset(0, -10)),
+            BoxShadow(color: Color(0x22FF7A1A), blurRadius: 30),
           ],
         ),
         child: Column(
@@ -2482,29 +2477,16 @@ class _QuickAddMenu extends StatelessWidget {
               width: 42,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFF4A4B50),
+                color: const Color(0xFF5A4A3E),
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
             const SizedBox(height: 18),
             const Row(
               children: [
-                Text(
-                  'Добавить',
-                  style: TextStyle(
-                    color: AppColors.text,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+                Text('Добавить', style: TextStyle(color: AppColors.text, fontSize: 22, fontWeight: FontWeight.w800)),
                 Spacer(),
-                Text(
-                  'Текущая смена',
-                  style: TextStyle(
-                    color: AppColors.textSoft,
-                    fontSize: 10,
-                  ),
-                ),
+                Text('Текущая смена', style: TextStyle(color: AppColors.textSoft, fontSize: 10)),
               ],
             ),
             const SizedBox(height: 16),
@@ -2517,42 +2499,12 @@ class _QuickAddMenu extends StatelessWidget {
                     onTap: () => _openTripEntry(context),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _QuickActionTile(
-                    icon: Icons.scale_outlined,
-                    title: 'Вес',
-                    onTap: () => _openNumberEntry(
-                      context,
-                      title: 'Вес',
-                      hint: 'Вес, кг',
-                      icon: Icons.scale_outlined,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
+                const SizedBox(width: 12),
                 Expanded(
                   child: _QuickActionTile(
                     icon: Icons.local_gas_station_outlined,
                     title: 'Топливо',
                     onTap: () => _openFuelEntry(context),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _QuickActionTile(
-                    icon: Icons.speed_rounded,
-                    title: 'Одометр',
-                    onTap: () => _openNumberEntry(
-                      context,
-                      title: 'Одометр',
-                      hint: 'Текущее значение, км',
-                      icon: Icons.speed_rounded,
-                    ),
                   ),
                 ),
               ],
@@ -2587,11 +2539,10 @@ class _QuickActionTile extends StatelessWidget {
         height: 92,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFF151619),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: const Color(0xFF3D2A1D),
-          ),
+          gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF1D1712), Color(0xFF111317)]),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: const Color(0xFF60381F)),
+          boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 16, offset: Offset(0, 8)), BoxShadow(color: Color(0x16FF7A1A), blurRadius: 18)],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2746,44 +2697,6 @@ class _FuelEntrySheetState extends State<_FuelEntrySheet> {
       ),
     );
   }
-}
-
-void _openNumberEntry(
-  BuildContext context, {
-  required String title,
-  required String hint,
-  required IconData icon,
-}) {
-  Navigator.pop(context);
-  final controller = TextEditingController();
-
-  showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (sheetContext) {
-      return _QuickEntryShell(
-        title: title,
-        icon: icon,
-        child: Column(
-          children: [
-            _QuickNumberField(
-              controller: controller,
-              hint: hint,
-            ),
-            const SizedBox(height: 18),
-            _QuickSaveButton(
-              text: 'Сохранить',
-              onTap: () {
-                HapticFeedback.mediumImpact();
-                Navigator.pop(sheetContext);
-              },
-            ),
-          ],
-        ),
-      );
-    },
-  ).whenComplete(controller.dispose);
 }
 
 class _QuickEntryShell extends StatelessWidget {
@@ -3148,47 +3061,190 @@ class WorkPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return _PageScaffold(
       title: 'Работа',
-      subtitle: 'Текущая открытая смена',
+      subtitle: 'Текущая смена',
       trailing: const _StatusPill(
-        text: 'Смена открыта',
-        color: AppColors.orange,
+        text: 'На смене',
+        color: Color(0xFF55E66B),
       ),
       children: const [
         _WorkHero(),
-        SizedBox(height: 14),
+        SizedBox(height: 12),
         Row(
           children: [
-            Expanded(
-              child: _MetricCard(
-                title: 'Текущий пробег',
-                value: '184 км',
-                caption: 'GPS',
-                icon: Icons.speed_rounded,
-                accent: AppColors.blue,
-              ),
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: _MetricCard(
-                title: 'В пути',
-                value: '5:42',
-                caption: 'часов',
-                icon: Icons.timer_outlined,
-                accent: AppColors.orange,
-              ),
-            ),
+            Expanded(child: _WorkStatTile(icon: Icons.local_shipping_outlined, label: 'Рейсов сегодня', value: '3')),
+            SizedBox(width: 10),
+            Expanded(child: _WorkStatTile(icon: Icons.route_outlined, label: 'Направлений', value: '2')),
+            SizedBox(width: 10),
+            Expanded(child: _WorkStatTile(icon: Icons.scale_outlined, label: 'Вес сегодня', value: '12 383 кг')),
           ],
         ),
-        SizedBox(height: 18),
-        _SectionTitle(
-          title: 'Маршрут смены',
-          caption: 'GPS',
+        SizedBox(height: 12),
+        _OdometerCard(),
+        SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(child: _FuelCard(title: 'Газ', icon: Icons.local_fire_department_outlined, value: '0 л')),
+            SizedBox(width: 10),
+            Expanded(child: _FuelCard(title: 'Бензин', icon: Icons.local_gas_station_outlined, value: '0 л')),
+          ],
         ),
-        SizedBox(height: 10),
-        _RoutePreview(),
-        SizedBox(height: 18),
+        SizedBox(height: 12),
+        _ShiftTimelineCard(),
+        SizedBox(height: 12),
         _ActionRow(),
       ],
+    );
+  }
+}
+
+class _WorkStatTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _WorkStatTile({required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 116,
+      padding: const EdgeInsets.all(14),
+      decoration: _premiumDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppColors.orange, size: 21),
+          const Spacer(),
+          Text(label.toUpperCase(), maxLines: 2, style: const TextStyle(color: AppColors.textSoft, fontSize: 8.5, height: 1.15, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 5),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value, style: const TextStyle(color: AppColors.text, fontSize: 20, fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OdometerCard extends StatelessWidget {
+  const _OdometerCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: _premiumDecoration(),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('СПИДОМЕТР', style: TextStyle(color: AppColors.textSoft, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.1)),
+                SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(child: _OdoValue(label: 'В начале смены', value: '253 546')),
+                    Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('→', style: TextStyle(color: AppColors.orange, fontSize: 24))),
+                    Expanded(child: _OdoValue(label: 'Текущий', value: '253 565')),
+                  ],
+                ),
+                SizedBox(height: 10),
+                Text('+19,18 км', style: TextStyle(color: AppColors.orangeSoft, fontSize: 14, fontWeight: FontWeight.w800)),
+              ],
+            ),
+          ),
+          SizedBox(width: 8),
+          _SpeedGauge(value: 74),
+        ],
+      ),
+    );
+  }
+}
+
+class _OdoValue extends StatelessWidget {
+  final String label;
+  final String value;
+  const _OdoValue({required this.label, required this.value});
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(label, style: const TextStyle(color: AppColors.textSoft, fontSize: 9)),
+      const SizedBox(height: 4),
+      FittedBox(fit: BoxFit.scaleDown, child: Text(value, style: const TextStyle(color: AppColors.text, fontSize: 20, fontWeight: FontWeight.w800))),
+      const Text('км', style: TextStyle(color: AppColors.textSoft, fontSize: 8)),
+    ],
+  );
+}
+
+class _FuelCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final String value;
+  const _FuelCard({required this.title, required this.icon, required this.value});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 124,
+      padding: const EdgeInsets.all(16),
+      decoration: _premiumDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [Icon(icon, color: AppColors.orange, size: 20), const SizedBox(width: 8), Text(title, style: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w700))]),
+          const Spacer(),
+          Text(value, style: const TextStyle(color: AppColors.text, fontSize: 25, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Container(height: 3, decoration: BoxDecoration(color: const Color(0xFF26282D), borderRadius: BorderRadius.circular(5))),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShiftTimelineCard extends StatelessWidget {
+  const _ShiftTimelineCard();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: _premiumDecoration(),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('ХОД СМЕНЫ', style: TextStyle(color: AppColors.textSoft, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.1)),
+          SizedBox(height: 14),
+          _TimelineRow(icon: Icons.radio_button_checked, time: '05:48', text: 'Смена открыта', active: true),
+          _TimelineRow(icon: Icons.local_shipping_outlined, time: '06:15', text: 'Петропавл → Щучинск'),
+          _TimelineRow(icon: Icons.local_gas_station_outlined, time: '07:02', text: 'Газ · 400 л'),
+          _TimelineRow(icon: Icons.local_shipping_outlined, time: '09:10', text: 'Щучинск → Новоишимское'),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimelineRow extends StatelessWidget {
+  final IconData icon;
+  final String time;
+  final String text;
+  final bool active;
+  const _TimelineRow({required this.icon, required this.time, required this.text, this.active = false});
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: active ? const Color(0xFF55E66B) : AppColors.orange),
+          const SizedBox(width: 10),
+          SizedBox(width: 42, child: Text(time, style: const TextStyle(color: AppColors.textSoft, fontSize: 10))),
+          Expanded(child: Text(text, style: const TextStyle(color: AppColors.text, fontSize: 11.5, fontWeight: FontWeight.w600))),
+        ],
+      ),
     );
   }
 }
@@ -3858,79 +3914,45 @@ class _WorkHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 240,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: _premiumDecoration(),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Positioned(
-            top: 0,
-            left: 0,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          const Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Текущий маршрут', style: TextStyle(color: AppColors.textSoft, fontSize: 10)),
+                    SizedBox(height: 5),
+                    Text('Петропавл → Щучинск', style: TextStyle(color: AppColors.text, fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                  ],
+                ),
+              ),
+              _StatusPill(text: 'LIVE', color: AppColors.orange),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const _RoutePreview(),
+          const SizedBox(height: 10),
+          Container(
+            height: 56,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xB5090B0E),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFF33261D)),
+            ),
+            child: const Row(
               children: [
-                Text(
-                  'Пресновка',
-                  style: TextStyle(
-                    color: AppColors.text,
-                    fontSize: 27,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.8,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'активный маршрут',
-                  style: TextStyle(
-                    color: AppColors.textSoft,
-                    fontSize: 11,
-                  ),
-                ),
+                _WorkMini(icon: Icons.gps_fixed_rounded, label: 'GPS', value: 'Включён'),
+                _VerticalDivider(),
+                _WorkMini(icon: Icons.route_outlined, label: 'Пробег', value: '18,96 км'),
+                _VerticalDivider(),
+                _WorkMini(icon: Icons.pause_rounded, label: 'GPS', value: 'Пауза'),
               ],
-            ),
-          ),
-          const Positioned(
-            right: 0,
-            top: 0,
-            child: _SpeedGauge(
-              value: 67,
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              height: 82,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-              ),
-              decoration: BoxDecoration(
-                color: const Color(0xA60A0C0F),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF30271F)),
-              ),
-              child: const Row(
-                children: [
-                  _WorkMini(
-                    icon: Icons.route_outlined,
-                    label: 'Пробег',
-                    value: '184 км',
-                  ),
-                  _VerticalDivider(),
-                  _WorkMini(
-                    icon: Icons.local_shipping_outlined,
-                    label: 'Рейсы',
-                    value: '6',
-                  ),
-                  _VerticalDivider(),
-                  _WorkMini(
-                    icon: Icons.scale_outlined,
-                    label: 'Вес',
-                    value: '12.4 т',
-                  ),
-                ],
-              ),
             ),
           ),
         ],
