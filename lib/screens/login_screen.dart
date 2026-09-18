@@ -22,40 +22,74 @@ class _LoginScreenState extends State<LoginScreen>
   bool _busy = false;
   String? _error;
 
-  late final AnimationController _entranceController;
-  late final Animation<double> _fade;
-  late final Animation<Offset> _slide;
+  late final AnimationController _controller;
+  late final Animation<double> _brandOpacity;
+  late final Animation<Offset> _brandSlide;
+  late final Animation<double> _contentOpacity;
+  late final Animation<Offset> _contentSlide;
+  late final Animation<double> _panelOpacity;
+  late final Animation<double> _panelScale;
 
   @override
   void initState() {
     super.initState();
 
-    _entranceController = AnimationController(
+    _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 720),
+      duration: const Duration(milliseconds: 900),
     );
 
-    _fade = CurvedAnimation(
-      parent: _entranceController,
-      curve: Curves.easeOut,
+    _brandOpacity = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.00, 0.36, curve: Curves.easeOutCubic),
     );
 
-    _slide = Tween<Offset>(
-      begin: const Offset(0, 0.045),
+    _brandSlide = Tween<Offset>(
+      begin: const Offset(0, 0.04),
       end: Offset.zero,
     ).animate(
       CurvedAnimation(
-        parent: _entranceController,
-        curve: Curves.easeOutCubic,
+        parent: _controller,
+        curve: const Interval(0.00, 0.42, curve: Curves.easeOutCubic),
       ),
     );
 
-    _entranceController.forward();
+    _contentOpacity = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.16, 0.62, curve: Curves.easeOutCubic),
+    );
+
+    _contentSlide = Tween<Offset>(
+      begin: const Offset(0, 0.05),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.16, 0.62, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    _panelOpacity = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.28, 0.90, curve: Curves.easeOutCubic),
+    );
+
+    _panelScale = Tween<double>(
+      begin: 0.975,
+      end: 1,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.28, 0.90, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    _controller.forward();
   }
 
   @override
   void dispose() {
-    _entranceController.dispose();
+    _controller.dispose();
     _loginController.dispose();
     _passwordController.dispose();
     _loginFocus.dispose();
@@ -77,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _busy = true);
     HapticFeedback.selectionClick();
 
-    await Future<void>.delayed(const Duration(milliseconds: 520));
+    await Future<void>.delayed(const Duration(milliseconds: 550));
 
     if (!mounted) return;
     setState(() => _busy = false);
@@ -85,8 +119,9 @@ class _LoginScreenState extends State<LoginScreen>
     Navigator.of(context).push(
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 420),
-        pageBuilder: (_, animation, _) => const PreviewHomeScreen(),
-        transitionsBuilder: (_, animation, _, child) {
+        pageBuilder: (_, animation, secondaryAnimation) =>
+            const PreviewHomeScreen(),
+        transitionsBuilder: (_, animation, secondaryAnimation, child) {
           final curved = CurvedAnimation(
             parent: animation,
             curve: Curves.easeOutCubic,
@@ -95,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen>
             opacity: curved,
             child: SlideTransition(
               position: Tween<Offset>(
-                begin: const Offset(0.025, 0),
+                begin: const Offset(0.02, 0),
                 end: Offset.zero,
               ).animate(curved),
               child: child,
@@ -113,145 +148,138 @@ class _LoginScreenState extends State<LoginScreen>
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: Stack(
+        fit: StackFit.expand,
         children: [
           const _LoginBackground(),
           SafeArea(
-            child: FadeTransition(
-              opacity: _fade,
-              child: SlideTransition(
-                position: _slide,
-                child: SingleChildScrollView(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: EdgeInsets.fromLTRB(
-                    24,
-                    24,
-                    24,
-                    bottomInset > 0 ? 30 : 48,
-                  ),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: MediaQuery.sizeOf(context).height -
-                          MediaQuery.paddingOf(context).vertical -
-                          72,
+            child: SingleChildScrollView(
+              keyboardDismissBehavior:
+                  ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.fromLTRB(
+                24,
+                22,
+                24,
+                bottomInset > 0 ? 28 : 38,
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: MediaQuery.sizeOf(context).height -
+                      MediaQuery.paddingOf(context).vertical -
+                      60,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    FadeTransition(
+                      opacity: _brandOpacity,
+                      child: SlideTransition(
+                        position: _brandSlide,
+                        child: const _BrandBlock(),
+                      ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const _MiniBrand(),
-                        const SizedBox(height: 72),
-                        Text(
-                          'Добро пожаловать',
-                          style: Theme.of(context).textTheme.headlineLarge,
-                        ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'Войдите в рабочую систему',
-                          style: TextStyle(
-                            color: AppColors.textSoft,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 36),
-                        _GlassPanel(
-                          child: Column(
-                            children: [
-                              TextField(
-                                controller: _loginController,
-                                focusNode: _loginFocus,
-                                textInputAction: TextInputAction.next,
-                                autofillHints: const [AutofillHints.username],
-                                onSubmitted: (_) =>
-                                    _passwordFocus.requestFocus(),
-                                decoration: const InputDecoration(
-                                  hintText: 'Логин',
-                                  prefixIcon: Icon(
-                                    Icons.person_outline_rounded,
+                    const SizedBox(height: 58),
+                    FadeTransition(
+                      opacity: _contentOpacity,
+                      child: SlideTransition(
+                        position: _contentSlide,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Вход в систему',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineLarge
+                                  ?.copyWith(
+                                    fontSize: 31,
+                                    letterSpacing: -1,
                                   ),
-                                ),
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Рабочая система мельницы и логистики',
+                              style: TextStyle(
+                                color: AppColors.textSoft,
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w500,
                               ),
-                              const SizedBox(height: 14),
-                              TextField(
-                                controller: _passwordController,
-                                focusNode: _passwordFocus,
-                                obscureText: _hidePassword,
-                                textInputAction: TextInputAction.done,
-                                autofillHints: const [AutofillHints.password],
-                                onSubmitted: (_) => _previewLogin(),
-                                decoration: InputDecoration(
-                                  hintText: 'Пароль',
-                                  prefixIcon:
-                                      const Icon(Icons.lock_outline_rounded),
-                                  suffixIcon: IconButton(
-                                    onPressed: () {
-                                      setState(
-                                        () => _hidePassword = !_hidePassword,
-                                      );
-                                    },
-                                    icon: Icon(
-                                      _hidePassword
-                                          ? Icons.visibility_off_outlined
-                                          : Icons.visibility_outlined,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              AnimatedSize(
-                                duration: const Duration(milliseconds: 220),
-                                curve: Curves.easeOut,
-                                child: _error == null
-                                    ? const SizedBox(height: 0)
-                                    : Padding(
-                                        padding:
-                                            const EdgeInsets.only(top: 13),
-                                        child: Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.error_outline_rounded,
-                                              size: 17,
-                                              color: Color(0xFFE47B6E),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                _error!,
-                                                style: const TextStyle(
-                                                  color: Color(0xFFE7A39B),
-                                                  fontSize: 13,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                              ),
-                              const SizedBox(height: 20),
-                              _PrimaryButton(
-                                busy: _busy,
-                                onPressed: _busy ? null : _previewLogin,
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 18),
-                        const Center(
-                          child: Text(
-                            'Пока это тестовый вход для проверки интерфейса.\n'
-                            'Подключение к серверу добавим следующим этапом.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Color(0xFF666A73),
-                              height: 1.45,
-                              fontSize: 11.5,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    FadeTransition(
+                      opacity: _panelOpacity,
+                      child: ScaleTransition(
+                        scale: _panelScale,
+                        child: _FormPanel(
+                          loginField: TextField(
+                            controller: _loginController,
+                            focusNode: _loginFocus,
+                            textInputAction: TextInputAction.next,
+                            autofillHints: const [AutofillHints.username],
+                            onSubmitted: (_) => _passwordFocus.requestFocus(),
+                            decoration: const InputDecoration(
+                              hintText: 'Логин',
+                              prefixIcon:
+                                  Icon(Icons.person_outline_rounded),
                             ),
                           ),
+                          passwordField: TextField(
+                            controller: _passwordController,
+                            focusNode: _passwordFocus,
+                            obscureText: _hidePassword,
+                            textInputAction: TextInputAction.done,
+                            autofillHints: const [AutofillHints.password],
+                            onSubmitted: (_) => _previewLogin(),
+                            decoration: InputDecoration(
+                              hintText: 'Пароль',
+                              prefixIcon:
+                                  const Icon(Icons.lock_outline_rounded),
+                              suffixIcon: IconButton(
+                                onPressed: () {
+                                  setState(
+                                    () => _hidePassword = !_hidePassword,
+                                  );
+                                },
+                                icon: Icon(
+                                  _hidePassword
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                ),
+                              ),
+                            ),
+                          ),
+                          error: _error,
+                          actionButton: _PrimaryButton(
+                            busy: _busy,
+                            onPressed: _busy ? null : _previewLogin,
+                          ),
                         ),
-                        const SizedBox(height: 34),
-                        const _SecurityRow(),
-                      ],
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 18),
+                    FadeTransition(
+                      opacity: _panelOpacity,
+                      child: const Center(
+                        child: Text(
+                          'Тестовый вход для проверки интерфейса',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0xFF6C7079),
+                            fontSize: 11,
+                            letterSpacing: 0.15,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    FadeTransition(
+                      opacity: _panelOpacity,
+                      child: const _BottomMeta(),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -262,20 +290,20 @@ class _LoginScreenState extends State<LoginScreen>
   }
 }
 
-class _MiniBrand extends StatelessWidget {
-  const _MiniBrand();
+class _BrandBlock extends StatelessWidget {
+  const _BrandBlock();
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         Container(
-          width: 44,
-          height: 44,
+          width: 48,
+          height: 48,
           decoration: BoxDecoration(
             color: const Color(0xFF15171B),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF4D290E)),
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: const Color(0xFF3F2A18)),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x26FF7A1A),
@@ -284,32 +312,32 @@ class _MiniBrand extends StatelessWidget {
             ],
           ),
           child: const Icon(
-            Icons.local_shipping_rounded,
+            Icons.grain_rounded,
             color: AppColors.orange,
-            size: 24,
+            size: 26,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 13),
         const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'ГАЗЕЛЬ',
+              'ТАМЕРЛАН',
               style: TextStyle(
                 color: AppColors.text,
-                fontSize: 16,
+                fontSize: 17,
                 fontWeight: FontWeight.w800,
-                letterSpacing: 1.9,
+                letterSpacing: 1.4,
               ),
             ),
-            SizedBox(height: 2),
+            SizedBox(height: 3),
             Text(
-              'DRIVER SYSTEM',
+              'MILLING SYSTEM',
               style: TextStyle(
-                color: Color(0xFF6D717A),
-                fontSize: 8.5,
+                color: Color(0xFF737780),
+                fontSize: 9,
                 fontWeight: FontWeight.w700,
-                letterSpacing: 1.6,
+                letterSpacing: 1.7,
               ),
             ),
           ],
@@ -319,10 +347,18 @@ class _MiniBrand extends StatelessWidget {
   }
 }
 
-class _GlassPanel extends StatelessWidget {
-  final Widget child;
+class _FormPanel extends StatelessWidget {
+  final Widget loginField;
+  final Widget passwordField;
+  final Widget actionButton;
+  final String? error;
 
-  const _GlassPanel({required this.child});
+  const _FormPanel({
+    required this.loginField,
+    required this.passwordField,
+    required this.actionButton,
+    required this.error,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -330,23 +366,126 @@ class _GlassPanel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xE6111318),
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: const Color(0xFF292C33)),
+        color: const Color(0xED101317),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFF292D34)),
         boxShadow: const [
           BoxShadow(
             color: Colors.black,
-            blurRadius: 30,
-            offset: Offset(0, 16),
+            blurRadius: 34,
+            offset: Offset(0, 18),
           ),
           BoxShadow(
-            color: Color(0x15FF7A1A),
-            blurRadius: 34,
-            spreadRadius: -5,
+            color: Color(0x1AFF7418),
+            blurRadius: 44,
+            spreadRadius: -10,
           ),
         ],
       ),
-      child: child,
+      child: Column(
+        children: [
+          const _TopLineGlow(),
+          const SizedBox(height: 10),
+          loginField,
+          const SizedBox(height: 14),
+          passwordField,
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+            child: error == null
+                ? const SizedBox(height: 0)
+                : Padding(
+                    padding: const EdgeInsets.only(top: 13),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.error_outline_rounded,
+                          size: 17,
+                          color: Color(0xFFE47B6E),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            error!,
+                            style: const TextStyle(
+                              color: Color(0xFFE7A39B),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+          const SizedBox(height: 20),
+          actionButton,
+          const SizedBox(height: 14),
+          const Row(
+            children: [
+              Expanded(child: _MiniInfoChip(text: 'Смена')),
+              SizedBox(width: 8),
+              Expanded(child: _MiniInfoChip(text: 'Логистика')),
+              SizedBox(width: 8),
+              Expanded(child: _MiniInfoChip(text: 'Учёт')),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TopLineGlow extends StatelessWidget {
+  const _TopLineGlow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 180,
+      height: 2,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(100),
+        gradient: const LinearGradient(
+          colors: [
+            Color(0x00FF7A1A),
+            Color(0xFFFF7A1A),
+            Color(0x00FF7A1A),
+          ],
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x88FF6A00),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniInfoChip extends StatelessWidget {
+  final String text;
+
+  const _MiniInfoChip({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 36,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: const Color(0xFF15181D),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: const Color(0xFF252932)),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: AppColors.textSoft,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
@@ -369,7 +508,10 @@ class _PrimaryButton extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
           gradient: const LinearGradient(
-            colors: [Color(0xFFFF8426), Color(0xFFE95B00)],
+            colors: [
+              Color(0xFFFF882C),
+              Color(0xFFE65A00),
+            ],
           ),
           boxShadow: const [
             BoxShadow(
@@ -425,29 +567,32 @@ class _PrimaryButton extends StatelessWidget {
   }
 }
 
-class _SecurityRow extends StatelessWidget {
-  const _SecurityRow();
+class _BottomMeta extends StatelessWidget {
+  const _BottomMeta();
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(
-          Icons.shield_outlined,
-          color: Color(0xFF555A64),
-          size: 15,
-        ),
-        SizedBox(width: 7),
-        Text(
-          'Защищённый доступ',
-          style: TextStyle(
-            color: Color(0xFF666A73),
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
+    return const Padding(
+      padding: EdgeInsets.only(top: 26),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.shield_outlined,
+            color: Color(0xFF595E68),
+            size: 15,
           ),
-        ),
-      ],
+          SizedBox(width: 7),
+          Text(
+            'Защищённый доступ',
+            style: TextStyle(
+              color: Color(0xFF676B74),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -457,42 +602,66 @@ class _LoginBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF14100D),
-              AppColors.background,
-              Color(0xFF07080A),
-            ],
-            stops: [0, 0.42, 1],
-          ),
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              top: -110,
-              right: -110,
-              child: Container(
-                width: 280,
-                height: 280,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(0x20FF6A00),
-                      blurRadius: 90,
-                      spreadRadius: 40,
-                    ),
-                  ],
-                ),
-              ),
-            ),
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF15100B),
+            AppColors.background,
+            Color(0xFF050608),
           ],
+          stops: [0, 0.42, 1],
         ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: -110,
+            right: -110,
+            child: _GlowBall(
+              size: 300,
+              color: Color(0x20FF6A00),
+            ),
+          ),
+          Positioned(
+            left: -80,
+            bottom: 120,
+            child: _GlowBall(
+              size: 220,
+              color: Color(0x11FFB46B),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GlowBall extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _GlowBall({
+    required this.size,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: color,
+            blurRadius: 95,
+            spreadRadius: 36,
+          ),
+        ],
       ),
     );
   }
