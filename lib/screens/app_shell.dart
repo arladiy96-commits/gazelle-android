@@ -173,150 +173,182 @@ class _BottomNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasAdd = items.length == 5 && items[2].label == 'Добавить';
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFA090B0E),
-        border: Border(
-          top: BorderSide(color: AppColors.line),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black,
-            blurRadius: 24,
-            offset: Offset(0, -8),
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xEE171A1F),
+                Color(0xF80A0C0F),
+                Color(0xFF050607),
+              ],
+            ),
+            border: Border(
+              top: BorderSide(color: Color(0xFF3D4148), width: .8),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0xB0000000),
+                blurRadius: 24,
+                offset: Offset(0, -10),
+              ),
+              BoxShadow(
+                color: Color(0x24FF7418),
+                blurRadius: 20,
+                spreadRadius: -8,
+              ),
+            ],
           ),
-        ],
-      ),
-      padding: EdgeInsets.only(
-        left: 6,
-        right: 6,
-        top: 5,
-        bottom: MediaQuery.paddingOf(context).bottom + 6,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: List.generate(items.length, (i) {
-          final item = items[i];
-          final isAdd = hasAdd && i == 2;
-          final active = !isAdd && i == index;
+          padding: EdgeInsets.only(
+            left: 6,
+            right: 6,
+            top: 5,
+            bottom: MediaQuery.paddingOf(context).bottom + 6,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(items.length, (i) {
+              final item = items[i];
+              final isAdd = hasAdd && i == 2;
+              final active = !isAdd && i == index;
 
-          if (isAdd) {
-            return Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => onChanged(i),
-                child: SizedBox(
-                  height: 70,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Transform.translate(
-                        offset: const Offset(0, -5),
-                        child: Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFF17120E),
-                            border: Border.all(
-                              color: AppColors.orange,
-                              width: 1.4,
+              if (isAdd) {
+                return Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => onChanged(i),
+                    child: SizedBox(
+                      height: 72,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Transform.translate(
+                            offset: const Offset(0, -7),
+                            child: Container(
+                              width: 56,
+                              height: 56,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: RadialGradient(
+                                  center: Alignment(-.28, -.34),
+                                  radius: 1.05,
+                                  colors: [
+                                    Color(0xFF41454C),
+                                    Color(0xFF17191D),
+                                    Color(0xFF08090B),
+                                  ],
+                                  stops: [0, .44, 1],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Color(0x6AFF7418),
+                                    blurRadius: 22,
+                                    spreadRadius: 1,
+                                  ),
+                                  BoxShadow(
+                                    color: Color(0xCC000000),
+                                    blurRadius: 14,
+                                    offset: Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: Container(
+                                margin: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppColors.orange,
+                                    width: 1.25,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.add_rounded,
+                                  color: AppColors.orangeSoft,
+                                  size: 31,
+                                ),
+                              ),
                             ),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x55FF7A1A),
-                                blurRadius: 18,
-                                spreadRadius: 1,
-                              ),
-                              BoxShadow(
-                                color: Colors.black,
-                                blurRadius: 12,
-                                offset: Offset(0, 6),
-                              ),
-                            ],
                           ),
-                          child: const Icon(
-                            Icons.add_rounded,
-                            color: AppColors.orange,
-                            size: 30,
+                          const Text(
+                            'Добавить',
+                            style: TextStyle(
+                              color: AppColors.orangeSoft,
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              return Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onChanged(i),
+                  onLongPress: i == 0 ? onLongPressLogo : null,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 115),
+                    curve: Curves.easeOutCubic,
+                    height: 62,
+                    margin: const EdgeInsets.symmetric(horizontal: 1),
+                    decoration: BoxDecoration(
+                      gradient: active
+                          ? const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Color(0xFF24272C),
+                                Color(0xFF0E1013),
+                              ],
+                            )
+                          : null,
+                      borderRadius: BorderRadius.circular(18),
+                      border: active
+                          ? Border.all(color: const Color(0xFF6A4A32), width: .8)
+                          : null,
+                      boxShadow: active
+                          ? const [
+                              BoxShadow(
+                                color: Color(0x24FF7418),
+                                blurRadius: 14,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          active ? item.activeIcon : item.icon,
+                          size: 21,
+                          color: active ? AppColors.orange : AppColors.textDim,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          item.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.fade,
+                          style: TextStyle(
+                            color: active ? AppColors.orangeSoft : AppColors.textDim,
+                            fontSize: 8.8,
+                            fontWeight: active ? FontWeight.w700 : FontWeight.w600,
                           ),
                         ),
-                      ),
-                      const Text(
-                        'Добавить',
-                        style: TextStyle(
-                          color: AppColors.orangeSoft,
-                          fontSize: 8.8,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            );
-          }
-
-          return Expanded(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => onChanged(i),
-              onLongPress: i == 0 ? onLongPressLogo : null,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 130),
-                curve: Curves.easeOutCubic,
-                height: 62,
-                margin: const EdgeInsets.symmetric(horizontal: 1),
-                decoration: BoxDecoration(
-                  color: active
-                      ? const Color(0xFF19150F)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(18),
-                  border: active
-                      ? Border.all(
-                          color: const Color(0xFF4A301C),
-                        )
-                      : null,
-                  boxShadow: active
-                      ? const [
-                          BoxShadow(
-                            color: Color(0x28FF7A1A),
-                            blurRadius: 14,
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      active ? item.activeIcon : item.icon,
-                      size: 21,
-                      color: active
-                          ? AppColors.orange
-                          : AppColors.textDim,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.fade,
-                      style: TextStyle(
-                        color: active
-                            ? AppColors.orangeSoft
-                            : AppColors.textDim,
-                        fontSize: 8.8,
-                        fontWeight: active
-                            ? FontWeight.w700
-                            : FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }),
+              );
+            }),
+          ),
+        ),
       ),
     );
   }
@@ -528,11 +560,19 @@ class _HomeSearchButton extends StatelessWidget {
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: const Color(0xC5121418),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF2C3036), Color(0xFF0C0E11)],
+          ),
           borderRadius: BorderRadius.circular(17),
           border: Border.all(
-            color: const Color(0xFF3A2A1E),
+            color: const Color(0xFF4C5057),
+            width: .8,
           ),
+          boxShadow: const [
+            BoxShadow(color: Color(0x55000000), blurRadius: 12, offset: Offset(0, 6)),
+          ],
         ),
         child: const Icon(
           Icons.search_rounded,
@@ -1790,29 +1830,33 @@ BoxDecoration _homePanelDecoration({
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: [
-        Color(0xFF18191B),
-        Color(0xFF0F1012),
+        Color(0xFF2B2E34),
+        Color(0xFF171A1F),
+        Color(0xFF0B0D10),
+        Color(0xFF050607),
       ],
+      stops: [0, .18, .62, 1],
     ),
     borderRadius: BorderRadius.circular(radius),
     border: Border.all(
-      color: borderColor,
-      width: 1,
+      color: borderColor.withValues(alpha: .88),
+      width: .85,
     ),
     boxShadow: [
       const BoxShadow(
-        color: Color(0x88000000),
-        blurRadius: 22,
-        offset: Offset(0, 11),
+        color: Color(0xA0000000),
+        blurRadius: 20,
+        offset: Offset(0, 10),
       ),
       BoxShadow(
         color: glow,
-        blurRadius: 22,
+        blurRadius: 18,
+        spreadRadius: -2,
       ),
       const BoxShadow(
-        color: Color(0x552A1608),
-        blurRadius: 2,
-        offset: Offset(0, 4),
+        color: Color(0x1FFFFFFF),
+        blurRadius: 1,
+        offset: Offset(-1, -1),
       ),
     ],
   );
@@ -2440,7 +2484,7 @@ Future<void> _showQuickAddMenu(BuildContext context) async {
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    barrierColor: Colors.black.withValues(alpha: 0.72),
+    barrierColor: Colors.black.withValues(alpha: 0.78),
     builder: (sheetContext) {
       return const _QuickAddMenu();
     },
@@ -2452,116 +2496,202 @@ class _QuickAddMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-        padding: const EdgeInsets.fromLTRB(18, 10, 18, 20),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF1A1511), Color(0xFF0D0F12)],
-          ),
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: const Color(0xFF6A3A1C)),
-          boxShadow: const [
-            BoxShadow(color: Color(0x55000000), blurRadius: 34, offset: Offset(0, -10)),
-            BoxShadow(color: Color(0x22FF7A1A), blurRadius: 30),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 42,
-              height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFF5A4A3E),
-                borderRadius: BorderRadius.circular(10),
+    return FractionallySizedBox(
+      heightFactor: .76,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(34)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(22, 12, 22, 22),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xF223262B),
+                  Color(0xF20E1013),
+                  Color(0xFA070809),
+                ],
+                stops: [0, .42, 1],
               ),
-            ),
-            const SizedBox(height: 18),
-            const Row(
-              children: [
-                Text('Добавить', style: TextStyle(color: AppColors.text, fontSize: 22, fontWeight: FontWeight.w800)),
-                Spacer(),
-                Text('Текущая смена', style: TextStyle(color: AppColors.textSoft, fontSize: 10)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(34)),
+              border: Border(
+                top: BorderSide(color: Color(0xFF777B82), width: .75),
+                left: BorderSide(color: Color(0xFF454950), width: .7),
+                right: BorderSide(color: Color(0xFF5F3C25), width: .8),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0x99000000),
+                  blurRadius: 42,
+                  offset: Offset(0, -12),
+                ),
+                BoxShadow(
+                  color: Color(0x26FF7418),
+                  blurRadius: 34,
+                  spreadRadius: -6,
+                ),
               ],
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _QuickActionTile(
+            child: SafeArea(
+              top: false,
+              child: Column(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF5B5F66), Color(0xFFFF7418)],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  const Text(
+                    'Что добавить?',
+                    style: TextStyle(
+                      color: AppColors.text,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -.5,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Выберите действие для текущей смены',
+                    style: TextStyle(
+                      color: AppColors.textSoft,
+                      fontSize: 11,
+                    ),
+                  ),
+                  const Spacer(),
+                  _QuickActionOrb(
                     icon: Icons.local_shipping_outlined,
                     title: 'Рейс',
+                    subtitle: 'Добавить новый рейс',
                     onTap: () => _openTripEntry(context),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _QuickActionTile(
+                  const SizedBox(height: 24),
+                  _QuickActionOrb(
                     icon: Icons.local_gas_station_outlined,
                     title: 'Топливо',
+                    subtitle: 'Добавить заправку',
                     onTap: () => _openFuelEntry(context),
                   ),
-                ),
-              ],
+                  const Spacer(),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(100),
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 52,
+                      height: 52,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          center: Alignment(-.3, -.35),
+                          colors: [
+                            Color(0xFF373B41),
+                            Color(0xFF14161A),
+                            Color(0xFF08090B),
+                          ],
+                        ),
+                        boxShadow: [
+                          BoxShadow(color: Color(0x44FF7418), blurRadius: 16),
+                        ],
+                      ),
+                      child: Container(
+                        margin: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.orange, width: 1.1),
+                        ),
+                        child: const Icon(Icons.close_rounded, color: AppColors.text, size: 24),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _QuickActionTile extends StatelessWidget {
+class _QuickActionOrb extends StatelessWidget {
   final IconData icon;
   final String title;
+  final String subtitle;
   final VoidCallback onTap;
 
-  const _QuickActionTile({
+  const _QuickActionOrb({
     required this.icon,
     required this.title,
+    required this.subtitle,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(20),
+      customBorder: const CircleBorder(),
       onTap: () {
         HapticFeedback.selectionClick();
         onTap();
       },
       child: Container(
-        height: 92,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF1D1712), Color(0xFF111317)]),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: const Color(0xFF60381F)),
-          boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 16, offset: Offset(0, 8)), BoxShadow(color: Color(0x16FF7A1A), blurRadius: 18)],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              icon,
-              color: AppColors.orange,
-              size: 23,
-            ),
-            const Spacer(),
-            Text(
-              title,
-              style: const TextStyle(
-                color: AppColors.text,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+        width: 154,
+        height: 154,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            center: Alignment(-.32, -.38),
+            radius: 1.05,
+            colors: [
+              Color(0xFF4A4E55),
+              Color(0xFF202329),
+              Color(0xFF0C0E11),
+              Color(0xFF050607),
+            ],
+            stops: [0, .31, .72, 1],
+          ),
+          boxShadow: [
+            BoxShadow(color: Color(0x5CFF7418), blurRadius: 28, spreadRadius: 1),
+            BoxShadow(color: Color(0xD0000000), blurRadius: 18, offset: Offset(0, 10)),
           ],
+        ),
+        child: Container(
+          margin: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.orange, width: 1.2),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: AppColors.orange, size: 34),
+              const SizedBox(height: 10),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: AppColors.textSoft,
+                  fontSize: 9.5,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -2721,12 +2851,25 @@ class _QuickEntryShell extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
           padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
-          decoration: BoxDecoration(
-            color: const Color(0xFF101114),
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(
-              color: const Color(0xFF61391E),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF25282E),
+                Color(0xFF101216),
+                Color(0xFF070809),
+              ],
+              stops: [0, .38, 1],
             ),
+            borderRadius: BorderRadius.all(Radius.circular(30)),
+            border: Border.fromBorderSide(
+              BorderSide(color: Color(0xFF6B4A32), width: .9),
+            ),
+            boxShadow: [
+              BoxShadow(color: Color(0x99000000), blurRadius: 28, offset: Offset(0, -8)),
+              BoxShadow(color: Color(0x24FF7418), blurRadius: 24),
+            ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -3059,22 +3202,27 @@ class WorkPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _PageScaffold(
-      title: 'Работа',
-      subtitle: 'Текущая смена',
-      trailing: const _StatusPill(
-        text: 'На смене',
-        color: Color(0xFF55E66B),
-      ),
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 28),
       children: const [
+        _PageHeader(
+          title: 'Работа',
+          subtitle: 'Текущая смена',
+          trailing: _StatusPill(
+            text: 'На смене',
+            color: Color(0xFF55E66B),
+          ),
+        ),
+        SizedBox(height: 14),
         _WorkHero(),
         SizedBox(height: 12),
         Row(
           children: [
             Expanded(child: _WorkStatTile(icon: Icons.local_shipping_outlined, label: 'Рейсов сегодня', value: '3')),
-            SizedBox(width: 10),
+            SizedBox(width: 8),
             Expanded(child: _WorkStatTile(icon: Icons.route_outlined, label: 'Направлений', value: '2')),
-            SizedBox(width: 10),
+            SizedBox(width: 8),
             Expanded(child: _WorkStatTile(icon: Icons.scale_outlined, label: 'Вес сегодня', value: '12 383 кг')),
           ],
         ),
@@ -3084,7 +3232,7 @@ class WorkPage extends StatelessWidget {
         Row(
           children: [
             Expanded(child: _FuelCard(title: 'Газ', icon: Icons.local_fire_department_outlined, value: '0 л')),
-            SizedBox(width: 10),
+            SizedBox(width: 8),
             Expanded(child: _FuelCard(title: 'Бензин', icon: Icons.local_gas_station_outlined, value: '0 л')),
           ],
         ),
@@ -4215,44 +4363,64 @@ class _WorkHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _premiumDecoration(),
+      padding: const EdgeInsets.all(10),
+      decoration: _premiumDecoration(radius: 30),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Текущий маршрут', style: TextStyle(color: AppColors.textSoft, fontSize: 10)),
-                    SizedBox(height: 5),
-                    Text('Петропавл → Щучинск', style: TextStyle(color: AppColors.text, fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-                  ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(6, 5, 6, 10),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Петропавл → Щучинск',
+                        style: TextStyle(
+                          color: AppColors.text,
+                          fontSize: 21,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -.55,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Текущий маршрут  •  18,96 км',
+                        style: TextStyle(
+                          color: AppColors.textSoft,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              _StatusPill(text: 'LIVE', color: AppColors.orange),
-            ],
+                const _StatusPill(text: 'LIVE', color: AppColors.orange),
+              ],
+            ),
           ),
-          const SizedBox(height: 14),
           const _RoutePreview(),
-          const SizedBox(height: 10),
+          const SizedBox(height: 9),
           Container(
-            height: 56,
+            height: 58,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
-              color: const Color(0xB5090B0E),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFF33261D)),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xE822252A), Color(0xE60A0C0F)],
+              ),
+              borderRadius: BorderRadius.circular(19),
+              border: Border.all(color: const Color(0xFF3D4148), width: .8),
             ),
             child: const Row(
               children: [
-                _WorkMini(icon: Icons.gps_fixed_rounded, label: 'GPS', value: 'Включён'),
+                _WorkMini(icon: Icons.gps_fixed_rounded, label: 'GPS', value: 'Активен'),
                 _VerticalDivider(),
-                _WorkMini(icon: Icons.route_outlined, label: 'Пробег', value: '18,96 км'),
+                _WorkMini(icon: Icons.speed_rounded, label: 'Скорость', value: '74 км/ч'),
                 _VerticalDivider(),
-                _WorkMini(icon: Icons.pause_rounded, label: 'GPS', value: 'Пауза'),
+                _WorkMini(icon: Icons.route_outlined, label: 'До точки', value: '18,96 км'),
               ],
             ),
           ),
@@ -4441,36 +4609,72 @@ class _RoutePreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 170,
+      height: 322,
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.line),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF11171D), Color(0xFF070A0D)],
+        ),
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(color: const Color(0xFF464A52), width: .8),
+        boxShadow: const [
+          BoxShadow(color: Color(0x80000000), blurRadius: 18, offset: Offset(0, 10)),
+          BoxShadow(color: Color(0x22FF7418), blurRadius: 18),
+        ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(23),
+        borderRadius: BorderRadius.circular(24),
         child: CustomPaint(
           painter: _RoutePainter(),
-          child: const Stack(
+          child: Stack(
             children: [
               Positioned(
-                left: 16,
-                top: 16,
-                child: _StatusPill(
-                  text: '184 км',
-                  color: AppColors.blue,
+                left: 14,
+                top: 14,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xD90A0D10),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF42464D), width: .7),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.cloud_outlined, color: AppColors.orangeSoft, size: 15),
+                      SizedBox(width: 6),
+                      Text('+14°', style: TextStyle(color: AppColors.text, fontSize: 10, fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+              ),
+              const Positioned(
+                left: 22,
+                bottom: 22,
+                child: _MapLabel(
+                  title: 'Петропавл',
+                  icon: Icons.local_shipping_rounded,
+                ),
+              ),
+              const Positioned(
+                right: 22,
+                top: 44,
+                child: _MapLabel(
+                  title: 'Щучинск',
+                  icon: Icons.location_on_rounded,
                 ),
               ),
               Positioned(
-                right: 16,
-                bottom: 14,
-                child: Text(
-                  'GPS маршрут смены',
-                  style: TextStyle(
-                    color: AppColors.textSoft,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                  ),
+                right: 14,
+                bottom: 18,
+                child: Column(
+                  children: [
+                    _MapRoundButton(icon: Icons.near_me_rounded),
+                    const SizedBox(height: 8),
+                    _MapRoundButton(icon: Icons.add_rounded),
+                    const SizedBox(height: 6),
+                    _MapRoundButton(icon: Icons.remove_rounded),
+                  ],
                 ),
               ),
             ],
@@ -4481,74 +4685,137 @@ class _RoutePreview extends StatelessWidget {
   }
 }
 
+class _MapLabel extends StatelessWidget {
+  final String title;
+  final IconData icon;
+
+  const _MapLabel({required this.title, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xD90A0C0F),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF454950), width: .7),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: AppColors.orange, size: 14),
+          const SizedBox(width: 5),
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.text,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MapRoundButton extends StatelessWidget {
+  final IconData icon;
+  const _MapRoundButton({required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          center: Alignment(-.3, -.3),
+          colors: [Color(0xFF33373D), Color(0xFF111317), Color(0xFF070809)],
+        ),
+        boxShadow: [BoxShadow(color: Color(0x77000000), blurRadius: 10, offset: Offset(0, 5))],
+      ),
+      child: Container(
+        margin: const EdgeInsets.all(1.5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: const Color(0xFF555A62), width: .7),
+        ),
+        child: Icon(icon, color: AppColors.text, size: 18),
+      ),
+    );
+  }
+}
+
 class _RoutePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final grid = Paint()
-      ..color = const Color(0xFF1A1D22)
-      ..strokeWidth = 1;
+    final minor = Paint()
+      ..color = const Color(0xFF161D23)
+      ..strokeWidth = .75;
+    final major = Paint()
+      ..color = const Color(0xFF273038)
+      ..strokeWidth = 1.2;
 
-    for (double x = 0; x < size.width; x += 36) {
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, size.height),
-        grid,
-      );
+    for (double x = -40; x < size.width + 40; x += 34) {
+      canvas.drawLine(Offset(x, 0), Offset(x + 85, size.height), minor);
     }
-
-    for (double y = 0; y < size.height; y += 36) {
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        grid,
-      );
+    for (double y = 18; y < size.height; y += 46) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y - 24), minor);
     }
+    canvas.drawLine(Offset(0, size.height * .64), Offset(size.width, size.height * .35), major);
+    canvas.drawLine(Offset(size.width * .22, 0), Offset(size.width * .72, size.height), major);
 
     final path = Path()
-      ..moveTo(size.width * 0.08, size.height * 0.76)
+      ..moveTo(size.width * .12, size.height * .80)
       ..cubicTo(
-        size.width * 0.22,
-        size.height * 0.62,
-        size.width * 0.20,
-        size.height * 0.34,
-        size.width * 0.40,
-        size.height * 0.45,
+        size.width * .23,
+        size.height * .73,
+        size.width * .24,
+        size.height * .58,
+        size.width * .39,
+        size.height * .60,
       )
       ..cubicTo(
-        size.width * 0.58,
-        size.height * 0.54,
-        size.width * 0.62,
-        size.height * 0.18,
-        size.width * 0.88,
-        size.height * 0.28,
+        size.width * .55,
+        size.height * .62,
+        size.width * .52,
+        size.height * .40,
+        size.width * .66,
+        size.height * .42,
+      )
+      ..cubicTo(
+        size.width * .79,
+        size.height * .44,
+        size.width * .77,
+        size.height * .22,
+        size.width * .88,
+        size.height * .18,
       );
 
     final glow = Paint()
-      ..color = const Color(0x555E9BFF)
+      ..color = const Color(0x66FF7418)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 11
+      ..strokeWidth = 13
       ..strokeCap = StrokeCap.round;
-
     final line = Paint()
       ..shader = const LinearGradient(
-        colors: [
-          AppColors.blue,
-          AppColors.orangeSoft,
-        ],
-      ).createShader(
-        Rect.fromLTWH(
-          0,
-          0,
-          size.width,
-          size.height,
-        ),
-      )
+        colors: [Color(0xFFFFA14A), Color(0xFFFF7418), Color(0xFFFFB85A)],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
+      ..strokeWidth = 4.3
       ..strokeCap = StrokeCap.round;
 
     canvas.drawPath(path, glow);
     canvas.drawPath(path, line);
+
+    final start = Offset(size.width * .12, size.height * .80);
+    final finish = Offset(size.width * .88, size.height * .18);
+    final markerPaint = Paint()..color = const Color(0xFFFF7418);
+    canvas.drawCircle(start, 7, markerPaint);
+    canvas.drawCircle(finish, 8, markerPaint);
+    canvas.drawCircle(finish, 13, Paint()..color = const Color(0x33FF7418));
   }
 
   @override
@@ -5462,38 +5729,68 @@ class _AppBackground extends StatelessWidget {
     return const DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: [
-            Color(0xFF12100D),
-            AppColors.background,
-            Color(0xFF06070A),
+            Color(0xFF111318),
+            Color(0xFF070809),
+            Color(0xFF030405),
           ],
-          stops: [0, 0.35, 1],
+          stops: [0, .42, 1],
         ),
       ),
       child: Stack(
         children: [
           Positioned(
-            top: -150,
+            top: -170,
             right: -120,
-            child: _AmbientGlow(
-              size: 340,
-              color: Color(0x1AFF6B00),
-            ),
+            child: _AmbientGlow(size: 360, color: Color(0x24FF7418)),
           ),
           Positioned(
-            left: -150,
-            bottom: 120,
-            child: _AmbientGlow(
-              size: 300,
-              color: Color(0x0D5E9BFF),
-            ),
+            top: 300,
+            left: -210,
+            child: _AmbientGlow(size: 330, color: Color(0x105F6B7A)),
           ),
+          Positioned(
+            right: -180,
+            bottom: 120,
+            child: _AmbientGlow(size: 300, color: Color(0x14FF8A24)),
+          ),
+          Positioned.fill(child: _ChromeBackgroundLines()),
         ],
       ),
     );
   }
+}
+
+class _ChromeBackgroundLines extends StatelessWidget {
+  const _ChromeBackgroundLines();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: CustomPaint(painter: _ChromeBackgroundPainter()),
+    );
+  }
+}
+
+class _ChromeBackgroundPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final silver = Paint()
+      ..color = const Color(0x0BFFFFFF)
+      ..strokeWidth = .7;
+    final warm = Paint()
+      ..color = const Color(0x10FF7418)
+      ..strokeWidth = 1;
+
+    canvas.drawLine(Offset(-40, size.height * .18), Offset(size.width * .72, -30), silver);
+    canvas.drawLine(Offset(size.width * .22, size.height), Offset(size.width + 40, size.height * .56), silver);
+    canvas.drawLine(Offset(size.width * .66, -20), Offset(size.width + 30, size.height * .28), warm);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _AmbientGlow extends StatelessWidget {
@@ -5515,8 +5812,8 @@ class _AmbientGlow extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: color,
-            blurRadius: 110,
-            spreadRadius: 45,
+            blurRadius: 115,
+            spreadRadius: 44,
           ),
         ],
       ),
@@ -5533,24 +5830,33 @@ BoxDecoration _premiumDecoration({
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: [
-        Color(0xFF1B1713),
-        Color(0xFF111318),
+        Color(0xFF30343A),
+        Color(0xFF1A1D22),
+        Color(0xFF0D0F12),
+        Color(0xFF050607),
       ],
+      stops: [0, .17, .62, 1],
     ),
     borderRadius: BorderRadius.circular(radius),
     border: Border.all(
-      color: accent.withValues(alpha: 0.24),
+      color: accent.withValues(alpha: .28),
+      width: .85,
     ),
     boxShadow: [
       const BoxShadow(
-        color: Color(0x66000000),
-        blurRadius: 28,
-        offset: Offset(0, 15),
+        color: Color(0xA8000000),
+        blurRadius: 22,
+        offset: Offset(0, 12),
       ),
       BoxShadow(
-        color: accent.withValues(alpha: 0.07),
-        blurRadius: 34,
-        spreadRadius: -4,
+        color: accent.withValues(alpha: .075),
+        blurRadius: 24,
+        spreadRadius: -5,
+      ),
+      const BoxShadow(
+        color: Color(0x20FFFFFF),
+        blurRadius: 1,
+        offset: Offset(-1, -1),
       ),
     ],
   );
