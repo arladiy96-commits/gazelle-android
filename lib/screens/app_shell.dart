@@ -1043,43 +1043,6 @@ class _HomeKeyMetric extends StatelessWidget {
   }
 }
 
-class _HomeSalaryProgress extends StatelessWidget {
-  const _HomeSalaryProgress();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 7,
-      decoration: BoxDecoration(
-        color: const Color(0xFF2A2A2A),
-        borderRadius: BorderRadius.circular(100),
-      ),
-      child: FractionallySizedBox(
-        alignment: Alignment.centerLeft,
-        widthFactor: 0.88,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(100),
-            gradient: const LinearGradient(
-              colors: [
-                Color(0xFFFF5C00),
-                Color(0xFFFF8517),
-                Color(0xFFFFC35A),
-              ],
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x55FF7418),
-                blurRadius: 7,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _HomeSalaryRing extends StatelessWidget {
   const _HomeSalaryRing();
 
@@ -1381,83 +1344,6 @@ class _HomeProgressBar extends StatelessWidget {
               colors: [
                 color,
                 Color.lerp(color, Colors.white, 0.25)!,
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HomeThinLine extends StatelessWidget {
-  final Color color;
-  final double progress;
-
-  const _HomeThinLine({
-    required this.color,
-    required this.progress,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.centerLeft,
-      children: [
-        Container(
-          height: 2,
-          color: const Color(0xFF222428),
-        ),
-        FractionallySizedBox(
-          widthFactor: progress,
-          child: Container(
-            height: 2,
-            color: color,
-          ),
-        ),
-        Align(
-          alignment: Alignment(progress * 2 - 1, 0),
-          child: Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.45),
-                  blurRadius: 7,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _HomeDots extends StatelessWidget {
-  const _HomeDots();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: List.generate(
-        9,
-        (index) => Padding(
-          padding: const EdgeInsets.only(right: 7),
-          child: Container(
-            width: 7,
-            height: 7,
-            decoration: const BoxDecoration(
-              color: AppColors.orange,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Color(0x55FF7418),
-                  blurRadius: 7,
-                ),
               ],
             ),
           ),
@@ -2118,33 +2004,6 @@ void _showSalarySheet(BuildContext context) {
         ),
       ],
     ),
-  );
-}
-
-void _showMileageSheet(BuildContext context) {
-  const rows = [
-    ('09-18', '— км'),
-    ('09-17', '0 км'),
-    ('09-16', '0 км'),
-    ('09-15', '0 км'),
-    ('09-14', '0 км'),
-    ('09-11', '0 км'),
-    ('09-10', '0 км'),
-    ('09-09', '0 км'),
-    ('09-08', '0 км'),
-    ('09-07', '0 км'),
-    ('09-04', '0 км'),
-    ('09-03', '0 км'),
-    ('09-02', '0 км'),
-    ('09-01', '0 км'),
-  ];
-
-  _showHomeTableSheet(
-    context,
-    title: 'Пробег по дням',
-    icon: Icons.route_rounded,
-    headers: const ['ДАТА', 'ПРОБЕГ'],
-    rows: rows,
   );
 }
 
