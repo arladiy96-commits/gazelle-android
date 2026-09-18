@@ -5609,6 +5609,7 @@ class _AmbientGlow extends StatelessWidget {
 
 BoxDecoration _premiumDecoration({
   Color accent = AppColors.orange,
+  double radius = 28,
 }) {
   return BoxDecoration(
     gradient: const LinearGradient(
@@ -5619,7 +5620,7 @@ BoxDecoration _premiumDecoration({
         Color(0xFF111318),
       ],
     ),
-    borderRadius: BorderRadius.circular(28),
+    borderRadius: BorderRadius.circular(radius),
     border: Border.all(
       color: accent.withValues(alpha: 0.24),
     ),
