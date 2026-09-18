@@ -3,25 +3,28 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  static const background = Color(0xFF08090C);
-  static const backgroundSoft = Color(0xFF0D0F13);
-  static const surface = Color(0xFF111318);
-  static const surfaceSoft = Color(0xFF171A20);
-  static const surfaceRaised = Color(0xFF1B1E24);
-  static const line = Color(0xFF292D34);
+  // Black chrome + smoked glass palette.
+  static const background = Color(0xFF050607);
+  static const backgroundSoft = Color(0xFF080A0D);
+  static const surface = Color(0xFF0B0D10);
+  static const surfaceSoft = Color(0xFF101318);
+  static const surfaceRaised = Color(0xFF171A1F);
+  static const line = Color(0xFF343840);
+  static const chrome = Color(0xFF9BA0A8);
+  static const chromeDark = Color(0xFF3B3F46);
 
-  static const orange = Color(0xFFFF7A1A);
-  static const orangeSoft = Color(0xFFFFA45B);
-  static const amber = Color(0xFFFFC266);
+  static const orange = Color(0xFFFF7418);
+  static const orangeSoft = Color(0xFFFFA14A);
+  static const amber = Color(0xFFFFC46A);
 
-  static const text = Color(0xFFF4F5F7);
-  static const textSoft = Color(0xFF9A9EA8);
-  static const textDim = Color(0xFF666B75);
+  static const text = Color(0xFFF8F9FA);
+  static const textSoft = Color(0xFFB3B7BF);
+  static const textDim = Color(0xFF737985);
 
-  static const blue = Color(0xFF5E9BFF);
-  static const violet = Color(0xFF9A7BFF);
-  static const red = Color(0xFFEA7468);
-  static const green = Color(0xFF58C99A);
+  static const blue = Color(0xFF63A5FF);
+  static const violet = Color(0xFFA88BFF);
+  static const red = Color(0xFFEE766D);
+  static const green = Color(0xFF59E36D);
 }
 
 class AppTheme {
@@ -47,6 +50,11 @@ class AppTheme {
       fontFamily: 'Roboto',
       splashFactory: InkSparkle.splashFactory,
       dividerColor: AppColors.line,
+      textSelectionTheme: const TextSelectionThemeData(
+        cursorColor: AppColors.orange,
+        selectionColor: Color(0x55FF7418),
+        selectionHandleColor: AppColors.orange,
+      ),
       textTheme: const TextTheme(
         displaySmall: TextStyle(
           color: AppColors.text,
@@ -89,24 +97,24 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surfaceSoft,
+        fillColor: const Color(0xD90B0E12),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 18,
           vertical: 17,
         ),
-        hintStyle: const TextStyle(color: Color(0xFF717680)),
+        hintStyle: const TextStyle(color: Color(0xFF747A84)),
         labelStyle: const TextStyle(color: AppColors.textSoft),
         prefixIconColor: AppColors.textSoft,
         suffixIconColor: AppColors.textSoft,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: AppColors.line),
+          borderSide: const BorderSide(color: Color(0xFF363A42)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
           borderSide: const BorderSide(
             color: AppColors.orange,
-            width: 1.3,
+            width: 1.25,
           ),
         ),
         errorBorder: OutlineInputBorder(
@@ -117,7 +125,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(18),
           borderSide: const BorderSide(
             color: AppColors.red,
-            width: 1.3,
+            width: 1.25,
           ),
         ),
       ),
