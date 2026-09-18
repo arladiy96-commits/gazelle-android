@@ -3999,52 +3999,6 @@ class _VerticalDivider extends StatelessWidget {
   }
 }
 
-class _RoutePreview extends StatelessWidget {
-  const _RoutePreview();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 170,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.line),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(23),
-        child: CustomPaint(
-          painter: _RoutePainter(),
-          child: const Stack(
-            children: [
-              Positioned(
-                left: 16,
-                top: 16,
-                child: _StatusPill(
-                  text: '184 км',
-                  color: AppColors.blue,
-                ),
-              ),
-              Positioned(
-                right: 16,
-                bottom: 14,
-                child: Text(
-                  'GPS маршрут смены',
-                  style: TextStyle(
-                    color: AppColors.textSoft,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _RoutePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -4117,41 +4071,6 @@ class _RoutePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _ActionRow extends StatelessWidget {
-  const _ActionRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _OutlineAction(
-            icon: Icons.add_location_alt_outlined,
-            label: 'Точка',
-            onTap: () => _showFeatureStub(
-              context,
-              'Контрольные точки',
-              'Подключим существующие геозоны и уведомления из текущего сервера.',
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _OutlineAction(
-            icon: Icons.flag_outlined,
-            label: 'Завершить',
-            onTap: () => _showFeatureStub(
-              context,
-              'Завершение смены',
-              'Позже здесь будет реальное завершение смены и корректировка итогового пробега.',
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 class _OutlineAction extends StatelessWidget {
