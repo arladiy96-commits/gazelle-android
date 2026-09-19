@@ -964,7 +964,6 @@ class _HomeDynamicsCard extends StatelessWidget {
 BoxDecoration _homePanelDecoration({
   required double radius,
   Color borderColor = AppColors.line,
-  Color glow = const Color(0x14000000),
 }) {
   return BoxDecoration(
     gradient: const LinearGradient(
@@ -980,14 +979,18 @@ BoxDecoration _homePanelDecoration({
     ),
     borderRadius: BorderRadius.circular(radius),
     border: Border.all(color: borderColor.withValues(alpha: .96), width: .78),
-    boxShadow: [
-      const BoxShadow(
+    boxShadow: const [
+      BoxShadow(
         color: Color(0xB8000000),
         blurRadius: 22,
         offset: Offset(0, 12),
       ),
-      BoxShadow(color: glow, blurRadius: 22, spreadRadius: -3),
-      const BoxShadow(
+      BoxShadow(
+        color: Color(0x14000000),
+        blurRadius: 22,
+        spreadRadius: -3,
+      ),
+      BoxShadow(
         color: Color(0x2AFFFFFF),
         blurRadius: 1,
         offset: Offset(-1, -1),
@@ -2076,11 +2079,9 @@ class _ChromeGlassSurface extends StatelessWidget {
 
 class _ChromeCornerBurn extends StatelessWidget {
   final double radius;
-  final Color accent;
 
   const _ChromeCornerBurn({
     required this.radius,
-    this.accent = AppColors.orange,
   });
 
   @override
@@ -2089,7 +2090,7 @@ class _ChromeCornerBurn extends StatelessWidget {
       child: CustomPaint(
         painter: _ChromeCornerPainter(
           radius: radius,
-          accent: accent,
+          accent: AppColors.orange,
         ),
       ),
     );
@@ -4583,69 +4584,6 @@ class _WorkHero extends StatelessWidget {
 }
 
 
-
-class _GaugePainter extends CustomPainter {
-  final double progress;
-
-  _GaugePainter({
-    required this.progress,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(
-      size.width / 2,
-      size.height / 2,
-    );
-    final radius = size.width / 2 - 8;
-    final rect = Rect.fromCircle(
-      center: center,
-      radius: radius,
-    );
-
-    final bg = Paint()
-      ..color = const Color(0xFF2A2D33)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 7
-      ..strokeCap = StrokeCap.round;
-
-    final fg = Paint()
-      ..shader = const SweepGradient(
-        colors: [
-          AppColors.orange,
-          AppColors.orangeSoft,
-          AppColors.orange,
-        ],
-      ).createShader(rect)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 7
-      ..strokeCap = StrokeCap.round;
-
-    const start = math.pi * 0.75;
-    const sweep = math.pi * 1.5;
-
-    canvas.drawArc(
-      rect,
-      start,
-      sweep,
-      false,
-      bg,
-    );
-
-    canvas.drawArc(
-      rect,
-      start,
-      sweep * progress.clamp(0.0, 1.0).toDouble(),
-      false,
-      fg,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _GaugePainter oldDelegate) {
-    return oldDelegate.progress != progress;
-  }
-}
 
 class _VerticalDivider extends StatelessWidget {
   const _VerticalDivider();
