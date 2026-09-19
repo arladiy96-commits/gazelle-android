@@ -994,42 +994,6 @@ BoxDecoration _homePanelDecoration({
       ),
     ],
   );
-}) {
-  return BoxDecoration(
-    gradient: const LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        Color(0xFF3A3E45),
-        Color(0xFF1C1F24),
-        Color(0xFF0B0D10),
-        Color(0xFF050607),
-      ],
-      stops: [0, .14, .56, 1],
-    ),
-    borderRadius: BorderRadius.circular(radius),
-    border: Border.all(
-      color: borderColor.withValues(alpha: .94),
-      width: .82,
-    ),
-    boxShadow: [
-      const BoxShadow(
-        color: Color(0xB0000000),
-        blurRadius: 22,
-        offset: Offset(0, 12),
-      ),
-      BoxShadow(
-        color: glow,
-        blurRadius: 22,
-        spreadRadius: -2,
-      ),
-      const BoxShadow(
-        color: Color(0x24FFFFFF),
-        blurRadius: 1,
-        offset: Offset(-1, -1),
-      ),
-    ],
-  );
 }
 
 Future<void> _openHomeMenu(
@@ -6001,42 +5965,6 @@ BoxDecoration _premiumDecoration({
       ),
       const BoxShadow(
         color: Color(0x38FFFFFF),
-        blurRadius: 1,
-        offset: Offset(-1, -1),
-      ),
-    ],
-  );
-}) {
-  return BoxDecoration(
-    gradient: const LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        Color(0xFF30343A),
-        Color(0xFF1A1D22),
-        Color(0xFF0D0F12),
-        Color(0xFF050607),
-      ],
-      stops: [0, .17, .62, 1],
-    ),
-    borderRadius: BorderRadius.circular(radius),
-    border: Border.all(
-      color: accent.withValues(alpha: .28),
-      width: .85,
-    ),
-    boxShadow: [
-      const BoxShadow(
-        color: Color(0xA8000000),
-        blurRadius: 22,
-        offset: Offset(0, 12),
-      ),
-      BoxShadow(
-        color: accent.withValues(alpha: .075),
-        blurRadius: 24,
-        spreadRadius: -5,
-      ),
-      const BoxShadow(
-        color: Color(0x20FFFFFF),
         blurRadius: 1,
         offset: Offset(-1, -1),
       ),
