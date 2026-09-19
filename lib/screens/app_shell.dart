@@ -318,37 +318,52 @@ class _BottomNavigation extends StatelessWidget {
 
 
 
+
 class _ChromeRailPainter extends CustomPainter {
   const _ChromeRailPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
-    final topRect = Rect.fromLTWH(0, 0, size.width, 3.5);
-    final line = Paint()
+    final rect = Rect.fromLTWH(0, 0, size.width, 4);
+
+    final darkEdge = Paint()
       ..shader = const LinearGradient(
         colors: [
-          Color(0x00FFFFFF),
-          Color(0x80FFFFFF),
-          Color(0xFFFF7418),
-          Color(0x5AFFFFFF),
-          Color(0x00FFFFFF),
+          Color(0x002B2F34),
+          Color(0xFF6C7178),
+          Color(0xFF202328),
+          Color(0xFF6C7178),
+          Color(0x002B2F34),
         ],
-        stops: [0, .22, .50, .72, 1],
-      ).createShader(topRect);
-    canvas.drawRect(topRect, line);
+        stops: [0, .18, .50, .82, 1],
+      ).createShader(rect);
+    canvas.drawRect(rect, darkEdge);
 
-    final glow = Paint()
-      ..color = const Color(0x32FF7418)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
-    canvas.drawRect(
-      Rect.fromLTWH(size.width * .28, -1, size.width * .44, 5),
-      glow,
+    final orangeGlow = Paint()
+      ..color = const Color(0x48FF7418)
+      ..strokeWidth = 4
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawLine(
+      Offset(size.width * .41, 1.2),
+      Offset(size.width * .59, 1.2),
+      orangeGlow,
+    );
+
+    final orange = Paint()
+      ..color = const Color(0xB8FF7418)
+      ..strokeWidth = .8;
+    canvas.drawLine(
+      Offset(size.width * .44, 1.1),
+      Offset(size.width * .56, 1.1),
+      orange,
     );
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+
 
 class _BottomAddOrb extends StatelessWidget {
   const _BottomAddOrb();
@@ -1699,6 +1714,7 @@ class _HomeGaugeCard extends StatelessWidget {
   }
 }
 
+
 class _ChromeGaugePainter extends CustomPainter {
   final double progress;
   final Color accent;
@@ -1711,48 +1727,89 @@ class _ChromeGaugePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = math.min(size.width, size.height) / 2 - 9;
+    final radius = math.min(size.width, size.height) / 2 - 10;
     final rect = Rect.fromCircle(center: center, radius: radius);
 
-    final shadow = Paint()
+    final trackShadow = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 12
-      ..color = const Color(0xFF353941);
-    canvas.drawArc(rect, -math.pi * .75, math.pi * 1.5, false, shadow);
+      ..strokeWidth = 15
+      ..strokeCap = StrokeCap.round
+      ..color = const Color(0xB0000000)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+    canvas.drawArc(
+      rect,
+      -math.pi * .78,
+      math.pi * 1.56,
+      false,
+      trackShadow,
+    );
 
-    final chrome = Paint()
-      ..shader = const LinearGradient(
-        colors: [
-          Color(0xFFB9BDC4),
-          Color(0xFF353941),
-          Color(0xFF0A0B0D),
-        ],
-      ).createShader(rect)
+    final track = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 12
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(rect, -math.pi * .75, math.pi * .27, false, chrome);
+      ..strokeWidth = 11
+      ..strokeCap = StrokeCap.round
+      ..shader = const SweepGradient(
+        colors: [
+          Color(0xFF7B8087),
+          Color(0xFF2B2F35),
+          Color(0xFF111317),
+          Color(0xFF494E55),
+          Color(0xFF747980),
+        ],
+      ).createShader(rect);
+    canvas.drawArc(
+      rect,
+      -math.pi * .78,
+      math.pi * 1.56,
+      false,
+      track,
+    );
 
     final glow = Paint()
-      ..color = accent.withValues(alpha: .28)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 14
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(rect, -math.pi * .75, math.pi * 1.5 * progress, false, glow);
+      ..strokeCap = StrokeCap.round
+      ..color = accent.withValues(alpha: .38)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9);
+    canvas.drawArc(
+      rect,
+      -math.pi * .78,
+      math.pi * 1.56 * progress,
+      false,
+      glow,
+    );
 
     final active = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 9.2
+      ..strokeCap = StrokeCap.round
       ..shader = LinearGradient(
         colors: [
-          Color.lerp(accent, Colors.white, .35)!,
+          Color.lerp(accent, Colors.white, .28)!,
           accent,
-          const Color(0xFFFF4F00),
+          const Color(0xFFFF5E00),
         ],
-      ).createShader(rect)
+      ).createShader(rect);
+    canvas.drawArc(
+      rect,
+      -math.pi * .78,
+      math.pi * 1.56 * progress,
+      false,
+      active,
+    );
+
+    final highlight = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 10
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(rect, -math.pi * .75, math.pi * 1.5 * progress, false, active);
+      ..strokeWidth = .8
+      ..strokeCap = StrokeCap.round
+      ..color = const Color(0xB9FFFFFF);
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius - 5.2),
+      -math.pi * .70,
+      math.pi * .34,
+      false,
+      highlight,
+    );
   }
 
   @override
@@ -1760,6 +1817,8 @@ class _ChromeGaugePainter extends CustomPainter {
     return oldDelegate.progress != progress || oldDelegate.accent != accent;
   }
 }
+
+
 
 class _ChromeChip extends StatelessWidget {
   final String text;
@@ -1791,6 +1850,7 @@ class _ChromeChip extends StatelessWidget {
   }
 }
 
+
 class _ChromeMiniIcon extends StatelessWidget {
   final IconData icon;
   final Color color;
@@ -1802,29 +1862,99 @@ class _ChromeMiniIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: 43,
       height: 43,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF42464E),
-            Color(0xFF1A1D21),
-            Color(0xFF07080A),
-          ],
+      child: CustomPaint(
+        painter: _MiniChromeTilePainter(accent: color),
+        child: Center(
+          child: _NeonIcon(
+            icon: icon,
+            color: color,
+            size: 20,
+          ),
         ),
-        border: Border.all(color: color.withValues(alpha: .65), width: .8),
-        boxShadow: [
-          BoxShadow(color: color.withValues(alpha: .16), blurRadius: 13),
-        ],
       ),
-      child: Icon(icon, color: color, size: 21),
     );
   }
 }
+
+
+
+
+class _MiniChromeTilePainter extends CustomPainter {
+  final Color accent;
+
+  const _MiniChromeTilePainter({
+    required this.accent,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final rr = RRect.fromRectAndRadius(
+      rect.deflate(1),
+      const Radius.circular(14),
+    );
+
+    final fill = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFF3B3F45),
+          Color(0xFF14171B),
+          Color(0xFF030405),
+        ],
+      ).createShader(rect);
+    canvas.drawRRect(rr, fill);
+
+    final chrome = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = .8
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFFB6BBC2),
+          Color(0xFF34383E),
+          Color(0xFF111317),
+        ],
+      ).createShader(rect);
+    canvas.drawRRect(rr, chrome);
+
+    final glow = Paint()
+      ..color = accent.withValues(alpha: .55)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
+    canvas.drawArc(
+      Rect.fromLTWH(-4, -4, 34, 34),
+      math.pi * .92,
+      math.pi * .62,
+      false,
+      glow,
+    );
+
+    final core = Paint()
+      ..color = accent
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+    canvas.drawArc(
+      Rect.fromLTWH(-4, -4, 34, 34),
+      math.pi * .92,
+      math.pi * .62,
+      false,
+      core,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _MiniChromeTilePainter oldDelegate) {
+    return oldDelegate.accent != accent;
+  }
+}
+
 
 class _ChromeIconButton extends StatelessWidget {
   final IconData icon;
@@ -1868,6 +1998,7 @@ class _ChromeIconButton extends StatelessWidget {
   }
 }
 
+
 class _ChromeImageCard extends StatelessWidget {
   final double height;
   final String imageAsset;
@@ -1889,45 +2020,73 @@ class _ChromeImageCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(radius),
         boxShadow: const [
           BoxShadow(
-            color: Color(0xA8000000),
-            blurRadius: 24,
-            offset: Offset(0, 14),
+            color: Color(0xD7000000),
+            blurRadius: 31,
+            offset: Offset(0, 17),
           ),
           BoxShadow(
-            color: Color(0x50FF7418),
-            blurRadius: 22,
-            spreadRadius: -5,
+            color: Color(0x44FF7418),
+            blurRadius: 24,
+            spreadRadius: -6,
           ),
         ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.asset(imageAsset, fit: BoxFit.cover, alignment: Alignment.center),
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topRight,
-                  end: Alignment.bottomLeft,
-                  colors: [
-                    Color(0x18000000),
-                    Color(0x55000000),
-                    Color(0xE80A0A0B),
-                  ],
-                  stops: [0, .43, 1],
+        child: CustomPaint(
+          foregroundPainter: _LuxuryChromeFramePainter(
+            radius: radius,
+            accent: AppColors.orange,
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                imageAsset,
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+              ),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topRight,
+                    end: Alignment.bottomLeft,
+                    colors: [
+                      Color(0x0A000000),
+                      Color(0x36000000),
+                      Color(0xB5000000),
+                      Color(0xF008090A),
+                    ],
+                    stops: [0, .34, .70, 1],
+                  ),
                 ),
               ),
-            ),
-            const _ChromeCornerBurn(radius: 25),
-            child,
-          ],
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment(-1, -.95),
+                    end: Alignment(.55, .22),
+                    colors: [
+                      Color(0x2DFFFFFF),
+                      Color(0x08FFFFFF),
+                      Color(0x00FFFFFF),
+                    ],
+                    stops: [0, .18, .48],
+                  ),
+                ),
+              ),
+              const _ChromeCornerBurn(radius: 25),
+              child,
+            ],
+          ),
         ),
       ),
     );
   }
 }
+
+
+
 
 
 class _ChromeGlassSurface extends StatelessWidget {
@@ -1952,85 +2111,33 @@ class _ChromeGlassSurface extends StatelessWidget {
         borderRadius: BorderRadius.circular(radius),
         boxShadow: [
           const BoxShadow(
-            color: Color(0xD3000000),
-            blurRadius: 26,
-            offset: Offset(0, 14),
+            color: Color(0xE0000000),
+            blurRadius: 30,
+            offset: Offset(0, 16),
           ),
           BoxShadow(
-            color: accent.withValues(alpha: .18),
-            blurRadius: 22,
-            spreadRadius: -6,
+            color: accent.withValues(alpha: .16),
+            blurRadius: 24,
+            spreadRadius: -7,
           ),
         ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
           child: CustomPaint(
+            painter: _LuxuryGlassFillPainter(
+              radius: radius,
+              accent: accent,
+            ),
             foregroundPainter: _LuxuryChromeFramePainter(
               radius: radius,
               accent: accent,
             ),
-            child: Container(
+            child: Padding(
               padding: padding,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(radius),
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xCC4A4F57),
-                    Color(0xE526292F),
-                    Color(0xF20B0D10),
-                    Color(0xFC020304),
-                  ],
-                  stops: [0, .16, .56, 1],
-                ),
-              ),
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: const Alignment(-.95, -.85),
-                            end: const Alignment(.65, .50),
-                            colors: [
-                              Colors.white.withValues(alpha: .14),
-                              Colors.white.withValues(alpha: .035),
-                              Colors.transparent,
-                              Colors.transparent,
-                            ],
-                            stops: const [0, .11, .31, 1],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: -34,
-                    right: -50,
-                    child: IgnorePointer(
-                      child: Container(
-                        width: 145,
-                        height: 90,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(80),
-                          gradient: RadialGradient(
-                            colors: [
-                              Colors.white.withValues(alpha: .13),
-                              Colors.white.withValues(alpha: 0),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  child,
-                ],
-              ),
+              child: child,
             ),
           ),
         ),
@@ -2052,6 +2159,186 @@ class _ChromeGlassSurface extends StatelessWidget {
   }
 }
 
+
+
+
+
+
+class _LuxuryGlassFillPainter extends CustomPainter {
+  final double radius;
+  final Color accent;
+
+  const _LuxuryGlassFillPainter({
+    required this.radius,
+    required this.accent,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final rr = RRect.fromRectAndRadius(
+      rect,
+      Radius.circular(radius),
+    );
+
+    canvas.save();
+    canvas.clipRRect(rr);
+
+    // Глубокое черное стекло. Серого здесь специально мало.
+    final base = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFF24272C),
+          Color(0xFF111317),
+          Color(0xFF060709),
+          Color(0xFF020304),
+        ],
+        stops: [0, .20, .60, 1],
+      ).createShader(rect);
+    canvas.drawRRect(rr, base);
+
+    // Мягкий теплый свет в левом верхнем углу.
+    final warmTop = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(-1.05, -.96),
+        radius: .86,
+        colors: [
+          accent.withValues(alpha: .18),
+          accent.withValues(alpha: .055),
+          Colors.transparent,
+        ],
+        stops: const [0, .42, 1],
+      ).createShader(rect);
+    canvas.drawRRect(rr, warmTop);
+
+    // Второй теплый рефлекс снизу справа.
+    final warmBottom = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(1.04, 1.06),
+        radius: .72,
+        colors: [
+          accent.withValues(alpha: .15),
+          accent.withValues(alpha: .025),
+          Colors.transparent,
+        ],
+        stops: const [0, .48, 1],
+      ).createShader(rect);
+    canvas.drawRRect(rr, warmBottom);
+
+    // Широкий холодный стеклянный блик по диагонали.
+    final glossPath = Path()
+      ..moveTo(-size.width * .16, size.height * .17)
+      ..lineTo(size.width * .54, -size.height * .04)
+      ..lineTo(size.width * .78, size.height * .09)
+      ..lineTo(size.width * .03, size.height * .34)
+      ..close();
+
+    final gloss = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0x00FFFFFF),
+          Color(0x18FFFFFF),
+          Color(0x08FFFFFF),
+          Color(0x00FFFFFF),
+        ],
+        stops: [0, .36, .64, 1],
+      ).createShader(rect)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawPath(glossPath, gloss);
+
+    // Узкий отражающий "штрих", как на полированном черном хроме.
+    final streak = Paint()
+      ..color = const Color(0x20FFFFFF)
+      ..strokeWidth = math.max(2.0, size.shortestSide * .016)
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+    canvas.drawLine(
+      Offset(size.width * .12, size.height * .07),
+      Offset(size.width * .59, size.height * .01),
+      streak,
+    );
+
+    // Боковые прожиги. Они специально локальные, а не рамка по кругу.
+    final sideGlow = Paint()
+      ..color = accent.withValues(alpha: .47)
+      ..strokeWidth = 4.2
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9);
+
+    canvas.drawLine(
+      Offset(2.2, size.height * .24),
+      Offset(2.2, size.height * .58),
+      sideGlow,
+    );
+    canvas.drawLine(
+      Offset(size.width - 2.2, size.height * .58),
+      Offset(size.width - 2.2, size.height * .79),
+      sideGlow,
+    );
+
+    // Тонкие горячие сердцевины боковых прожигов.
+    final sideCore = Paint()
+      ..color = Color.lerp(accent, Colors.white, .13)!
+      ..strokeWidth = 1.05
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(
+      Offset(1.7, size.height * .29),
+      Offset(1.7, size.height * .53),
+      sideCore,
+    );
+    canvas.drawLine(
+      Offset(size.width - 1.7, size.height * .62),
+      Offset(size.width - 1.7, size.height * .75),
+      sideCore,
+    );
+
+    // Внутренняя глубина: темный нижний/правый кант.
+    final innerDarkRect = rect.deflate(4.0);
+    final innerDark = RRect.fromRectAndRadius(
+      innerDarkRect,
+      Radius.circular(math.max(2, radius - 4)),
+    );
+    final depth = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5.5
+      ..color = const Color(0x74000000)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+    canvas.drawRRect(innerDark, depth);
+
+    // Микро-блик внутри по верхней грани.
+    final innerLightRect = rect.deflate(3.0);
+    final innerLight = RRect.fromRectAndRadius(
+      innerLightRect,
+      Radius.circular(math.max(2, radius - 3)),
+    );
+    final bevel = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = .65
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0x4FFFFFFF),
+          Color(0x0FFFFFFF),
+          Color(0x00000000),
+          Color(0x52000000),
+        ],
+      ).createShader(rect);
+    canvas.drawRRect(innerLight, bevel);
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _LuxuryGlassFillPainter oldDelegate) {
+    return oldDelegate.radius != radius || oldDelegate.accent != accent;
+  }
+}
 
 
 class _ChromeCornerBurn extends StatelessWidget {
@@ -2076,6 +2363,7 @@ class _ChromeCornerBurn extends StatelessWidget {
 
 
 
+
 class _LuxuryChromeFramePainter extends CustomPainter {
   final double radius;
   final Color accent;
@@ -2087,130 +2375,146 @@ class _LuxuryChromeFramePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final outerRect = Rect.fromLTWH(.8, .8, size.width - 1.6, size.height - 1.6);
-    final outer = RRect.fromRectAndRadius(
-      outerRect,
+    final rect = Rect.fromLTWH(.8, .8, size.width - 1.6, size.height - 1.6);
+    final rr = RRect.fromRectAndRadius(
+      rect,
       Radius.circular(radius),
     );
 
-    // 1) Cold polished metal perimeter.
-    final chrome = Paint()
+    // Основная кромка почти черная — как в референсе.
+    final darkMetal = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.15
-      ..shader = const SweepGradient(
-        colors: [
-          Color(0xFFE9EDF2),
-          Color(0xFF555B63),
-          Color(0xFF16191D),
-          Color(0xFFA2A8B0),
-          Color(0xFF25292E),
-          Color(0xFFF4F6F8),
-        ],
-        stops: [0, .16, .33, .55, .76, 1],
-      ).createShader(outerRect);
-    canvas.drawRRect(outer, chrome);
-
-    // 2) Inner glass bevel.
-    final innerRect = outerRect.deflate(2.2);
-    final inner = RRect.fromRectAndRadius(
-      innerRect,
-      Radius.circular(math.max(2, radius - 2)),
-    );
-    final innerLine = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = .75
+      ..strokeWidth = 1.25
       ..shader = const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Color(0x9AFFFFFF),
-          Color(0x22FFFFFF),
-          Color(0x20000000),
-          Color(0x7A000000),
+          Color(0xFF92979E),
+          Color(0xFF33373D),
+          Color(0xFF111317),
+          Color(0xFF5A5F66),
+          Color(0xFF17191D),
         ],
-      ).createShader(innerRect);
-    canvas.drawRRect(inner, innerLine);
+        stops: [0, .17, .47, .72, 1],
+      ).createShader(rect);
+    canvas.drawRRect(rr, darkMetal);
 
-    // 3) Warm orange electric edge that does not wrap uniformly.
-    final hotGlow = Paint()
+    // Вторая очень тонкая внутренняя металлическая линия.
+    final innerRect = rect.deflate(2.25);
+    final inner = RRect.fromRectAndRadius(
+      innerRect,
+      Radius.circular(math.max(2, radius - 2.2)),
+    );
+    final innerMetal = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 4.0
+      ..strokeWidth = .62
+      ..color = const Color(0x5ECDD0D5);
+    canvas.drawRRect(inner, innerMetal);
+
+    // Полированный хром — только короткими участками, не по всей рамке.
+    final silverGlow = Paint()
+      ..color = const Color(0x5CFFFFFF)
+      ..strokeWidth = 3
       ..strokeCap = StrokeCap.round
-      ..color = accent.withValues(alpha: .68)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9);
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
 
-    final hotLine = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.45
-      ..strokeCap = StrokeCap.round
-      ..color = Color.lerp(accent, Colors.white, .12)!;
-
-    // Top-left burn.
-    canvas.drawArc(
-      Rect.fromLTWH(-8, -8, 72, 72),
-      math.pi * .96,
-      math.pi * .58,
-      false,
-      hotGlow,
-    );
-    canvas.drawArc(
-      Rect.fromLTWH(-8, -8, 72, 72),
-      math.pi * .96,
-      math.pi * .58,
-      false,
-      hotLine,
-    );
-
-    // Bottom-right burn.
-    canvas.drawArc(
-      Rect.fromLTWH(size.width - 66, size.height - 66, 74, 74),
-      -math.pi * .10,
-      math.pi * .62,
-      false,
-      hotGlow,
-    );
-    canvas.drawArc(
-      Rect.fromLTWH(size.width - 66, size.height - 66, 74, 74),
-      -math.pi * .10,
-      math.pi * .62,
-      false,
-      hotLine,
-    );
-
-    // Small mid-edge hot spots like reflected light.
-    final edgeGlow = Paint()
-      ..color = accent.withValues(alpha: .50)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7)
-      ..strokeWidth = 2.8
+    final silverCore = Paint()
+      ..color = const Color(0xB8F3F5F7)
+      ..strokeWidth = .72
       ..strokeCap = StrokeCap.round;
 
     canvas.drawLine(
-      Offset(size.width * .64, 1.5),
-      Offset(size.width * .83, 1.5),
-      edgeGlow,
+      Offset(radius * .76, 1.45),
+      Offset(size.width * .40, 1.45),
+      silverGlow,
     );
     canvas.drawLine(
-      Offset(1.5, size.height * .63),
-      Offset(1.5, size.height * .78),
-      edgeGlow,
+      Offset(radius * .76, 1.35),
+      Offset(size.width * .40, 1.35),
+      silverCore,
     );
 
-    // 4) White glass reflection on top-left.
-    final reflection = Paint()
-      ..strokeWidth = 1
+    canvas.drawLine(
+      Offset(size.width - 1.45, radius * .82),
+      Offset(size.width - 1.45, size.height * .26),
+      silverGlow,
+    );
+    canvas.drawLine(
+      Offset(size.width - 1.35, radius * .82),
+      Offset(size.width - 1.35, size.height * .26),
+      silverCore,
+    );
+
+    // Оранжевые прожиги по двум диагонально противоположным углам.
+    final hotGlow = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5
       ..strokeCap = StrokeCap.round
-      ..shader = const LinearGradient(
-        colors: [
-          Color(0xC9FFFFFF),
-          Color(0x4AFFFFFF),
-          Color(0x00FFFFFF),
-        ],
-      ).createShader(Rect.fromLTWH(12, 0, size.width * .55, 8));
+      ..color = accent.withValues(alpha: .72)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+
+    final hotCore = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.45
+      ..strokeCap = StrokeCap.round
+      ..color = Color.lerp(accent, Colors.white, .11)!;
+
+    canvas.drawArc(
+      Rect.fromLTWH(-7, -7, radius * 2.25, radius * 2.25),
+      math.pi * .94,
+      math.pi * .53,
+      false,
+      hotGlow,
+    );
+    canvas.drawArc(
+      Rect.fromLTWH(-7, -7, radius * 2.25, radius * 2.25),
+      math.pi * .94,
+      math.pi * .53,
+      false,
+      hotCore,
+    );
+
+    canvas.drawArc(
+      Rect.fromLTWH(
+        size.width - radius * 2.10,
+        size.height - radius * 2.10,
+        radius * 2.26,
+        radius * 2.26,
+      ),
+      -math.pi * .08,
+      math.pi * .58,
+      false,
+      hotGlow,
+    );
+    canvas.drawArc(
+      Rect.fromLTWH(
+        size.width - radius * 2.10,
+        size.height - radius * 2.10,
+        radius * 2.26,
+        radius * 2.26,
+      ),
+      -math.pi * .08,
+      math.pi * .58,
+      false,
+      hotCore,
+    );
+
+    // Дополнительные горячие точки по бокам.
+    final sideGlow = Paint()
+      ..color = accent.withValues(alpha: .62)
+      ..strokeWidth = 3.8
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
 
     canvas.drawLine(
-      const Offset(18, 2.5),
-      Offset(math.max(20, size.width * .48), 2.5),
-      reflection,
+      Offset(1.35, size.height * .33),
+      Offset(1.35, size.height * .47),
+      sideGlow,
+    );
+    canvas.drawLine(
+      Offset(size.width - 1.35, size.height * .66),
+      Offset(size.width - 1.35, size.height * .78),
+      sideGlow,
     );
   }
 
@@ -2219,6 +2523,8 @@ class _LuxuryChromeFramePainter extends CustomPainter {
     return oldDelegate.radius != radius || oldDelegate.accent != accent;
   }
 }
+
+
 
 
 class _ChromeCornerPainter extends CustomPainter {
@@ -2681,105 +2987,137 @@ class _FullScreenChromePainter extends CustomPainter {
 }
 
 
+
 class _ChromeOrbPainter extends CustomPainter {
   const _ChromeOrbPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
     final c = Offset(size.width / 2, size.height / 2);
-    final outerR = size.width / 2 - 4;
-    final orbRect = Rect.fromCircle(center: c, radius: outerR);
+    final r = size.width / 2 - 5;
+    final rect = Rect.fromCircle(center: c, radius: r);
 
-    final glow = Paint()
-      ..color = const Color(0x72FF7418)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18);
-    canvas.drawCircle(c, outerR - 1, glow);
+    final outerGlow = Paint()
+      ..color = const Color(0x78FF7418)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 19);
+    canvas.drawCircle(c, r - 1, outerGlow);
 
-    final deepShadow = Paint()
-      ..color = const Color(0xCC000000)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 13);
-    canvas.drawCircle(Offset(c.dx, c.dy + 7), outerR - 9, deepShadow);
+    final cast = Paint()
+      ..color = const Color(0xD8000000)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14);
+    canvas.drawCircle(Offset(c.dx, c.dy + 9), r - 8, cast);
 
+    // Черная стеклянная линза.
     final fill = Paint()
       ..shader = const RadialGradient(
-        center: Alignment(-.36, -.42),
-        radius: 1.0,
+        center: Alignment(-.38, -.48),
+        radius: 1.02,
         colors: [
-          Color(0xFF6C7179),
-          Color(0xFF383C43),
-          Color(0xFF15181D),
-          Color(0xFF050607),
+          Color(0xFF545960),
+          Color(0xFF24282E),
+          Color(0xFF0C0E11),
+          Color(0xFF020304),
         ],
-        stops: [0, .23, .60, 1],
-      ).createShader(orbRect);
-    canvas.drawCircle(c, outerR - 10, fill);
+        stops: [0, .25, .61, 1],
+      ).createShader(rect);
+    canvas.drawCircle(c, r - 9, fill);
 
-    final wideChrome = Paint()
+    // Широкая темная металлическая кромка.
+    final metal = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 5.0
+      ..strokeWidth = 3.2
       ..shader = const SweepGradient(
         colors: [
-          Color(0xFFFFFFFF),
-          Color(0xFF777D85),
-          Color(0xFF101216),
-          Color(0xFFFF7A1A),
-          Color(0xFF353940),
-          Color(0xFFF7F8FA),
+          Color(0xFFB6BBC2),
+          Color(0xFF2D3137),
+          Color(0xFF0A0C0F),
+          Color(0xFF555A62),
+          Color(0xFF17191D),
+          Color(0xFFB6BBC2),
         ],
-        stops: [0, .17, .38, .60, .79, 1],
-      ).createShader(orbRect);
-    canvas.drawCircle(c, outerR - 10, wideChrome);
+        stops: [0, .16, .37, .58, .80, 1],
+      ).createShader(rect);
+    canvas.drawCircle(c, r - 9, metal);
 
-    final innerRing = Paint()
+    // Внутренний стеклянный кант.
+    final inner = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.15
-      ..color = const Color(0xA8FFFFFF);
-    canvas.drawCircle(c, outerR - 16, innerRing);
+      ..strokeWidth = .72
+      ..color = const Color(0x69E6E8EB);
+    canvas.drawCircle(c, r - 14, inner);
 
-    final orangeGlow = Paint()
+    // Оранжевая дуга + мягкий glow.
+    final hotGlow = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 6.5
+      ..strokeWidth = 7.2
       ..strokeCap = StrokeCap.round
-      ..color = const Color(0xB5FF7418)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9);
+      ..color = const Color(0x9CFF7418)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
     canvas.drawArc(
-      Rect.fromCircle(center: c, radius: outerR - 12),
-      math.pi * .09,
-      math.pi * .84,
+      Rect.fromCircle(center: c, radius: r - 11),
+      math.pi * .10,
+      math.pi * .82,
       false,
-      orangeGlow,
+      hotGlow,
     );
 
-    final orangeLine = Paint()
+    final hot = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
+      ..strokeWidth = 1.8
       ..strokeCap = StrokeCap.round
-      ..color = const Color(0xFFFF8C36);
+      ..color = const Color(0xFFFF8E39);
     canvas.drawArc(
-      Rect.fromCircle(center: c, radius: outerR - 12),
-      math.pi * .09,
-      math.pi * .84,
+      Rect.fromCircle(center: c, radius: r - 11),
+      math.pi * .10,
+      math.pi * .82,
       false,
-      orangeLine,
+      hot,
     );
 
-    final highlight = Paint()
+    // Верхний белый блик — короткий, не сплошной белый ободок.
+    final whiteGlow = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.9
+      ..strokeWidth = 3.3
       ..strokeCap = StrokeCap.round
-      ..color = const Color(0xD7FFFFFF);
+      ..color = const Color(0x5BFFFFFF)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
     canvas.drawArc(
-      Rect.fromCircle(center: c, radius: outerR - 14),
+      Rect.fromCircle(center: c, radius: r - 12),
       math.pi * 1.10,
-      math.pi * .37,
+      math.pi * .29,
       false,
-      highlight,
+      whiteGlow,
+    );
+
+    final whiteCore = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = .78
+      ..strokeCap = StrokeCap.round
+      ..color = const Color(0xC8FFFFFF);
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: r - 12),
+      math.pi * 1.10,
+      math.pi * .29,
+      false,
+      whiteCore,
+    );
+
+    // Внутренний оранжевый рефлекс в нижней правой части сферы.
+    final innerOrange = Paint()
+      ..color = const Color(0x34FF7418)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15);
+    canvas.drawCircle(
+      Offset(c.dx + r * .28, c.dy + r * .32),
+      r * .25,
+      innerOrange,
     );
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+
 
 
 
@@ -4666,108 +5004,304 @@ class _MapLabel extends StatelessWidget {
   }
 }
 
+
 class _MapRoundButton extends StatelessWidget {
   final IconData icon;
-  const _MapRoundButton({required this.icon});
+
+  const _MapRoundButton({
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: 38,
       height: 38,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          center: Alignment(-.3, -.3),
-          colors: [Color(0xFF33373D), Color(0xFF111317), Color(0xFF070809)],
+      child: CustomPaint(
+        painter: const _DarkRoundControlPainter(),
+        child: Icon(
+          icon,
+          color: AppColors.text,
+          size: 18,
         ),
-        boxShadow: [BoxShadow(color: Color(0x77000000), blurRadius: 10, offset: Offset(0, 5))],
-      ),
-      child: Container(
-        margin: const EdgeInsets.all(1.5),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFF555A62), width: .7),
-        ),
-        child: Icon(icon, color: AppColors.text, size: 18),
       ),
     );
   }
 }
 
-class _RoutePainter extends CustomPainter {
+
+
+
+class _DarkRoundControlPainter extends CustomPainter {
+  const _DarkRoundControlPainter();
+
   @override
   void paint(Canvas canvas, Size size) {
-    final minor = Paint()
-      ..color = const Color(0xFF161D23)
-      ..strokeWidth = .75;
-    final major = Paint()
-      ..color = const Color(0xFF273038)
-      ..strokeWidth = 1.2;
+    final c = Offset(size.width / 2, size.height / 2);
+    final r = size.width / 2 - 1.5;
+    final rect = Rect.fromCircle(center: c, radius: r);
 
-    for (double x = -40; x < size.width + 40; x += 34) {
-      canvas.drawLine(Offset(x, 0), Offset(x + 85, size.height), minor);
-    }
-    for (double y = 18; y < size.height; y += 46) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y - 24), minor);
-    }
-    canvas.drawLine(Offset(0, size.height * .64), Offset(size.width, size.height * .35), major);
-    canvas.drawLine(Offset(size.width * .22, 0), Offset(size.width * .72, size.height), major);
+    final fill = Paint()
+      ..shader = const RadialGradient(
+        center: Alignment(-.36, -.42),
+        colors: [
+          Color(0xFF464A51),
+          Color(0xFF171A1E),
+          Color(0xFF050607),
+        ],
+      ).createShader(rect);
+    canvas.drawCircle(c, r, fill);
 
-    final path = Path()
-      ..moveTo(size.width * .12, size.height * .80)
-      ..cubicTo(
-        size.width * .23,
-        size.height * .73,
-        size.width * .24,
-        size.height * .58,
-        size.width * .39,
-        size.height * .60,
-      )
-      ..cubicTo(
-        size.width * .55,
-        size.height * .62,
-        size.width * .52,
-        size.height * .40,
-        size.width * .66,
-        size.height * .42,
-      )
-      ..cubicTo(
-        size.width * .79,
-        size.height * .44,
-        size.width * .77,
-        size.height * .22,
-        size.width * .88,
-        size.height * .18,
-      );
-
-    final glow = Paint()
-      ..color = const Color(0x66FF7418)
+    final edge = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 13
-      ..strokeCap = StrokeCap.round;
-    final line = Paint()
-      ..shader = const LinearGradient(
-        colors: [Color(0xFFFFA14A), Color(0xFFFF7418), Color(0xFFFFB85A)],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4.3
-      ..strokeCap = StrokeCap.round;
+      ..strokeWidth = .8
+      ..shader = const SweepGradient(
+        colors: [
+          Color(0xFFB2B7BE),
+          Color(0xFF2C3035),
+          Color(0xFF111317),
+          Color(0xFF6B7077),
+          Color(0xFFB2B7BE),
+        ],
+      ).createShader(rect);
+    canvas.drawCircle(c, r - .7, edge);
 
-    canvas.drawPath(path, glow);
-    canvas.drawPath(path, line);
+    final shadow = Paint()
+      ..color = const Color(0x94000000)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+    canvas.drawCircle(Offset(c.dx, c.dy + 3), r - 6, shadow);
 
-    final start = Offset(size.width * .12, size.height * .80);
-    final finish = Offset(size.width * .88, size.height * .18);
-    final markerPaint = Paint()..color = const Color(0xFFFF7418);
-    canvas.drawCircle(start, 7, markerPaint);
-    canvas.drawCircle(finish, 8, markerPaint);
-    canvas.drawCircle(finish, 13, Paint()..color = const Color(0x33FF7418));
+    final warm = Paint()
+      ..color = const Color(0x30FF7418)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+    canvas.drawCircle(Offset(c.dx + 6, c.dy + 7), r * .38, warm);
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+
+
+class _RoutePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+
+    final background = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFF0B1218),
+          Color(0xFF071015),
+          Color(0xFF030608),
+        ],
+      ).createShader(rect);
+    canvas.drawRect(rect, background);
+
+    final softGrid = Paint()
+      ..color = const Color(0xFF111820)
+      ..strokeWidth = .45;
+
+    for (double x = 18; x < size.width; x += 58) {
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x + size.width * .10, size.height),
+        softGrid,
+      );
+    }
+    for (double y = 24; y < size.height; y += 68) {
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y + 15),
+        softGrid,
+      );
+    }
+
+    final minorRoad = Paint()
+      ..color = const Color(0xFF263038)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.05
+      ..strokeCap = StrokeCap.round;
+
+    final majorRoad = Paint()
+      ..color = const Color(0xFF3A454D)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.55
+      ..strokeCap = StrokeCap.round;
+
+    Path road(List<Offset> p) {
+      final path = Path()..moveTo(p.first.dx, p.first.dy);
+      for (var i = 1; i < p.length; i++) {
+        path.lineTo(p[i].dx, p[i].dy);
+      }
+      return path;
+    }
+
+    final roads = <Path>[
+      road([
+        Offset(-20, size.height * .26),
+        Offset(size.width * .22, size.height * .31),
+        Offset(size.width * .47, size.height * .27),
+        Offset(size.width * .76, size.height * .33),
+        Offset(size.width + 20, size.height * .29),
+      ]),
+      road([
+        Offset(size.width * .08, -20),
+        Offset(size.width * .16, size.height * .18),
+        Offset(size.width * .28, size.height * .38),
+        Offset(size.width * .32, size.height * .72),
+        Offset(size.width * .44, size.height + 20),
+      ]),
+      road([
+        Offset(-20, size.height * .63),
+        Offset(size.width * .23, size.height * .57),
+        Offset(size.width * .42, size.height * .51),
+        Offset(size.width * .67, size.height * .55),
+        Offset(size.width + 20, size.height * .46),
+      ]),
+      road([
+        Offset(size.width * .58, -20),
+        Offset(size.width * .53, size.height * .22),
+        Offset(size.width * .60, size.height * .46),
+        Offset(size.width * .71, size.height * .72),
+        Offset(size.width * .76, size.height + 20),
+      ]),
+      road([
+        Offset(-20, size.height * .82),
+        Offset(size.width * .18, size.height * .77),
+        Offset(size.width * .37, size.height * .79),
+        Offset(size.width * .58, size.height * .72),
+        Offset(size.width + 20, size.height * .76),
+      ]),
+      road([
+        Offset(size.width * .89, -20),
+        Offset(size.width * .80, size.height * .21),
+        Offset(size.width * .84, size.height * .45),
+        Offset(size.width * .72, size.height * .63),
+        Offset(size.width * .66, size.height + 20),
+      ]),
+    ];
+
+    for (var i = 0; i < roads.length; i++) {
+      canvas.drawPath(roads[i], i.isEven ? majorRoad : minorRoad);
+    }
+
+    // Несколько синих/холодных ответвлений, как у настоящей темной карты.
+    final coldRoad = Paint()
+      ..color = const Color(0xFF243F50)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = .9
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width * .04, size.height * .13)
+        ..cubicTo(
+          size.width * .27,
+          size.height * .18,
+          size.width * .25,
+          size.height * .48,
+          size.width * .52,
+          size.height * .43,
+        )
+        ..cubicTo(
+          size.width * .75,
+          size.height * .40,
+          size.width * .78,
+          size.height * .62,
+          size.width * .98,
+          size.height * .66,
+        ),
+      coldRoad,
+    );
+
+    // Сам маршрут.
+    final route = Path()
+      ..moveTo(size.width * .13, size.height * .82)
+      ..cubicTo(
+        size.width * .22,
+        size.height * .73,
+        size.width * .28,
+        size.height * .64,
+        size.width * .38,
+        size.height * .62,
+      )
+      ..cubicTo(
+        size.width * .53,
+        size.height * .59,
+        size.width * .49,
+        size.height * .46,
+        size.width * .62,
+        size.height * .43,
+      )
+      ..cubicTo(
+        size.width * .76,
+        size.height * .40,
+        size.width * .75,
+        size.height * .24,
+        size.width * .87,
+        size.height * .18,
+      );
+
+    final routeGlow = Paint()
+      ..color = const Color(0x99FF7418)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 15
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9);
+
+    final routeEdge = Paint()
+      ..color = const Color(0xFFFF4F00)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 7.2
+      ..strokeCap = StrokeCap.round;
+
+    final routeCore = Paint()
+      ..shader = const LinearGradient(
+        colors: [
+          Color(0xFFFFC06A),
+          Color(0xFFFF7A18),
+          Color(0xFFFFA844),
+        ],
+      ).createShader(rect)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.6
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawPath(route, routeGlow);
+    canvas.drawPath(route, routeEdge);
+    canvas.drawPath(route, routeCore);
+
+    final start = Offset(size.width * .13, size.height * .82);
+    final finish = Offset(size.width * .87, size.height * .18);
+
+    canvas.drawCircle(
+      start,
+      11,
+      Paint()
+        ..color = const Color(0x55FF7418)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+    );
+    canvas.drawCircle(start, 5.5, Paint()..color = const Color(0xFFFF8B2A));
+
+    canvas.drawCircle(
+      finish,
+      15,
+      Paint()
+        ..color = const Color(0x66FF7418)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+    );
+    canvas.drawCircle(finish, 8, Paint()..color = const Color(0xFFFF8B2A));
+    canvas.drawCircle(finish, 3.2, Paint()..color = Colors.white);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+
 
 class _PrimaryActionCard extends StatelessWidget {
   final IconData icon;
@@ -5695,6 +6229,42 @@ class _AmbientGlow extends StatelessWidget {
 BoxDecoration _premiumDecoration({
   Color accent = AppColors.orange,
   double radius = 28,
+}) {
+  return BoxDecoration(
+    gradient: const LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        Color(0xFF22252A),
+        Color(0xFF101216),
+        Color(0xFF060709),
+        Color(0xFF020304),
+      ],
+      stops: [0, .22, .63, 1],
+    ),
+    borderRadius: BorderRadius.circular(radius),
+    border: Border.all(
+      color: const Color(0xFF4B5057),
+      width: .72,
+    ),
+    boxShadow: [
+      const BoxShadow(
+        color: Color(0xD0000000),
+        blurRadius: 25,
+        offset: Offset(0, 13),
+      ),
+      BoxShadow(
+        color: accent.withValues(alpha: .13),
+        blurRadius: 22,
+        spreadRadius: -6,
+      ),
+      const BoxShadow(
+        color: Color(0x16FFFFFF),
+        blurRadius: 1,
+        offset: Offset(-1, -1),
+      ),
+    ],
+  );
 }) {
   return BoxDecoration(
     gradient: const LinearGradient(
