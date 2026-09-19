@@ -3347,22 +3347,6 @@ class WorkPage extends StatelessWidget {
 
 
 
-class _OdoValue extends StatelessWidget {
-  final String label;
-  final String value;
-  const _OdoValue({required this.label, required this.value});
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(label, style: const TextStyle(color: AppColors.textSoft, fontSize: 9)),
-      const SizedBox(height: 4),
-      FittedBox(fit: BoxFit.scaleDown, child: Text(value, style: const TextStyle(color: AppColors.text, fontSize: 20, fontWeight: FontWeight.w800))),
-      const Text('км', style: TextStyle(color: AppColors.textSoft, fontSize: 8)),
-    ],
-  );
-}
-
 class _ShiftTimelineCard extends StatelessWidget {
   const _ShiftTimelineCard();
 
@@ -4600,52 +4584,6 @@ class _WorkHero extends StatelessWidget {
 
 
 
-class _SpeedGauge extends StatelessWidget {
-  final int value;
-
-  const _SpeedGauge({
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 118,
-      height: 118,
-      child: CustomPaint(
-        painter: _GaugePainter(
-          progress: value / 120,
-        ),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '$value',
-                style: const TextStyle(
-                  color: AppColors.text,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  height: 0.95,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'км/ч',
-                style: TextStyle(
-                  color: AppColors.textSoft,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _GaugePainter extends CustomPainter {
   final double progress;
 
@@ -4706,57 +4644,6 @@ class _GaugePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _GaugePainter oldDelegate) {
     return oldDelegate.progress != progress;
-  }
-}
-
-class _WorkMini extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _WorkMini({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            color: AppColors.orange,
-            size: 17,
-          ),
-          const SizedBox(width: 8),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  color: AppColors.textSoft,
-                  fontSize: 9,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: const TextStyle(
-                  color: AppColors.text,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -4965,47 +4852,6 @@ class _RoutePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _OutlineAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _OutlineAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
-      child: OutlinedButton.icon(
-        onPressed: onTap,
-        icon: Icon(
-          icon,
-          size: 18,
-        ),
-        label: Text(
-          label,
-          style: const TextStyle(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.orangeSoft,
-          side: const BorderSide(
-            color: Color(0xFF4A3320),
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(17),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _PrimaryActionCard extends StatelessWidget {
