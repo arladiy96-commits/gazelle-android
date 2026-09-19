@@ -1231,29 +1231,6 @@ void _showPaidRoutesSheet(BuildContext context) {
   );
 }
 
-) {
-  _showHomeSheet(
-    context,
-    title: title,
-    icon: icon,
-    maxHeightFactor: 0.67,
-    child: Column(
-      children: [
-        _HomeSheetHeader(
-          columns: headers,
-          flexes: const [2, 3],
-        ),
-        ...rows.map(
-          (row) => _HomeSheetRow(
-            cells: [row.$1, row.$2],
-            flexes: const [2, 3],
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
 Future<void> _showHomeSheet(
   BuildContext context, {
   required String title,
