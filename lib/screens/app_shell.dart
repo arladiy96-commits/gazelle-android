@@ -6265,42 +6265,6 @@ BoxDecoration _premiumDecoration({
       ),
     ],
   );
-}) {
-  return BoxDecoration(
-    gradient: const LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        Color(0xFF41464E),
-        Color(0xFF24272D),
-        Color(0xFF0C0E11),
-        Color(0xFF030405),
-      ],
-      stops: [0, .13, .58, 1],
-    ),
-    borderRadius: BorderRadius.circular(radius),
-    border: Border.all(
-      color: const Color(0xFF676C74),
-      width: .75,
-    ),
-    boxShadow: [
-      const BoxShadow(
-        color: Color(0xC0000000),
-        blurRadius: 22,
-        offset: Offset(0, 12),
-      ),
-      BoxShadow(
-        color: accent.withValues(alpha: .14),
-        blurRadius: 22,
-        spreadRadius: -4,
-      ),
-      const BoxShadow(
-        color: Color(0x38FFFFFF),
-        blurRadius: 1,
-        offset: Offset(-1, -1),
-      ),
-    ],
-  );
 }
 
 void _showFeatureStub(
