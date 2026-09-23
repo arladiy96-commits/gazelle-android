@@ -79,7 +79,11 @@ class _AppShellState extends State<AppShell> {
     }
 
     return [
-      HomePage(session: widget.session),
+      HomePage(
+        session: widget.session,
+        onNavigate: (index) => setState(() => _index = index),
+        onQuickAdd: _openQuickAdd,
+      ),
       WorkPage(session: widget.session),
       const SizedBox.shrink(),
       InvoicesPage(session: widget.session),
@@ -513,8 +517,15 @@ String _fmtInt(double value) {
 
 class HomePage extends StatelessWidget {
   final AppSession session;
+  final ValueChanged<int> onNavigate;
+  final VoidCallback onQuickAdd;
 
-  const HomePage({super.key, required this.session});
+  const HomePage({
+    super.key,
+    required this.session,
+    required this.onNavigate,
+    required this.onQuickAdd,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -524,105 +535,164 @@ class HomePage extends StatelessWidget {
         future: _HomeMonthData.load(),
         builder: (context, snap) {
           final data = snap.data ?? const _HomeMonthData(
-            gas: 286, petrol: 74, tonnage: 284.6, trips: 48,
-            mileage: 3124, salary: 32450,
+            gas: 286,
+            petrol: 74,
+            tonnage: 284.6,
+            trips: 48,
+            mileage: 3124,
+            salary: 32450,
           );
-          return LayoutBuilder(builder: (context, constraints) {
-            final sceneHeight = (constraints.maxWidth * 1.43).clamp(570.0, 690.0);
-            return ListView(
-              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-              padding: const EdgeInsets.fromLTRB(0, 0, 0, 18),
-              children: [
-                _NewHomeScene(session: session, data: data, height: sceneHeight),
-                Transform.translate(
-                  offset: const Offset(0, -22),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: _NewHomeLower(data: data),
-                  ),
-                ),
-              ],
-            );
-          });
+          return LayoutBuilder(
+            builder: (context, c) => _ReferenceHomeDashboard(
+              session: session,
+              data: data,
+              size: Size(c.maxWidth, c.maxHeight),
+              onNavigate: onNavigate,
+              onQuickAdd: onQuickAdd,
+            ),
+          );
         },
       ),
     );
   }
 }
 
-class _NewHomeScene extends StatelessWidget {
+class _ReferenceHomeDashboard extends StatelessWidget {
   final AppSession session;
   final _HomeMonthData data;
-  final double height;
-  const _NewHomeScene({required this.session, required this.data, required this.height});
+  final Size size;
+  final ValueChanged<int> onNavigate;
+  final VoidCallback onQuickAdd;
+
+  const _ReferenceHomeDashboard({
+    required this.session,
+    required this.data,
+    required this.size,
+    required this.onNavigate,
+    required this.onQuickAdd,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: height,
+    final w = size.width;
+    final h = size.height;
+    final railW = (w * .125).clamp(76.0, 92.0);
+    final topH = (h * .55).clamp(470.0, 620.0);
+    final contentLeft = railW + 8;
+    final contentW = w - contentLeft - 10;
+
+    return ClipRect(
       child: Stack(
-        fit: StackFit.expand,
         children: [
-          Image.asset('assets/images/garage_scene.png', fit: BoxFit.cover, alignment: const Alignment(0, -.12)),
-          const DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
-            begin: Alignment.topCenter, end: Alignment.bottomCenter,
-            colors: [Color(0xA3000000), Color(0x10000000), Color(0x00000000), Color(0xB8000000)],
-            stops: [0, .18, .64, 1],
-          ))),
-          Positioned(left: 18, top: 14, child: _NewDriverChip(onTap: () => _openHomeMenu(context, session))),
-          const Positioned(right: 18, top: 18, child: _NewWeather()),
-          const Positioned(top: 96, left: 0, right: 0, child: Center(child: _NewShiftPill())),
-          Positioned(left: 12, top: 176, child: _SceneHud(icon: Icons.local_fire_department_rounded, label: 'Газ', value: '${_fmt1(data.gas)} л', color: const Color(0xFF31D7FF), lineRight: true)),
-          Positioned(left: 14, top: 294, child: _SceneHud(icon: Icons.local_gas_station_rounded, label: 'Бензин', value: '${_fmt1(data.petrol)} л', color: const Color(0xFFFF4553), lineRight: true)),
-          Positioned(right: 12, top: 184, child: _SceneHud(icon: Icons.inventory_2_outlined, label: 'Тоннаж', value: '${_fmt1(data.tonnage)} т', color: const Color(0xFFFFA13A), lineRight: false)),
-          Positioned(right: 12, top: 302, child: _SceneHud(icon: Icons.alt_route_rounded, label: 'Рейсы', value: '${data.trips}', color: const Color(0xFFE66CFF), lineRight: false)),
-          Positioned(right: 14, bottom: 38, child: _SceneHud(icon: Icons.route_rounded, label: 'Пробег', value: '${_fmtInt(data.mileage)} км', color: const Color(0xFFFFB34B), lineRight: false, small: true)),
-          Positioned(left: 18, bottom: 42, child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: const Color(0xA906090C), borderRadius: BorderRadius.circular(11), border: Border.all(color: const Color(0x99FF842C))),
-            child: const Row(mainAxisSize: MainAxisSize.min, children: [
-              Text('KZ', style: TextStyle(color: Color(0xFF57C5FF), fontSize: 9, fontWeight: FontWeight.w900)),
-              SizedBox(width: 5), Text('H139915', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: .7)),
-            ]),
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/garage_scene.png',
+              fit: BoxFit.cover,
+              alignment: const Alignment(0, -.10),
+            ),
+          ),
+          const Positioned.fill(child: _ReferenceSceneShade()),
+
+          // Header is part of the scene, not an old app bar.
+          Positioned(left: contentLeft + 10, top: 12, child: _RefProfile(onTap: () => _openHomeMenu(context, session))),
+          Positioned(left: contentLeft + contentW * .34, top: 17, child: const _RefHandwriting()),
+          Positioned(right: 18, top: 12, child: const _RefWeather()),
+
+          // Real clickable side rail from the approved reference.
+          Positioned(
+            left: 8,
+            top: 92,
+            bottom: 18,
+            width: railW - 14,
+            child: _ReferenceSideRail(
+              onShift: () => onNavigate(1),
+              onTrips: () => onNavigate(1),
+              onFuel: onQuickAdd,
+              onExpenses: onQuickAdd,
+              onStats: () => onNavigate(4),
+            ),
+          ),
+
+          Positioned(
+            left: contentLeft + contentW * .31,
+            top: 102,
+            child: const _RefShiftPill(),
+          ),
+
+          // HUD elements are independent widgets and remain live/clickable.
+          Positioned(left: contentLeft + 4, top: topH * .35, child: _RefHud(
+            icon: Icons.local_fire_department_rounded,
+            label: 'Газ', value: '${_fmt1(data.gas)} л', sub: 'за месяц',
+            color: const Color(0xFF32D9FF), connectorRight: true,
+            onTap: onQuickAdd,
           )),
+          Positioned(left: contentLeft + 4, top: topH * .56, child: _RefHud(
+            icon: Icons.local_gas_station_rounded,
+            label: 'Бензин', value: '${_fmt1(data.petrol)} л', sub: 'за месяц',
+            color: const Color(0xFFFF4659), connectorRight: true,
+            onTap: onQuickAdd,
+          )),
+          Positioned(right: 14, top: topH * .34, child: _RefHud(
+            icon: Icons.inventory_2_outlined,
+            label: 'Тоннаж', value: '${_fmt1(data.tonnage)} т', sub: 'за месяц',
+            color: const Color(0xFFFFA23D), connectorRight: false,
+            onTap: () => onNavigate(4),
+          )),
+          Positioned(right: 14, top: topH * .55, child: _RefHud(
+            icon: Icons.alt_route_rounded,
+            label: 'Рейсы', value: '${data.trips}', sub: 'за месяц',
+            color: const Color(0xFFE66CFF), connectorRight: false,
+            onTap: () => onNavigate(1),
+          )),
+          Positioned(right: 14, top: topH - 78, child: _RefHud(
+            icon: Icons.route_rounded,
+            label: 'Пробег', value: '${_fmtInt(data.mileage)} км', sub: 'за месяц',
+            color: const Color(0xFFFFB34B), connectorRight: false, compact: true,
+            onTap: () => onNavigate(4),
+          )),
+          Positioned(left: contentLeft + 18, top: topH - 67, child: const _RefPlate()),
+
+          // Lower controls remain fixed in the dashboard instead of scrolling with a giant image.
+          Positioned(
+            left: contentLeft + 8,
+            right: 12,
+            top: topH + 4,
+            child: _RefLowerDashboard(data: data, onNavigate: onNavigate),
+          ),
+
+          Positioned(
+            right: -3,
+            top: topH * .50,
+            child: _RefEdgeButton(onTap: () => onNavigate(1)),
+          ),
         ],
       ),
     );
   }
 }
 
-class _NewShiftPill extends StatelessWidget {
-  const _NewShiftPill();
-
+class _ReferenceSceneShade extends StatelessWidget {
+  const _ReferenceSceneShade();
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+  Widget build(BuildContext context) => const DecoratedBox(
     decoration: BoxDecoration(
-      color: const Color(0xCC073A3A),
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0xFF29D7C6), width: 1.2),
-      boxShadow: const [BoxShadow(color: Color(0x5529D7C6), blurRadius: 18)],
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0x99000000), Color(0x08000000), Color(0x10000000), Color(0xD8000000)],
+        stops: [0, .18, .55, 1],
+      ),
     ),
-    child: const Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(Icons.circle, color: Color(0xFF18E6B7), size: 12),
-      SizedBox(width: 10),
-      Column(mainAxisSize: MainAxisSize.min, children: [
-        Text('Смена открыта', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
-        Text('02:14:26', style: TextStyle(color: Color(0xFF29E5E0), fontSize: 22, height: 1.05, fontWeight: FontWeight.w900)),
-      ]),
-      SizedBox(width: 14),
-      Icon(Icons.pause_rounded, color: Colors.white, size: 24),
-    ]),
   );
 }
 
-class _NewDriverChip extends StatelessWidget {
+class _RefProfile extends StatelessWidget {
   final VoidCallback onTap;
-  const _NewDriverChip({required this.onTap});
+  const _RefProfile({required this.onTap});
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: onTap,
-    borderRadius: BorderRadius.circular(28),
+    borderRadius: BorderRadius.circular(30),
     child: const Row(mainAxisSize: MainAxisSize.min, children: [
       CircleAvatar(radius: 22, backgroundColor: Color(0xFF111419), child: Icon(Icons.person_rounded, color: Color(0xFFFFA04B), size: 25)),
       SizedBox(width: 9),
@@ -634,8 +704,18 @@ class _NewDriverChip extends StatelessWidget {
   );
 }
 
-class _NewWeather extends StatelessWidget {
-  const _NewWeather();
+class _RefHandwriting extends StatelessWidget {
+  const _RefHandwriting();
+  @override
+  Widget build(BuildContext context) => Transform.rotate(
+    angle: -.08,
+    child: const Text('Движение\n— это жизнь', textAlign: TextAlign.center,
+      style: TextStyle(color: Color(0xFFECE7E1), fontSize: 12, height: .95, fontStyle: FontStyle.italic, letterSpacing: .3)),
+  );
+}
+
+class _RefWeather extends StatelessWidget {
+  const _RefWeather();
   @override
   Widget build(BuildContext context) => const Row(mainAxisSize: MainAxisSize.min, children: [
     Icon(Icons.wb_sunny_rounded, color: Color(0xFFFFC13C), size: 26), SizedBox(width: 6),
@@ -646,100 +726,230 @@ class _NewWeather extends StatelessWidget {
   ]);
 }
 
-class _SceneHud extends StatelessWidget {
-  final IconData icon; final String label; final String value; final Color color; final bool lineRight; final bool small;
-  const _SceneHud({required this.icon, required this.label, required this.value, required this.color, required this.lineRight, this.small = false});
+class _ReferenceSideRail extends StatelessWidget {
+  final VoidCallback onShift, onTrips, onFuel, onExpenses, onStats;
+  const _ReferenceSideRail({required this.onShift, required this.onTrips, required this.onFuel, required this.onExpenses, required this.onStats});
   @override
-  Widget build(BuildContext context) {
-    final orb = Container(
-      width: small ? 38 : 45, height: small ? 38 : 45,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xB006090C), border: Border.all(color: color, width: 1.3), boxShadow: [BoxShadow(color: color.withValues(alpha: .30), blurRadius: 16)]),
-      child: Icon(icon, color: color, size: small ? 20 : 23),
-    );
-    final info = Column(crossAxisAlignment: lineRight ? CrossAxisAlignment.start : CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
-      Text(label, style: const TextStyle(color: Color(0xFFE1E3E6), fontSize: 9.5, fontWeight: FontWeight.w600)),
-      Text(value, style: TextStyle(color: Colors.white, fontSize: small ? 15 : 19, height: 1.0, fontWeight: FontWeight.w900, shadows: [Shadow(color: color.withValues(alpha: .45), blurRadius: 12)])),
-      const Text('за месяц', style: TextStyle(color: Color(0xFFB5B8BD), fontSize: 7.5)),
-    ]);
-    final line = Container(width: small ? 20 : 30, height: 1, decoration: BoxDecoration(color: color, boxShadow: [BoxShadow(color: color, blurRadius: 7)]));
-    return Row(mainAxisSize: MainAxisSize.min, children: lineRight ? [orb, const SizedBox(width: 6), info, const SizedBox(width: 4), line] : [line, const SizedBox(width: 4), info, const SizedBox(width: 6), orb]);
-  }
-}
-
-class _NewHomeLower extends StatelessWidget {
-  final _HomeMonthData data;
-  const _NewHomeLower({required this.data});
-  @override
-  Widget build(BuildContext context) => Column(children: [
-    Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-      Expanded(child: _NewSalaryCard(data: data)),
-      const SizedBox(width: 10),
-      const _NewEndShiftButton(),
-      const SizedBox(width: 10),
-      const Expanded(child: _NewQuoteCard()),
-    ]),
-    const SizedBox(height: 11),
-    const _NewTripCard(),
-  ]);
-}
-
-class _NewSalaryCard extends StatelessWidget {
-  final _HomeMonthData data;
-  const _NewSalaryCard({required this.data});
-  @override
-  Widget build(BuildContext context) => _NewGlassPanel(child: Padding(
-    padding: const EdgeInsets.all(13),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Заработано сегодня', style: TextStyle(color: Color(0xFFB6B9BE), fontSize: 9)),
-      const SizedBox(height: 5), Text('${_fmtInt(data.salary)} ₸', style: const TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w900)),
-      const SizedBox(height: 10), const LinearProgressIndicator(value: .81, minHeight: 4, borderRadius: BorderRadius.all(Radius.circular(8)), backgroundColor: Color(0xFF25292F), color: Color(0xFFFF842C)),
-      const SizedBox(height: 5), const Text('Цель дня: 40 000 ₸', style: TextStyle(color: Color(0xFF9EA2A8), fontSize: 8)),
-    ]),
-  ));
-}
-
-class _NewEndShiftButton extends StatelessWidget {
-  const _NewEndShiftButton();
-  @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: () => HapticFeedback.mediumImpact(), borderRadius: BorderRadius.circular(60),
-    child: Container(width: 105, height: 105, decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFF07090B), border: Border.all(color: const Color(0xFFFF842C), width: 2), boxShadow: const [BoxShadow(color: Color(0x66FF7418), blurRadius: 22)]),
-      child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.stop_rounded, color: Color(0xFFFFA04B), size: 21), SizedBox(height: 5), Text('ЗАВЕРШИТЬ\nСМЕНУ', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 9, height: 1.08, fontWeight: FontWeight.w800))]),
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(28),
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xB806090C),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: const Color(0x44FF8A2D)),
+        ),
+        child: Column(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+          _RefRailItem(icon: Icons.settings_suggest_rounded, label: 'Смена', active: true, onTap: onShift),
+          _RefRailItem(icon: Icons.local_shipping_outlined, label: 'Рейсы', onTap: onTrips),
+          _RefRailItem(icon: Icons.local_gas_station_outlined, label: 'Топливо', onTap: onFuel),
+          _RefRailItem(icon: Icons.inventory_2_outlined, label: 'Расходы', onTap: onExpenses),
+          _RefRailItem(icon: Icons.bar_chart_rounded, label: 'Статистика', onTap: onStats),
+        ]),
+      ),
     ),
   );
 }
 
-class _NewQuoteCard extends StatelessWidget {
-  const _NewQuoteCard();
+class _RefRailItem extends StatelessWidget {
+  final IconData icon; final String label; final bool active; final VoidCallback onTap;
+  const _RefRailItem({required this.icon, required this.label, required this.onTap, this.active = false});
   @override
-  Widget build(BuildContext context) => const _NewGlassPanel(child: Padding(
-    padding: EdgeInsets.all(13),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-      Text('“', style: TextStyle(color: Color(0xFFFFA04B), fontSize: 27, height: .7, fontWeight: FontWeight.w900)),
-      SizedBox(height: 7), Text('Дороги не спрашивают,\nкуда ты идёшь.\nОни просто ведут.', style: TextStyle(color: Color(0xFFE2E3E5), fontSize: 9.3, height: 1.35)),
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(18),
+    child: Container(
+      width: 62,
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      decoration: active ? BoxDecoration(
+        color: const Color(0x66160D05), borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFFF8A2D)),
+        boxShadow: const [BoxShadow(color: Color(0x66FF7418), blurRadius: 16)],
+      ) : null,
+      child: Column(children: [
+        Icon(icon, color: active ? const Color(0xFFFFB04B) : const Color(0xFFC7D0DD), size: 22),
+        const SizedBox(height: 4),
+        Text(label, textAlign: TextAlign.center, style: TextStyle(color: active ? const Color(0xFFFFC66E) : const Color(0xFFD2D5D9), fontSize: 8.5, fontWeight: active ? FontWeight.w800 : FontWeight.w500)),
+      ]),
+    ),
+  );
+}
+
+class _RefShiftPill extends StatelessWidget {
+  const _RefShiftPill();
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+    decoration: BoxDecoration(
+      color: const Color(0xCC073A3A), borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: const Color(0xFF29D7C6), width: 1.1),
+      boxShadow: const [BoxShadow(color: Color(0x5529D7C6), blurRadius: 18)],
+    ),
+    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(Icons.circle, color: Color(0xFF18E6B7), size: 11), SizedBox(width: 9),
+      Column(mainAxisSize: MainAxisSize.min, children: [
+        Text('Смена открыта', style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w700)),
+        Text('02:14:26', style: TextStyle(color: Color(0xFF29E5E0), fontSize: 20, height: 1.05, fontWeight: FontWeight.w900)),
+      ]),
+      SizedBox(width: 13), Icon(Icons.pause_rounded, color: Colors.white, size: 22),
     ]),
+  );
+}
+
+class _RefHud extends StatelessWidget {
+  final IconData icon; final String label; final String value; final String sub; final Color color; final bool connectorRight; final bool compact; final VoidCallback onTap;
+  const _RefHud({required this.icon, required this.label, required this.value, required this.sub, required this.color, required this.connectorRight, required this.onTap, this.compact = false});
+  @override
+  Widget build(BuildContext context) {
+    final orb = Container(
+      width: compact ? 40 : 47, height: compact ? 40 : 47,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xA806090C), border: Border.all(color: color, width: 1.4), boxShadow: [BoxShadow(color: color.withValues(alpha: .30), blurRadius: 15)]),
+      child: Icon(icon, color: color, size: compact ? 20 : 24),
+    );
+    final info = Column(crossAxisAlignment: connectorRight ? CrossAxisAlignment.start : CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
+      Text(label, style: const TextStyle(color: Color(0xFFE3E4E6), fontSize: 9.5, fontWeight: FontWeight.w600)),
+      Text(value, style: TextStyle(color: Colors.white, fontSize: compact ? 15 : 19, height: 1, fontWeight: FontWeight.w900, shadows: [Shadow(color: color.withValues(alpha: .38), blurRadius: 10)])),
+      Text(sub, style: const TextStyle(color: Color(0xFFB5B8BD), fontSize: 7.5)),
+    ]);
+    final line = Container(width: compact ? 18 : 30, height: 1, color: color.withValues(alpha: .9));
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(30),
+      child: Padding(
+        padding: const EdgeInsets.all(3),
+        child: Row(mainAxisSize: MainAxisSize.min, children: connectorRight
+          ? [orb, const SizedBox(width: 6), info, const SizedBox(width: 4), line]
+          : [line, const SizedBox(width: 4), info, const SizedBox(width: 6), orb]),
+      ),
+    );
+  }
+}
+
+class _RefPlate extends StatelessWidget {
+  const _RefPlate();
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(color: const Color(0xA906090C), borderRadius: BorderRadius.circular(11), border: Border.all(color: const Color(0x99FF842C))),
+    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+      Text('KZ', style: TextStyle(color: Color(0xFF57C5FF), fontSize: 9, fontWeight: FontWeight.w900)),
+      SizedBox(width: 5), Text('H139915', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: .7)),
+    ]),
+  );
+}
+
+class _RefLowerDashboard extends StatelessWidget {
+  final _HomeMonthData data; final ValueChanged<int> onNavigate;
+  const _RefLowerDashboard({required this.data, required this.onNavigate});
+  @override
+  Widget build(BuildContext context) => Column(mainAxisSize: MainAxisSize.min, children: [
+    Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+      Expanded(child: _RefGlass(child: _RefSalary(data: data))),
+      const SizedBox(width: 8),
+      const _RefEndShift(),
+      const SizedBox(width: 8),
+      const Expanded(child: _RefGlass(child: _RefQuote())),
+    ]),
+    const SizedBox(height: 8),
+    const _RefPeriodBar(),
+    const SizedBox(height: 8),
+    _RefTrip(onTap: () => onNavigate(1)),
+  ]);
+}
+
+class _RefGlass extends StatelessWidget {
+  final Widget child; const _RefGlass({required this.child});
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(17),
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+      child: Container(
+        decoration: BoxDecoration(color: const Color(0xC90A0D11), borderRadius: BorderRadius.circular(17), border: Border.all(color: const Color(0x553D4651))),
+        child: child,
+      ),
+    ),
+  );
+}
+
+class _RefSalary extends StatelessWidget {
+  final _HomeMonthData data; const _RefSalary({required this.data});
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(11),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Заработано сегодня', style: TextStyle(color: Color(0xFFB6B9BE), fontSize: 8.5)),
+      const SizedBox(height: 4), Text('${_fmtInt(data.salary)} ₸', style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900)),
+      const SizedBox(height: 7), ClipRRect(borderRadius: BorderRadius.circular(8), child: const LinearProgressIndicator(value: .81, minHeight: 4, backgroundColor: Color(0xFF25292F), color: Color(0xFFFF842C))),
+      const SizedBox(height: 4), const Text('Цель дня: 40 000 ₸', style: TextStyle(color: Color(0xFF9EA2A8), fontSize: 7.5)),
+    ]),
+  );
+}
+
+class _RefEndShift extends StatelessWidget {
+  const _RefEndShift();
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: () => HapticFeedback.mediumImpact(), borderRadius: BorderRadius.circular(55),
+    child: Container(width: 92, height: 92, decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xE806080A), border: Border.all(color: const Color(0xFFFF842C), width: 2), boxShadow: const [BoxShadow(color: Color(0x66FF7418), blurRadius: 22)]),
+      child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.stop_rounded, color: Color(0xFFFFA04B), size: 19), SizedBox(height: 4), Text('ЗАВЕРШИТЬ\nСМЕНУ', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 8.2, height: 1.05, fontWeight: FontWeight.w800))]),
+    ),
+  );
+}
+
+class _RefQuote extends StatelessWidget {
+  const _RefQuote();
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.all(10),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('“', style: TextStyle(color: Color(0xFFFFA04B), fontSize: 24, height: .65, fontWeight: FontWeight.w900)),
+      SizedBox(height: 6), Text('Дороги не спрашивают,\nкуда ты идёшь.\nОни просто ведут.', style: TextStyle(color: Color(0xFFE2E3E5), fontSize: 8.2, height: 1.25)),
+    ]),
+  );
+}
+
+class _RefPeriodBar extends StatelessWidget {
+  const _RefPeriodBar();
+  @override
+  Widget build(BuildContext context) => _RefGlass(
+    child: SizedBox(height: 43, child: Row(children: [
+      _period(Icons.calendar_month_rounded, 'Сегодня', true), _period(Icons.bar_chart_rounded, 'Неделя', false),
+      _period(Icons.schedule_rounded, 'Месяц', false), _period(Icons.insert_chart_outlined_rounded, 'Год', false),
+    ])),
+  );
+  static Widget _period(IconData icon, String label, bool active) => Expanded(child: Container(
+    decoration: active ? const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFFF8A2D), width: 2))) : null,
+    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, color: active ? const Color(0xFFFFB04B) : const Color(0xFF8993A3), size: 16), const SizedBox(width: 5), Text(label, style: TextStyle(color: active ? const Color(0xFFFFC66E) : const Color(0xFFB6BBC4), fontSize: 8.5))]),
   ));
 }
 
-class _NewGlassPanel extends StatelessWidget {
-  final Widget child;
-  const _NewGlassPanel({required this.child});
+class _RefTrip extends StatelessWidget {
+  final VoidCallback onTap; const _RefTrip({required this.onTap});
   @override
-  Widget build(BuildContext context) => ClipRRect(borderRadius: BorderRadius.circular(20), child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16), child: Container(constraints: const BoxConstraints(minHeight: 105), decoration: BoxDecoration(color: const Color(0xC60A0D11), borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0x553D4651))), child: child)));
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap, borderRadius: BorderRadius.circular(17),
+    child: _RefGlass(child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      child: Row(children: [
+        Container(width: 42, height: 42, decoration: BoxDecoration(borderRadius: BorderRadius.circular(11), gradient: const LinearGradient(colors: [Color(0xFF12283A), Color(0xFF332315)])), child: const Icon(Icons.route_rounded, color: Color(0xFFFFA04B), size: 23)),
+        const SizedBox(width: 10),
+        const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Текущий рейс', style: TextStyle(color: Color(0xFF9EA2A8), fontSize: 7.5)), SizedBox(height: 3), Text('Петропавловск  →  Кокшетау', style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w900)), SizedBox(height: 3), Text('124 км  •  1,8 т  •  ≈ 2 ч 10 мин', style: TextStyle(color: Color(0xFFC0C3C8), fontSize: 7.5))])),
+        Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8), decoration: BoxDecoration(borderRadius: BorderRadius.circular(15), border: Border.all(color: const Color(0xAAFF842C))), child: const Row(children: [Icon(Icons.navigation_rounded, color: Color(0xFFFFA04B), size: 18), SizedBox(width: 5), Text('Навигация', style: TextStyle(color: Colors.white, fontSize: 8.5))])),
+      ]),
+    )),
+  );
 }
 
-class _NewTripCard extends StatelessWidget {
-  const _NewTripCard();
+class _RefEdgeButton extends StatelessWidget {
+  final VoidCallback onTap; const _RefEdgeButton({required this.onTap});
   @override
-  Widget build(BuildContext context) => _NewGlassPanel(child: Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-    child: Row(children: [
-      Container(width: 50, height: 50, decoration: BoxDecoration(borderRadius: BorderRadius.circular(13), gradient: const LinearGradient(colors: [Color(0xFF12283A), Color(0xFF332315)])), child: const Icon(Icons.route_rounded, color: Color(0xFFFFA04B), size: 27)),
-      const SizedBox(width: 12),
-      const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Текущий рейс', style: TextStyle(color: Color(0xFF9EA2A8), fontSize: 8.5)), SizedBox(height: 4), Text('Петропавловск  →  Кокшетау', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900)), SizedBox(height: 5), Text('124 км  •  1,8 т  •  ≈ 2 ч 10 мин', style: TextStyle(color: Color(0xFFC0C3C8), fontSize: 8.5))])),
-      Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xAAFF842C)), boxShadow: const [BoxShadow(color: Color(0x33FF7418), blurRadius: 12)]), child: const Row(children: [Icon(Icons.navigation_rounded, color: Color(0xFFFFA04B), size: 20), SizedBox(width: 6), Text('Навигация', style: TextStyle(color: Colors.white, fontSize: 9.5))])),
-    ]),
-  ));
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap, customBorder: const CircleBorder(),
+    child: Container(width: 42, height: 42, decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xCC111419), border: Border.all(color: const Color(0xFF5A6068))), child: const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 28)),
+  );
 }
 
 class _HomeTopBar extends StatelessWidget {
