@@ -11,6 +11,7 @@ import '../theme/app_theme.dart';
 import 'login_screen.dart';
 
 part 'garage_home.dart';
+part 'work_dashboard.dart';
 
 class AppShell extends StatefulWidget {
   final AppSession session;
@@ -86,7 +87,8 @@ class _AppShellState extends State<AppShell> {
         onNavigate: (index) => setState(() => _index = index),
         onQuickAdd: _openQuickAdd,
       ),
-      WorkPage(session: widget.session),
+      WorkPage(session: widget.session,
+        onNavigate: (index) => setState(() => _index = index), onQuickAdd: _openQuickAdd),
       const SizedBox.shrink(),
       InvoicesPage(session: widget.session),
       StatisticsPage(session: widget.session),
@@ -126,6 +128,8 @@ class _AppShellState extends State<AppShell> {
         children: [
           if (widget.session.role != AppRole.loader && _index == 0)
             Positioned.fill(child: Image.asset('assets/images/garage_approved.png', fit: BoxFit.fill))
+          else if (widget.session.role != AppRole.loader && _index == 1)
+            Positioned.fill(child: Image.asset('assets/images/work_approved.png', fit: BoxFit.fill))
           else
             const _AppBackground(),
           SafeArea(
@@ -137,7 +141,7 @@ class _AppShellState extends State<AppShell> {
           ),
         ],
       ),
-      bottomNavigationBar: widget.session.role != AppRole.loader && _index == 0
+      bottomNavigationBar: widget.session.role != AppRole.loader && _index <= 1
           ? null
           : _BottomNavigation(
         items: items,
@@ -4126,42 +4130,6 @@ class _QuickSaveButton extends StatelessWidget {
     );
   }
 }
-
-
-
-class WorkPage extends StatelessWidget {
-  final AppSession session;
-
-  const WorkPage({
-    super.key,
-    required this.session,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-      padding: const EdgeInsets.fromLTRB(9, 10, 9, 26),
-      children: const [
-        _PageHeader(
-          title: 'Работа',
-          subtitle: '',
-          trailing: _StatusPill(
-            text: 'На смене',
-            color: Color(0xFF55E66B),
-          ),
-        ),
-        SizedBox(height: 8),
-        _WorkHero(),
-        SizedBox(height: 8),
-        _ShiftTimelineCard(),
-        SizedBox(height: 8),
-        _WorkGpsStrip(),
-      ],
-    );
-  }
-}
-
 
 
 
