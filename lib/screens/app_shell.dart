@@ -576,97 +576,62 @@ class _ReferenceHomeDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final w = size.width;
     final h = size.height;
-    final railW = (w * .125).clamp(76.0, 92.0);
-    final topH = (h * .55).clamp(470.0, 620.0);
-    final contentLeft = railW + 8;
-    final contentW = w - contentLeft - 10;
+    // The approved mock-up is treated as one composition. All positions below
+    // are derived from the same canvas so individual widgets cannot "grow"
+    // independently and destroy the proportions.
+    final railW = (w * .105).clamp(62.0, 76.0);
+    final left = railW + 10;
+    final right = 10.0;
+    final cw = w - left - right;
+    final sceneH = (h * .59).clamp(610.0, 760.0);
+    final lowerTop = sceneH + 4;
 
     return ClipRect(
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/garage_scene.png',
-              fit: BoxFit.cover,
-              alignment: const Alignment(0, -.10),
-            ),
+      child: Stack(children: [
+        Positioned.fill(
+          child: Image.asset('assets/images/garage_scene.png', fit: BoxFit.cover, alignment: const Alignment(0, -.18)),
+        ),
+        const Positioned.fill(child: _ReferenceSceneShade()),
+
+        // top line — same visual hierarchy as the approved screen
+        Positioned(left: left + 10, top: 8, child: _RefProfile(onTap: () => _openHomeMenu(context, session))),
+        Positioned(left: left + cw * .34, top: 12, child: const _RefHandwriting()),
+        Positioned(right: 16, top: 8, child: const _RefWeather()),
+
+        // compact left rail; it ends together with the truck scene
+        Positioned(
+          left: 7, top: 88, width: railW - 8, height: sceneH - 112,
+          child: _ReferenceSideRail(
+            onShift: () => onNavigate(1), onTrips: () => onNavigate(1),
+            onFuel: onQuickAdd, onExpenses: onQuickAdd, onStats: () => onNavigate(4),
           ),
-          const Positioned.fill(child: _ReferenceSceneShade()),
+        ),
 
-          // Header is part of the scene, not an old app bar.
-          Positioned(left: contentLeft + 10, top: 12, child: _RefProfile(onTap: () => _openHomeMenu(context, session))),
-          Positioned(left: contentLeft + contentW * .34, top: 17, child: const _RefHandwriting()),
-          Positioned(right: 18, top: 12, child: const _RefWeather()),
+        Positioned(left: left + cw * .30, top: 98, child: const _RefShiftPill()),
 
-          // Real clickable side rail from the approved reference.
-          Positioned(
-            left: 8,
-            top: 92,
-            bottom: 18,
-            width: railW - 14,
-            child: _ReferenceSideRail(
-              onShift: () => onNavigate(1),
-              onTrips: () => onNavigate(1),
-              onFuel: onQuickAdd,
-              onExpenses: onQuickAdd,
-              onStats: () => onNavigate(4),
-            ),
-          ),
+        // HUD is intentionally small and floats around the vehicle.
+        Positioned(left: left + 2, top: sceneH * .31, child: _RefHud(
+          icon: Icons.local_fire_department_rounded, label: 'Газ', value: '${_fmt1(data.gas)} л', sub: 'за месяц',
+          color: const Color(0xFF32D9FF), connectorRight: true, onTap: onQuickAdd)),
+        Positioned(left: left + 2, top: sceneH * .53, child: _RefHud(
+          icon: Icons.local_gas_station_rounded, label: 'Бензин', value: '${_fmt1(data.petrol)} л', sub: 'за месяц',
+          color: const Color(0xFFFF4659), connectorRight: true, onTap: onQuickAdd)),
+        Positioned(right: 12, top: sceneH * .31, child: _RefHud(
+          icon: Icons.inventory_2_outlined, label: 'Тоннаж', value: '${_fmt1(data.tonnage)} т', sub: 'за месяц',
+          color: const Color(0xFFFFA23D), connectorRight: false, onTap: () => onNavigate(4))),
+        Positioned(right: 12, top: sceneH * .51, child: _RefHud(
+          icon: Icons.alt_route_rounded, label: 'Рейсы', value: '${data.trips}', sub: 'за месяц',
+          color: const Color(0xFFE66CFF), connectorRight: false, onTap: () => onNavigate(1))),
+        Positioned(right: 12, top: sceneH - 78, child: _RefHud(
+          icon: Icons.route_rounded, label: 'Пробег', value: '${_fmtInt(data.mileage)} км', sub: 'за месяц',
+          color: const Color(0xFFFFB34B), connectorRight: false, compact: true, onTap: () => onNavigate(4))),
+        Positioned(left: left + 16, top: sceneH - 64, child: const _RefPlate()),
+        Positioned(right: -3, top: sceneH * .48, child: _RefEdgeButton(onTap: () => onNavigate(1))),
 
-          Positioned(
-            left: contentLeft + contentW * .31,
-            top: 102,
-            child: const _RefShiftPill(),
-          ),
-
-          // HUD elements are independent widgets and remain live/clickable.
-          Positioned(left: contentLeft + 4, top: topH * .35, child: _RefHud(
-            icon: Icons.local_fire_department_rounded,
-            label: 'Газ', value: '${_fmt1(data.gas)} л', sub: 'за месяц',
-            color: const Color(0xFF32D9FF), connectorRight: true,
-            onTap: onQuickAdd,
-          )),
-          Positioned(left: contentLeft + 4, top: topH * .56, child: _RefHud(
-            icon: Icons.local_gas_station_rounded,
-            label: 'Бензин', value: '${_fmt1(data.petrol)} л', sub: 'за месяц',
-            color: const Color(0xFFFF4659), connectorRight: true,
-            onTap: onQuickAdd,
-          )),
-          Positioned(right: 14, top: topH * .34, child: _RefHud(
-            icon: Icons.inventory_2_outlined,
-            label: 'Тоннаж', value: '${_fmt1(data.tonnage)} т', sub: 'за месяц',
-            color: const Color(0xFFFFA23D), connectorRight: false,
-            onTap: () => onNavigate(4),
-          )),
-          Positioned(right: 14, top: topH * .55, child: _RefHud(
-            icon: Icons.alt_route_rounded,
-            label: 'Рейсы', value: '${data.trips}', sub: 'за месяц',
-            color: const Color(0xFFE66CFF), connectorRight: false,
-            onTap: () => onNavigate(1),
-          )),
-          Positioned(right: 14, top: topH - 78, child: _RefHud(
-            icon: Icons.route_rounded,
-            label: 'Пробег', value: '${_fmtInt(data.mileage)} км', sub: 'за месяц',
-            color: const Color(0xFFFFB34B), connectorRight: false, compact: true,
-            onTap: () => onNavigate(4),
-          )),
-          Positioned(left: contentLeft + 18, top: topH - 67, child: const _RefPlate()),
-
-          // Lower controls remain fixed in the dashboard instead of scrolling with a giant image.
-          Positioned(
-            left: contentLeft + 8,
-            right: 12,
-            top: topH + 4,
-            child: _RefLowerDashboard(data: data, onNavigate: onNavigate),
-          ),
-
-          Positioned(
-            right: -3,
-            top: topH * .50,
-            child: _RefEdgeButton(onTap: () => onNavigate(1)),
-          ),
-        ],
-      ),
+        // Lower part is a fixed continuation of the composition, never a scrollable card list.
+        Positioned(left: left + 6, right: 10, top: lowerTop,
+          child: _RefLowerDashboard(data: data, onNavigate: onNavigate)),
+      ]),
     );
   }
 }
@@ -761,17 +726,17 @@ class _RefRailItem extends StatelessWidget {
     onTap: onTap,
     borderRadius: BorderRadius.circular(18),
     child: Container(
-      width: 62,
-      padding: const EdgeInsets.symmetric(vertical: 9),
+      width: 54,
+      padding: const EdgeInsets.symmetric(vertical: 7),
       decoration: active ? BoxDecoration(
         color: const Color(0x66160D05), borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFFF8A2D)),
         boxShadow: const [BoxShadow(color: Color(0x66FF7418), blurRadius: 16)],
       ) : null,
       child: Column(children: [
-        Icon(icon, color: active ? const Color(0xFFFFB04B) : const Color(0xFFC7D0DD), size: 22),
-        const SizedBox(height: 4),
-        Text(label, textAlign: TextAlign.center, style: TextStyle(color: active ? const Color(0xFFFFC66E) : const Color(0xFFD2D5D9), fontSize: 8.5, fontWeight: active ? FontWeight.w800 : FontWeight.w500)),
+        Icon(icon, color: active ? const Color(0xFFFFB04B) : const Color(0xFFC7D0DD), size: 20),
+        const SizedBox(height: 3),
+        Text(label, textAlign: TextAlign.center, style: TextStyle(color: active ? const Color(0xFFFFC66E) : const Color(0xFFD2D5D9), fontSize: 7.8, fontWeight: active ? FontWeight.w800 : FontWeight.w500)),
       ]),
     ),
   );
@@ -781,7 +746,7 @@ class _RefShiftPill extends StatelessWidget {
   const _RefShiftPill();
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 7),
     decoration: BoxDecoration(
       color: const Color(0xCC073A3A), borderRadius: BorderRadius.circular(18),
       border: Border.all(color: const Color(0xFF29D7C6), width: 1.1),
@@ -791,7 +756,7 @@ class _RefShiftPill extends StatelessWidget {
       Icon(Icons.circle, color: Color(0xFF18E6B7), size: 11), SizedBox(width: 9),
       Column(mainAxisSize: MainAxisSize.min, children: [
         Text('Смена открыта', style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w700)),
-        Text('02:14:26', style: TextStyle(color: Color(0xFF29E5E0), fontSize: 20, height: 1.05, fontWeight: FontWeight.w900)),
+        Text('02:14:26', style: TextStyle(color: Color(0xFF29E5E0), fontSize: 18, height: 1.05, fontWeight: FontWeight.w900)),
       ]),
       SizedBox(width: 13), Icon(Icons.pause_rounded, color: Colors.white, size: 22),
     ]),
@@ -804,16 +769,16 @@ class _RefHud extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final orb = Container(
-      width: compact ? 40 : 47, height: compact ? 40 : 47,
+      width: compact ? 36 : 42, height: compact ? 36 : 42,
       decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xA806090C), border: Border.all(color: color, width: 1.4), boxShadow: [BoxShadow(color: color.withValues(alpha: .30), blurRadius: 15)]),
-      child: Icon(icon, color: color, size: compact ? 20 : 24),
+      child: Icon(icon, color: color, size: compact ? 18 : 21),
     );
     final info = Column(crossAxisAlignment: connectorRight ? CrossAxisAlignment.start : CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
       Text(label, style: const TextStyle(color: Color(0xFFE3E4E6), fontSize: 9.5, fontWeight: FontWeight.w600)),
-      Text(value, style: TextStyle(color: Colors.white, fontSize: compact ? 15 : 19, height: 1, fontWeight: FontWeight.w900, shadows: [Shadow(color: color.withValues(alpha: .38), blurRadius: 10)])),
+      Text(value, style: TextStyle(color: Colors.white, fontSize: compact ? 14 : 17, height: 1, fontWeight: FontWeight.w900, shadows: [Shadow(color: color.withValues(alpha: .38), blurRadius: 10)])),
       Text(sub, style: const TextStyle(color: Color(0xFFB5B8BD), fontSize: 7.5)),
     ]);
-    final line = Container(width: compact ? 18 : 30, height: 1, color: color.withValues(alpha: .9));
+    final line = Container(width: compact ? 16 : 24, height: 1, color: color.withValues(alpha: .9));
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(30),
@@ -847,14 +812,14 @@ class _RefLowerDashboard extends StatelessWidget {
   Widget build(BuildContext context) => Column(mainAxisSize: MainAxisSize.min, children: [
     Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
       Expanded(child: _RefGlass(child: _RefSalary(data: data))),
-      const SizedBox(width: 8),
+      const SizedBox(width: 6),
       const _RefEndShift(),
-      const SizedBox(width: 8),
+      const SizedBox(width: 6),
       const Expanded(child: _RefGlass(child: _RefQuote())),
     ]),
-    const SizedBox(height: 8),
+    const SizedBox(height: 6),
     const _RefPeriodBar(),
-    const SizedBox(height: 8),
+    const SizedBox(height: 6),
     _RefTrip(onTap: () => onNavigate(1)),
   ]);
 }
@@ -893,7 +858,7 @@ class _RefEndShift extends StatelessWidget {
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: () => HapticFeedback.mediumImpact(), borderRadius: BorderRadius.circular(55),
-    child: Container(width: 92, height: 92, decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xE806080A), border: Border.all(color: const Color(0xFFFF842C), width: 2), boxShadow: const [BoxShadow(color: Color(0x66FF7418), blurRadius: 22)]),
+    child: Container(width: 84, height: 84, decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xE806080A), border: Border.all(color: const Color(0xFFFF842C), width: 2), boxShadow: const [BoxShadow(color: Color(0x66FF7418), blurRadius: 22)]),
       child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.stop_rounded, color: Color(0xFFFFA04B), size: 19), SizedBox(height: 4), Text('ЗАВЕРШИТЬ\nСМЕНУ', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 8.2, height: 1.05, fontWeight: FontWeight.w800))]),
     ),
   );
@@ -915,7 +880,7 @@ class _RefPeriodBar extends StatelessWidget {
   const _RefPeriodBar();
   @override
   Widget build(BuildContext context) => _RefGlass(
-    child: SizedBox(height: 43, child: Row(children: [
+    child: SizedBox(height: 39, child: Row(children: [
       _period(Icons.calendar_month_rounded, 'Сегодня', true), _period(Icons.bar_chart_rounded, 'Неделя', false),
       _period(Icons.schedule_rounded, 'Месяц', false), _period(Icons.insert_chart_outlined_rounded, 'Год', false),
     ])),
