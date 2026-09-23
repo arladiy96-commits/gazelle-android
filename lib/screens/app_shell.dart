@@ -441,6 +441,7 @@ class _MiniChromeOrbPainter extends CustomPainter {
 }
 
 
+
 class HomePage extends StatelessWidget {
   final AppSession session;
 
@@ -451,29 +452,44 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 26),
-      children: [
-        _HomeTopBar(session: session),
-        const SizedBox(height: 10),
-        const _HomeTruckHero(),
-        const SizedBox(height: 8),
-        _HomeSalaryCard(onTap: () => _showSalarySheet(context)),
-        const SizedBox(height: 8),
-        const _HomeTonnageCard(),
-        const SizedBox(height: 8),
-        _HomePaidRoutesCard(
-          onTap: () => _showPaidRoutesSheet(context),
-        ),
-        const SizedBox(height: 8),
-        const _HomeMaintenanceCard(),
-        const SizedBox(height: 8),
-        const _HomeDynamicsCard(),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final gap = 7.0;
+        final pad = 10.0;
+
+        return ListView(
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          padding: EdgeInsets.fromLTRB(pad, 8, pad, 22),
+          children: [
+            _HomeTopBar(session: session),
+            const SizedBox(height: 8),
+            _HomeTruckHero(
+              height: (w - pad * 2) * .39,
+              onTap: () => _showSalarySheet(context),
+            ),
+            const SizedBox(height: 7),
+            _HomeSalaryCard(
+              gap: gap,
+              onPaidRoutesTap: () => _showPaidRoutesSheet(context),
+            ),
+            const SizedBox(height: 7),
+            const _HomeTonnageCard(),
+            const SizedBox(height: 7),
+            const _HomeMaintenanceCard(),
+            const SizedBox(height: 7),
+            const _HomeDynamicsCard(),
+          ],
+        );
+      },
     );
   }
 }
+
+
+
 
 
 
@@ -489,14 +505,14 @@ class _HomeTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 54,
+      height: 52,
       child: Row(
         children: [
-          _ChromeIconButton(
+          _RefHeaderButton(
             icon: Icons.menu_rounded,
             onTap: () => _openHomeMenu(context, session),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 9),
           const Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -507,24 +523,37 @@ class _HomeTopBar extends StatelessWidget {
                   style: TextStyle(
                     color: AppColors.text,
                     fontSize: 20,
+                    height: 1,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: -.5,
+                    letterSpacing: -.45,
                   ),
                 ),
-                SizedBox(height: 2),
+                SizedBox(height: 5),
                 Text(
                   'Доброе утро, водитель!',
                   style: TextStyle(
-                    color: AppColors.textSoft,
-                    fontSize: 9.5,
+                    color: Color(0xFF9C9FA5),
+                    fontSize: 9.2,
+                    height: 1,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
           ),
-          _HomeSearchButton(session: session),
+          _RefHeaderButton(
+            icon: Icons.search_rounded,
+            onTap: () {
+              HapticFeedback.selectionClick();
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => SearchPage(session: session),
+                ),
+              );
+            },
+          ),
           const SizedBox(width: 7),
-          _ChromeIconButton(
+          _RefHeaderButton(
             icon: Icons.notifications_none_rounded,
             showDot: true,
             onTap: () => _showFeatureStub(
@@ -542,105 +571,142 @@ class _HomeTopBar extends StatelessWidget {
 
 
 
-class _HomeSearchButton extends StatelessWidget {
-  final AppSession session;
-
-  const _HomeSearchButton({
-    required this.session,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _ChromeIconButton(
-      icon: Icons.search_rounded,
-      onTap: () {
-        HapticFeedback.selectionClick();
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => SearchPage(session: session),
-          ),
-        );
-      },
-    );
-  }
-}
-
 
 
 
 class _HomeTruckHero extends StatelessWidget {
-  const _HomeTruckHero();
+  final double height;
+  final VoidCallback onTap;
+
+  const _HomeTruckHero({
+    required this.height,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return _ChromeImageCard(
-      height: 205,
-      imageAsset: 'assets/images/home_truck.jpg',
-      radius: 25,
-      child: Stack(
-        children: [
-          const Positioned(
-            left: 15,
-            top: 15,
-            child: Text(
-              'Заработок за сентябрь',
-              style: TextStyle(
-                color: AppColors.textSoft,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
+    return _RefHomeTile(
+      radius: 22,
+      accent: AppColors.orange,
+      onTap: onTap,
+      child: SizedBox(
+        height: height.clamp(142.0, 170.0),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(21),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                'assets/images/home_truck.jpg',
+                fit: BoxFit.cover,
+                alignment: const Alignment(.38, .24),
               ),
-            ),
-          ),
-          const Positioned(
-            left: 15,
-            bottom: 47,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '312 105,8 ₸',
-                  style: TextStyle(
-                    color: AppColors.text,
-                    fontSize: 31,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -1.1,
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerRight,
+                    end: Alignment.centerLeft,
+                    colors: [
+                      Color(0x22000000),
+                      Color(0x75000000),
+                      Color(0xF207080A),
+                    ],
+                    stops: [0, .46, 1],
                   ),
                 ),
-                SizedBox(height: 2),
-                Row(
+              ),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0x32FFFFFF),
+                      Color(0x08FFFFFF),
+                      Color(0x00FFFFFF),
+                    ],
+                    stops: [0, .16, .43],
+                  ),
+                ),
+              ),
+              const Positioned(
+                left: 14,
+                top: 12,
+                child: Text(
+                  'Заработок за сентябрь',
+                  style: TextStyle(
+                    color: Color(0xFFC4C6CB),
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Positioned(
+                left: 14,
+                bottom: 18,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'из ',
-                      style: TextStyle(color: AppColors.textSoft, fontSize: 10),
-                    ),
-                    Text(
-                      '354 000 ₸',
+                      '312 105,8 ₸',
                       style: TextStyle(
-                        color: AppColors.orangeSoft,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
+                        color: AppColors.text,
+                        fontSize: 28,
+                        height: 1,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -.9,
                       ),
+                    ),
+                    SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Text(
+                          'из ',
+                          style: TextStyle(
+                            color: Color(0xFFA4A7AC),
+                            fontSize: 9.5,
+                          ),
+                        ),
+                        Text(
+                          '354 000 ₸',
+                          style: TextStyle(
+                            color: AppColors.orangeSoft,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.trending_up_rounded,
+                          color: Color(0xFF55E66B),
+                          size: 13,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          '+18 600 ₸ к прошлому месяцу',
+                          style: TextStyle(
+                            color: Color(0xFF55E66B),
+                            fontSize: 8.7,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                SizedBox(height: 5),
-                Text(
-                  '+18 600 ₸ к прошлому месяцу',
-                  style: TextStyle(
-                    color: Color(0xFF61E37B),
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
+              ),
+              const Positioned(
+                right: 14,
+                bottom: 14,
+                child: _HomeSalaryRing(),
+              ),
+            ],
           ),
-          const Positioned(
-            right: 16,
-            bottom: 29,
-            child: _HomeSalaryRing(),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -651,32 +717,36 @@ class _HomeTruckHero extends StatelessWidget {
 
 
 
+
+
+
 class _HomeSalaryCard extends StatelessWidget {
-  final VoidCallback onTap;
+  final double gap;
+  final VoidCallback onPaidRoutesTap;
 
   const _HomeSalaryCard({
-    required this.onTap,
+    required this.gap,
+    required this.onPaidRoutesTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(
-          child: _LuxuryMetricTile(
-            label: 'Рейсы',
+        const Expanded(
+          child: _RefMetricTile(
+            title: 'Рейсы',
             value: '29',
             note: 'сегодня',
             delta: '+12%',
             icon: Icons.local_shipping_outlined,
             accent: AppColors.orange,
-            onTap: onTap,
           ),
         ),
-        const SizedBox(width: 7),
+        SizedBox(width: gap),
         const Expanded(
-          child: _LuxuryMetricTile(
-            label: 'Пробег',
+          child: _RefMetricTile(
+            title: 'Пробег',
             value: '184 км',
             note: 'за месяц',
             delta: '+8%',
@@ -684,15 +754,16 @@ class _HomeSalaryCard extends StatelessWidget {
             accent: AppColors.blue,
           ),
         ),
-        const SizedBox(width: 7),
-        const Expanded(
-          child: _LuxuryMetricTile(
-            label: 'Направления',
+        SizedBox(width: gap),
+        Expanded(
+          child: _RefMetricTile(
+            title: 'Направления',
             value: '2',
             note: 'сегодня',
             delta: '',
             icon: Icons.alt_route_rounded,
             accent: AppColors.amber,
+            onTap: onPaidRoutesTap,
           ),
         ),
       ],
@@ -705,18 +776,19 @@ class _HomeSalaryCard extends StatelessWidget {
 
 
 
+
+
+
 class _HomeSalaryRing extends StatelessWidget {
   const _HomeSalaryRing();
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 104,
-      height: 104,
+      width: 91,
+      height: 91,
       child: CustomPaint(
-        painter: _HomeRingPainter(
-          progress: 0.88,
-        ),
+        painter: _HomeRingPainter(progress: .88),
         child: const Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -725,16 +797,18 @@ class _HomeSalaryRing extends StatelessWidget {
                 '88%',
                 style: TextStyle(
                   color: AppColors.text,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 20,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
-              SizedBox(height: 3),
+              SizedBox(height: 4),
               Text(
                 'план',
                 style: TextStyle(
-                  color: AppColors.textSoft,
-                  fontSize: 8,
+                  color: Color(0xFF9B9EA4),
+                  fontSize: 7.3,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -745,55 +819,90 @@ class _HomeSalaryRing extends StatelessWidget {
   }
 }
 
+
+
+
 class _HomeRingPainter extends CustomPainter {
   final double progress;
 
-  _HomeRingPainter({
+  const _HomeRingPainter({
     required this.progress,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final stroke = 10.0;
-    final rect = Rect.fromLTWH(
-      stroke / 2,
-      stroke / 2,
-      size.width - stroke,
-      size.height - stroke,
-    );
+    final c = Offset(size.width / 2, size.height / 2);
+    final r = size.width / 2 - 9;
+    final rect = Rect.fromCircle(center: c, radius: r);
+
+    final shadow = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12
+      ..strokeCap = StrokeCap.round
+      ..color = const Color(0xD0000000)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+    canvas.drawArc(rect, -math.pi / 2, math.pi * 2, false, shadow);
 
     final bg = Paint()
-      ..color = const Color(0xFF2C2D30)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke;
-
-    final fg = Paint()
+      ..strokeWidth = 9
+      ..strokeCap = StrokeCap.round
       ..shader = const SweepGradient(
         colors: [
-          Color(0xFFFF5E00),
-          Color(0xFFFF8B18),
-          Color(0xFFFFB84A),
-          Color(0xFFFF5E00),
+          Color(0xFF53575D),
+          Color(0xFF1B1E22),
+          Color(0xFF0A0B0D),
+          Color(0xFF3A3E43),
+          Color(0xFF53575D),
         ],
-      ).createShader(rect)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.round;
+      ).createShader(rect);
+    canvas.drawArc(rect, -math.pi / 2, math.pi * 2, false, bg);
 
+    final glow = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 13
+      ..strokeCap = StrokeCap.round
+      ..color = const Color(0x60FF7418)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
     canvas.drawArc(
       rect,
       -math.pi / 2,
-      math.pi * 2,
+      math.pi * 2 * progress,
       false,
-      bg,
+      glow,
     );
 
+    final fg = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 8
+      ..strokeCap = StrokeCap.round
+      ..shader = const SweepGradient(
+        colors: [
+          Color(0xFFFF5A00),
+          Color(0xFFFF8D22),
+          Color(0xFFFFB54C),
+          Color(0xFFFF5A00),
+        ],
+      ).createShader(rect);
     canvas.drawArc(
       rect,
       -math.pi / 2,
       math.pi * 2 * progress,
       false,
       fg,
+    );
+
+    final white = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = .75
+      ..strokeCap = StrokeCap.round
+      ..color = const Color(0xB8FFFFFF);
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: r - 4.8),
+      -math.pi * .42,
+      math.pi * .28,
+      false,
+      white,
     );
   }
 
@@ -805,50 +914,72 @@ class _HomeRingPainter extends CustomPainter {
 
 
 
+
+
+
 class _HomeMaintenanceCard extends StatelessWidget {
   const _HomeMaintenanceCard();
 
   @override
   Widget build(BuildContext context) {
-    return _ChromeGlassSurface(
-      radius: 22,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    return _RefHomeTile(
+      radius: 19,
       accent: AppColors.orange,
-      child: const Row(
-        children: [
-          _ChromeMiniIcon(icon: Icons.build_outlined, color: AppColors.orange),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'БЛИЖАЙШЕЕ ТО',
-                  style: TextStyle(
-                    color: AppColors.textSoft,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: .8,
-                  ),
+      child: const SizedBox(
+        height: 63,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 11),
+          child: Row(
+            children: [
+              _RefIconPlate(
+                icon: Icons.build_outlined,
+                accent: AppColors.orange,
+                size: 43,
+              ),
+              SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'БЛИЖАЙШЕЕ ТО',
+                      style: TextStyle(
+                        color: Color(0xFFA4A7AC),
+                        fontSize: 7.7,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: .65,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Через 5 406 км',
+                      style: TextStyle(
+                        color: AppColors.text,
+                        fontSize: 16.5,
+                        height: 1,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -.25,
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 3),
-                Text(
-                  'Через 5 406 км',
-                  style: TextStyle(
-                    color: AppColors.text,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
+              ),
+              Icon(
+                Icons.arrow_forward_rounded,
+                color: AppColors.orange,
+                size: 23,
+              ),
+            ],
           ),
-          Icon(Icons.arrow_forward_rounded, color: AppColors.orange, size: 24),
-        ],
+        ),
       ),
     );
   }
 }
+
+
+
 
 
 
@@ -861,26 +992,24 @@ class _HomeTonnageCard extends StatelessWidget {
     return Row(
       children: [
         const Expanded(
-          child: _HomeGaugeCard(
+          child: _RefGaugeTile(
             title: 'Тоннаж',
             value: '99 882',
             unit: 'кг',
             progress: .72,
             icon: Icons.scale_outlined,
-            accent: AppColors.orange,
             leftCaption: 'Город 59%',
             rightCaption: 'Район 41%',
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 7),
         Expanded(
-          child: _HomeGaugeCard(
+          child: _RefGaugeTile(
             title: 'Топливо',
             value: '1 545',
             unit: 'л газа',
             progress: .63,
             icon: Icons.local_gas_station_rounded,
-            accent: AppColors.orange,
             leftCaption: 'Газ 1 545 л',
             rightCaption: 'Бензин 20 л',
             onTap: () => _showGasSheet(context),
@@ -894,86 +1023,861 @@ class _HomeTonnageCard extends StatelessWidget {
 
 
 
+
+
+
 class _HomeDynamicsCard extends StatelessWidget {
   const _HomeDynamicsCard();
 
   @override
   Widget build(BuildContext context) {
-    const values = [0.26, 0.48, 0.42, 0.68, 0.53, 0.76, 0.45, 0.61, 0.69, 0.58, 0.78, 0.92];
+    const values = [.28, .47, .40, .66, .52, .76, .44, .58, .68, .55, .77, .91];
 
-    return _ChromeGlassSurface(
-      radius: 23,
-      padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
-      child: Column(
-        children: [
-          const Row(
+    return _RefHomeTile(
+      radius: 20,
+      accent: AppColors.orange,
+      child: SizedBox(
+        height: 141,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(11, 10, 11, 8),
+          child: Column(
             children: [
-              Text(
-                'ДИНАМИКА ДОХОДА',
-                style: TextStyle(
-                  color: AppColors.textSoft,
-                  fontSize: 8.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: .8,
-                ),
-              ),
-              Spacer(),
-              _ChromeChip(text: 'Доход'),
-              SizedBox(width: 7),
-              Text('Сентябрь 2026', style: TextStyle(color: AppColors.textDim, fontSize: 8)),
-            ],
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 118,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: List.generate(values.length, (index) {
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: Container(
-                      height: 92 * values[index],
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
-                        gradient: const LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Color(0xFFFFB35A),
-                            Color(0xFFFF7418),
-                            Color(0xFF9B3B00),
-                          ],
-                        ),
-                        boxShadow: const [
-                          BoxShadow(color: Color(0x55FF7418), blurRadius: 8),
-                        ],
-                      ),
+              const Row(
+                children: [
+                  Text(
+                    'Динамика дохода',
+                    style: TextStyle(
+                      color: AppColors.text,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
-                );
-              }),
-            ),
-          ),
-          const SizedBox(height: 7),
-          const Row(
-            children: [
-              Text('1 нед', style: TextStyle(color: AppColors.textDim, fontSize: 7.5)),
-              Spacer(),
-              Text('2 нед', style: TextStyle(color: AppColors.textDim, fontSize: 7.5)),
-              Spacer(),
-              Text('3 нед', style: TextStyle(color: AppColors.textDim, fontSize: 7.5)),
-              Spacer(),
-              Text('4 нед', style: TextStyle(color: AppColors.textDim, fontSize: 7.5)),
+                  Spacer(),
+                  _RefSegment(text: 'Доход', active: true),
+                  SizedBox(width: 5),
+                  _RefSegment(text: 'Тоннаж', active: false),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: List.generate(values.length, (i) {
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 1.8),
+                        child: Container(
+                          height: 80 * values[i],
+                          decoration: BoxDecoration(
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(3.5),
+                            ),
+                            gradient: const LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Color(0xFFFFC16A),
+                                Color(0xFFFF7B19),
+                                Color(0xFF9A3500),
+                              ],
+                            ),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x62FF7418),
+                                blurRadius: 7,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+              const SizedBox(height: 5),
+              const Row(
+                children: [
+                  Text('1 нед', style: TextStyle(color: Color(0xFF777A80), fontSize: 6.8)),
+                  Spacer(),
+                  Text('2 нед', style: TextStyle(color: Color(0xFF777A80), fontSize: 6.8)),
+                  Spacer(),
+                  Text('3 нед', style: TextStyle(color: Color(0xFF777A80), fontSize: 6.8)),
+                  Spacer(),
+                  Text('4 нед', style: TextStyle(color: Color(0xFF777A80), fontSize: 6.8)),
+                ],
+              ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
 
+
+
+
+
+
+class _RefHomeTile extends StatelessWidget {
+  final Widget child;
+  final double radius;
+  final Color accent;
+  final VoidCallback? onTap;
+
+  const _RefHomeTile({
+    required this.child,
+    required this.radius,
+    this.accent = AppColors.orange,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Widget tile = Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        boxShadow: [
+          const BoxShadow(
+            color: Color(0xE5000000),
+            blurRadius: 22,
+            offset: Offset(0, 12),
+          ),
+          BoxShadow(
+            color: accent.withValues(alpha: .14),
+            blurRadius: 18,
+            spreadRadius: -5,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: CustomPaint(
+          painter: _RefHomeGlassPainter(radius: radius, accent: accent),
+          foregroundPainter: _RefHomeFramePainter(radius: radius, accent: accent),
+          child: child,
+        ),
+      ),
+    );
+
+    if (onTap != null) {
+      tile = InkWell(
+        borderRadius: BorderRadius.circular(radius),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap!();
+        },
+        child: tile,
+      );
+    }
+
+    return tile;
+  }
+}
+
+class _RefMetricTile extends StatelessWidget {
+  final String title;
+  final String value;
+  final String note;
+  final String delta;
+  final IconData icon;
+  final Color accent;
+  final VoidCallback? onTap;
+
+  const _RefMetricTile({
+    required this.title,
+    required this.value,
+    required this.note,
+    required this.delta,
+    required this.icon,
+    required this.accent,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _RefHomeTile(
+      radius: 18,
+      accent: accent,
+      onTap: onTap,
+      child: SizedBox(
+        height: 98,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 10, 9, 9),
+          child: Stack(
+            children: [
+              Positioned(
+                right: 0,
+                top: 0,
+                child: _RefNeonIcon(
+                  icon: icon,
+                  color: accent,
+                  size: 19,
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Color(0xFFB7BAC0),
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      value,
+                      style: const TextStyle(
+                        color: AppColors.text,
+                        fontSize: 19,
+                        height: 1,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -.45,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      Text(
+                        note,
+                        style: const TextStyle(
+                          color: Color(0xFF8A8E95),
+                          fontSize: 7.3,
+                        ),
+                      ),
+                      if (delta.isNotEmpty) ...[
+                        const Spacer(),
+                        const Icon(
+                          Icons.arrow_upward_rounded,
+                          size: 8,
+                          color: Color(0xFF55E66B),
+                        ),
+                        const SizedBox(width: 1),
+                        Text(
+                          delta,
+                          style: const TextStyle(
+                            color: Color(0xFF55E66B),
+                            fontSize: 7.2,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RefGaugeTile extends StatelessWidget {
+  final String title;
+  final String value;
+  final String unit;
+  final double progress;
+  final IconData icon;
+  final String leftCaption;
+  final String rightCaption;
+  final VoidCallback? onTap;
+
+  const _RefGaugeTile({
+    required this.title,
+    required this.value,
+    required this.unit,
+    required this.progress,
+    required this.icon,
+    required this.leftCaption,
+    required this.rightCaption,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _RefHomeTile(
+      radius: 20,
+      accent: AppColors.orange,
+      onTap: onTap,
+      child: SizedBox(
+        height: 164,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 9, 10, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    title.toUpperCase(),
+                    style: const TextStyle(
+                      color: Color(0xFFB7BAC0),
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: .55,
+                    ),
+                  ),
+                  const Spacer(),
+                  _RefNeonIcon(
+                    icon: icon,
+                    color: AppColors.orange,
+                    size: 17,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              Expanded(
+                child: Center(
+                  child: SizedBox(
+                    width: 112,
+                    height: 112,
+                    child: CustomPaint(
+                      painter: _RefGaugePainter(progress: progress),
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              value,
+                              style: const TextStyle(
+                                color: AppColors.text,
+                                fontSize: 18.5,
+                                height: 1,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -.45,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              unit,
+                              style: const TextStyle(
+                                color: Color(0xFF9A9DA3),
+                                fontSize: 7.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      leftCaption,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFB2B5BA),
+                        fontSize: 7.1,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      rightCaption,
+                      textAlign: TextAlign.right,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFB2B5BA),
+                        fontSize: 7.1,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RefGaugePainter extends CustomPainter {
+  final double progress;
+
+  const _RefGaugePainter({
+    required this.progress,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = Offset(size.width / 2, size.height / 2);
+    final r = size.width / 2 - 12;
+    final rect = Rect.fromCircle(center: c, radius: r);
+    const start = math.pi * .78;
+    const sweep = math.pi * 1.45;
+
+    final shadow = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 15
+      ..strokeCap = StrokeCap.round
+      ..color = const Color(0xB8000000)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+    canvas.drawArc(rect, start, sweep, false, shadow);
+
+    final track = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 10
+      ..strokeCap = StrokeCap.round
+      ..shader = const SweepGradient(
+        colors: [
+          Color(0xFF696E74),
+          Color(0xFF24272C),
+          Color(0xFF0D0F12),
+          Color(0xFF3E4248),
+          Color(0xFF696E74),
+        ],
+      ).createShader(rect);
+    canvas.drawArc(rect, start, sweep, false, track);
+
+    final glow = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 14
+      ..strokeCap = StrokeCap.round
+      ..color = const Color(0x62FF7418)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawArc(rect, start, sweep * progress, false, glow);
+
+    final active = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 8.5
+      ..strokeCap = StrokeCap.round
+      ..shader = const LinearGradient(
+        colors: [
+          Color(0xFFFFB650),
+          Color(0xFFFF7B18),
+          Color(0xFFFF5300),
+        ],
+      ).createShader(rect);
+    canvas.drawArc(rect, start, sweep * progress, false, active);
+
+    final highlight = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = .7
+      ..strokeCap = StrokeCap.round
+      ..color = const Color(0xB8FFFFFF);
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: r - 4.8),
+      start + .10,
+      sweep * .25,
+      false,
+      highlight,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _RefGaugePainter oldDelegate) {
+    return oldDelegate.progress != progress;
+  }
+}
+
+class _RefHeaderButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool showDot;
+
+  const _RefHeaderButton({
+    required this.icon,
+    required this.onTap,
+    this.showDot = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(15),
+      onTap: onTap,
+      child: SizedBox(
+        width: 43,
+        height: 43,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            const Positioned.fill(
+              child: _RefHomeTile(
+                radius: 15,
+                accent: AppColors.orange,
+                child: SizedBox.expand(),
+              ),
+            ),
+            Center(
+              child: Icon(
+                icon,
+                color: AppColors.text,
+                size: 22,
+              ),
+            ),
+            if (showDot)
+              const Positioned(
+                right: -1,
+                top: -1,
+                child: SizedBox(
+                  width: 8,
+                  height: 8,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.orange,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0xCCFF7418),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RefIconPlate extends StatelessWidget {
+  final IconData icon;
+  final Color accent;
+  final double size;
+
+  const _RefIconPlate({
+    required this.icon,
+    required this.accent,
+    required this.size,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: _RefHomeTile(
+        radius: 13,
+        accent: accent,
+        child: Center(
+          child: _RefNeonIcon(
+            icon: icon,
+            color: accent,
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RefNeonIcon extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final double size;
+
+  const _RefNeonIcon({
+    required this.icon,
+    required this.color,
+    required this.size,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Icon(
+      icon,
+      color: color,
+      size: size,
+      shadows: [
+        Shadow(
+          color: color.withValues(alpha: .95),
+          blurRadius: 9,
+        ),
+        Shadow(
+          color: color.withValues(alpha: .45),
+          blurRadius: 18,
+        ),
+      ],
+    );
+  }
+}
+
+class _RefSegment extends StatelessWidget {
+  final String text;
+  final bool active;
+
+  const _RefSegment({
+    required this.text,
+    required this.active,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        gradient: active
+            ? const LinearGradient(
+                colors: [
+                  Color(0xFF3C281A),
+                  Color(0xFF160F0B),
+                ],
+              )
+            : null,
+        border: Border.all(
+          color: active
+              ? const Color(0xFF9A5C2B)
+              : const Color(0xFF34373C),
+          width: .7,
+        ),
+        boxShadow: active
+            ? const [
+                BoxShadow(
+                  color: Color(0x36FF7418),
+                  blurRadius: 8,
+                ),
+              ]
+            : null,
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: active ? AppColors.orangeSoft : const Color(0xFF7E8187),
+          fontSize: 7,
+          fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _RefHomeGlassPainter extends CustomPainter {
+  final double radius;
+  final Color accent;
+
+  const _RefHomeGlassPainter({
+    required this.radius,
+    required this.accent,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final rr = RRect.fromRectAndRadius(rect, Radius.circular(radius));
+
+    canvas.save();
+    canvas.clipRRect(rr);
+
+    final base = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFF2B2F34),
+          Color(0xFF15181C),
+          Color(0xFF090B0D),
+          Color(0xFF030405),
+        ],
+        stops: [0, .20, .62, 1],
+      ).createShader(rect);
+    canvas.drawRRect(rr, base);
+
+    final leftWarm = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(-1.18, -.92),
+        radius: .95,
+        colors: [
+          accent.withValues(alpha: .20),
+          accent.withValues(alpha: .055),
+          Colors.transparent,
+        ],
+      ).createShader(rect);
+    canvas.drawRRect(rr, leftWarm);
+
+    final rightWarm = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(1.12, 1.02),
+        radius: .78,
+        colors: [
+          accent.withValues(alpha: .14),
+          accent.withValues(alpha: .025),
+          Colors.transparent,
+        ],
+      ).createShader(rect);
+    canvas.drawRRect(rr, rightWarm);
+
+    final reflection = Path()
+      ..moveTo(-size.width * .08, size.height * .04)
+      ..lineTo(size.width * .62, -size.height * .03)
+      ..lineTo(size.width * .80, size.height * .14)
+      ..lineTo(size.width * .04, size.height * .28)
+      ..close();
+
+    final shine = Paint()
+      ..shader = const LinearGradient(
+        colors: [
+          Color(0x00FFFFFF),
+          Color(0x1CFFFFFF),
+          Color(0x08FFFFFF),
+          Color(0x00FFFFFF),
+        ],
+        stops: [0, .40, .66, 1],
+      ).createShader(rect)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+    canvas.drawPath(reflection, shine);
+
+    final depthRect = rect.deflate(4.2);
+    final depthRR = RRect.fromRectAndRadius(
+      depthRect,
+      Radius.circular(math.max(2, radius - 4)),
+    );
+    final innerShadow = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5.3
+      ..color = const Color(0x72000000)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+    canvas.drawRRect(depthRR, innerShadow);
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _RefHomeGlassPainter oldDelegate) {
+    return oldDelegate.radius != radius || oldDelegate.accent != accent;
+  }
+}
+
+class _RefHomeFramePainter extends CustomPainter {
+  final double radius;
+  final Color accent;
+
+  const _RefHomeFramePainter({
+    required this.radius,
+    required this.accent,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(.8, .8, size.width - 1.6, size.height - 1.6);
+    final rr = RRect.fromRectAndRadius(rect, Radius.circular(radius));
+
+    final metal = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.18
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFFC5C8CC),
+          Color(0xFF595E65),
+          Color(0xFF17191D),
+          Color(0xFF686D74),
+          Color(0xFF24272C),
+        ],
+        stops: [0, .13, .47, .72, 1],
+      ).createShader(rect);
+    canvas.drawRRect(rr, metal);
+
+    final innerRect = rect.deflate(2.25);
+    final innerRR = RRect.fromRectAndRadius(
+      innerRect,
+      Radius.circular(math.max(2, radius - 2.2)),
+    );
+    final inner = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = .63
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0x88FFFFFF),
+          Color(0x20FFFFFF),
+          Color(0x15000000),
+          Color(0x70000000),
+        ],
+      ).createShader(innerRect);
+    canvas.drawRRect(innerRR, inner);
+
+    final hotGlow = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.8
+      ..strokeCap = StrokeCap.round
+      ..color = accent.withValues(alpha: .72)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9);
+
+    final hotCore = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.22
+      ..strokeCap = StrokeCap.round
+      ..color = Color.lerp(accent, Colors.white, .11)!;
+
+    final tl = Rect.fromLTWH(-7, -7, radius * 2.18, radius * 2.18);
+    canvas.drawArc(tl, math.pi * .94, math.pi * .55, false, hotGlow);
+    canvas.drawArc(tl, math.pi * .94, math.pi * .55, false, hotCore);
+
+    final br = Rect.fromLTWH(
+      size.width - radius * 2.08,
+      size.height - radius * 2.08,
+      radius * 2.22,
+      radius * 2.22,
+    );
+    canvas.drawArc(br, -math.pi * .08, math.pi * .56, false, hotGlow);
+    canvas.drawArc(br, -math.pi * .08, math.pi * .56, false, hotCore);
+
+    final sideGlow = Paint()
+      ..color = accent.withValues(alpha: .58)
+      ..strokeWidth = 3.8
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+
+    canvas.drawLine(
+      Offset(1.3, size.height * .29),
+      Offset(1.3, size.height * .48),
+      sideGlow,
+    );
+    canvas.drawLine(
+      Offset(size.width - 1.3, size.height * .62),
+      Offset(size.width - 1.3, size.height * .77),
+      sideGlow,
+    );
+
+    final silverGlow = Paint()
+      ..color = const Color(0x50FFFFFF)
+      ..strokeWidth = 2.7
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+    canvas.drawLine(
+      Offset(radius * .72, 1.35),
+      Offset(size.width * .39, 1.35),
+      silverGlow,
+    );
+
+    final silverCore = Paint()
+      ..color = const Color(0xB4FFFFFF)
+      ..strokeWidth = .65
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      Offset(radius * .72, 1.3),
+      Offset(size.width * .39, 1.3),
+      silverCore,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _RefHomeFramePainter oldDelegate) {
+    return oldDelegate.radius != radius || oldDelegate.accent != accent;
+  }
+}
 
 
 BoxDecoration _homePanelDecoration({
@@ -1411,161 +2315,6 @@ Future<void> _showHomeSheet(
 }
 
 
-class _HomePaidRoutesCard extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _HomePaidRoutesCard({
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _ChromeGlassSurface(
-      radius: 21,
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-      onTap: onTap,
-      child: const Row(
-        children: [
-          _ChromeMiniIcon(icon: Icons.alt_route_rounded, color: AppColors.orange),
-          SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'ПЛАТНЫЕ НАПРАВЛЕНИЯ',
-                  style: TextStyle(
-                    color: AppColors.textSoft,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: .7,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  '3 рейса',
-                  style: TextStyle(
-                    color: AppColors.text,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            '+ 9 000 ₸',
-            style: TextStyle(
-              color: AppColors.orangeSoft,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          SizedBox(width: 5),
-          Icon(Icons.chevron_right_rounded, color: AppColors.orange, size: 21),
-        ],
-      ),
-    );
-  }
-}
-
-
-class _LuxuryMetricTile extends StatelessWidget {
-  final String label;
-  final String value;
-  final String note;
-  final String delta;
-  final IconData icon;
-  final Color accent;
-  final VoidCallback? onTap;
-
-  const _LuxuryMetricTile({
-    required this.label,
-    required this.value,
-    required this.note,
-    required this.delta,
-    required this.icon,
-    required this.accent,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _ChromeGlassSurface(
-      radius: 20,
-      padding: const EdgeInsets.fromLTRB(11, 10, 10, 9),
-      accent: accent,
-      onTap: onTap,
-      child: SizedBox(
-        height: 94,
-        child: Stack(
-          children: [
-            Positioned(
-              top: 0,
-              right: 0,
-              child: _NeonIcon(
-                icon: icon,
-                color: accent,
-                size: 18,
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: AppColors.textSoft,
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const Spacer(),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    value,
-                    style: const TextStyle(
-                      color: AppColors.text,
-                      fontSize: 19,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -.45,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Text(
-                      note,
-                      style: const TextStyle(
-                        color: AppColors.textDim,
-                        fontSize: 7.4,
-                      ),
-                    ),
-                    if (delta.isNotEmpty) ...[
-                      const Spacer(),
-                      Text(
-                        delta,
-                        style: const TextStyle(
-                          color: Color(0xFF55E66B),
-                          fontSize: 7.8,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _NeonIcon extends StatelessWidget {
   final IconData icon;
   final Color color;
@@ -1598,495 +2347,6 @@ class _NeonIcon extends StatelessWidget {
     );
   }
 }
-
-
-class _HomeGaugeCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final String unit;
-  final double progress;
-  final IconData icon;
-  final Color accent;
-  final String leftCaption;
-  final String rightCaption;
-  final VoidCallback? onTap;
-
-  const _HomeGaugeCard({
-    required this.title,
-    required this.value,
-    required this.unit,
-    required this.progress,
-    required this.icon,
-    required this.accent,
-    required this.leftCaption,
-    required this.rightCaption,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _ChromeGlassSurface(
-      radius: 23,
-      padding: const EdgeInsets.fromLTRB(11, 11, 11, 10),
-      accent: accent,
-      onTap: onTap,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                title.toUpperCase(),
-                style: const TextStyle(
-                  color: AppColors.textSoft,
-                  fontSize: 8.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: .7,
-                ),
-              ),
-              const Spacer(),
-              Icon(icon, color: accent, size: 18),
-            ],
-          ),
-          const SizedBox(height: 7),
-          Center(
-            child: SizedBox(
-              width: 104,
-              height: 104,
-              child: CustomPaint(
-                painter: _ChromeGaugePainter(
-                  progress: progress,
-                  accent: accent,
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        value,
-                        style: const TextStyle(
-                          color: AppColors.text,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -.5,
-                        ),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        unit,
-                        style: const TextStyle(
-                          color: AppColors.textSoft,
-                          fontSize: 7.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  leftCaption,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AppColors.textSoft, fontSize: 7.5),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  rightCaption,
-                  textAlign: TextAlign.right,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AppColors.textDim, fontSize: 7.5),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-
-class _ChromeGaugePainter extends CustomPainter {
-  final double progress;
-  final Color accent;
-
-  const _ChromeGaugePainter({
-    required this.progress,
-    required this.accent,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = math.min(size.width, size.height) / 2 - 10;
-    final rect = Rect.fromCircle(center: center, radius: radius);
-
-    final trackShadow = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 15
-      ..strokeCap = StrokeCap.round
-      ..color = const Color(0xB0000000)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
-    canvas.drawArc(
-      rect,
-      -math.pi * .78,
-      math.pi * 1.56,
-      false,
-      trackShadow,
-    );
-
-    final track = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 11
-      ..strokeCap = StrokeCap.round
-      ..shader = const SweepGradient(
-        colors: [
-          Color(0xFF7B8087),
-          Color(0xFF2B2F35),
-          Color(0xFF111317),
-          Color(0xFF494E55),
-          Color(0xFF747980),
-        ],
-      ).createShader(rect);
-    canvas.drawArc(
-      rect,
-      -math.pi * .78,
-      math.pi * 1.56,
-      false,
-      track,
-    );
-
-    final glow = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 14
-      ..strokeCap = StrokeCap.round
-      ..color = accent.withValues(alpha: .38)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9);
-    canvas.drawArc(
-      rect,
-      -math.pi * .78,
-      math.pi * 1.56 * progress,
-      false,
-      glow,
-    );
-
-    final active = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 9.2
-      ..strokeCap = StrokeCap.round
-      ..shader = LinearGradient(
-        colors: [
-          Color.lerp(accent, Colors.white, .28)!,
-          accent,
-          const Color(0xFFFF5E00),
-        ],
-      ).createShader(rect);
-    canvas.drawArc(
-      rect,
-      -math.pi * .78,
-      math.pi * 1.56 * progress,
-      false,
-      active,
-    );
-
-    final highlight = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = .8
-      ..strokeCap = StrokeCap.round
-      ..color = const Color(0xB9FFFFFF);
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius - 5.2),
-      -math.pi * .70,
-      math.pi * .34,
-      false,
-      highlight,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _ChromeGaugePainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.accent != accent;
-  }
-}
-
-
-
-class _ChromeChip extends StatelessWidget {
-  final String text;
-
-  const _ChromeChip({
-    required this.text,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF373B42), Color(0xFF111316)],
-        ),
-        border: Border.all(color: const Color(0xFF955A2B), width: .7),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: AppColors.orangeSoft,
-          fontSize: 8,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-}
-
-
-class _ChromeMiniIcon extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-
-  const _ChromeMiniIcon({
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 43,
-      height: 43,
-      child: CustomPaint(
-        painter: _MiniChromeTilePainter(accent: color),
-        child: Center(
-          child: _NeonIcon(
-            icon: icon,
-            color: color,
-            size: 20,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-
-
-
-class _MiniChromeTilePainter extends CustomPainter {
-  final Color accent;
-
-  const _MiniChromeTilePainter({
-    required this.accent,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final rr = RRect.fromRectAndRadius(
-      rect.deflate(1),
-      const Radius.circular(14),
-    );
-
-    final fill = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0xFF3B3F45),
-          Color(0xFF14171B),
-          Color(0xFF030405),
-        ],
-      ).createShader(rect);
-    canvas.drawRRect(rr, fill);
-
-    final chrome = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = .8
-      ..shader = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0xFFB6BBC2),
-          Color(0xFF34383E),
-          Color(0xFF111317),
-        ],
-      ).createShader(rect);
-    canvas.drawRRect(rr, chrome);
-
-    final glow = Paint()
-      ..color = accent.withValues(alpha: .55)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.5
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
-    canvas.drawArc(
-      Rect.fromLTWH(-4, -4, 34, 34),
-      math.pi * .92,
-      math.pi * .62,
-      false,
-      glow,
-    );
-
-    final core = Paint()
-      ..color = accent
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-    canvas.drawArc(
-      Rect.fromLTWH(-4, -4, 34, 34),
-      math.pi * .92,
-      math.pi * .62,
-      false,
-      core,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _MiniChromeTilePainter oldDelegate) {
-    return oldDelegate.accent != accent;
-  }
-}
-
-
-class _ChromeIconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool showDot;
-
-  const _ChromeIconButton({
-    required this.icon,
-    required this.onTap,
-    this.showDot = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: SizedBox(
-        width: 44,
-        height: 44,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned.fill(
-              child: _ChromeGlassSurface(
-                radius: 16,
-                padding: EdgeInsets.zero,
-                child: Icon(icon, color: AppColors.text, size: 23),
-              ),
-            ),
-            if (showDot)
-              const Positioned(
-                right: 2,
-                top: 1,
-                child: _GlowDot(color: AppColors.orange),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-
-class _ChromeImageCard extends StatelessWidget {
-  final double height;
-  final String imageAsset;
-  final double radius;
-  final Widget child;
-
-  const _ChromeImageCard({
-    required this.height,
-    required this.imageAsset,
-    required this.radius,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: height,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(radius),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0xD7000000),
-            blurRadius: 31,
-            offset: Offset(0, 17),
-          ),
-          BoxShadow(
-            color: Color(0x44FF7418),
-            blurRadius: 24,
-            spreadRadius: -6,
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
-        child: CustomPaint(
-          foregroundPainter: _LuxuryChromeFramePainter(
-            radius: radius,
-            accent: AppColors.orange,
-          ),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.asset(
-                imageAsset,
-                fit: BoxFit.cover,
-                alignment: Alignment.center,
-              ),
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topRight,
-                    end: Alignment.bottomLeft,
-                    colors: [
-                      Color(0x0A000000),
-                      Color(0x36000000),
-                      Color(0xB5000000),
-                      Color(0xF008090A),
-                    ],
-                    stops: [0, .34, .70, 1],
-                  ),
-                ),
-              ),
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment(-1, -.95),
-                    end: Alignment(.55, .22),
-                    colors: [
-                      Color(0x2DFFFFFF),
-                      Color(0x08FFFFFF),
-                      Color(0x00FFFFFF),
-                    ],
-                    stops: [0, .18, .48],
-                  ),
-                ),
-              ),
-              const _ChromeCornerBurn(radius: 25),
-              child,
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-
-
 
 
 class _ChromeGlassSurface extends StatelessWidget {
@@ -2341,29 +2601,6 @@ class _LuxuryGlassFillPainter extends CustomPainter {
 }
 
 
-class _ChromeCornerBurn extends StatelessWidget {
-  final double radius;
-
-  const _ChromeCornerBurn({
-    required this.radius,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: CustomPaint(
-        painter: _ChromeCornerPainter(
-          radius: radius,
-          accent: AppColors.orange,
-        ),
-      ),
-    );
-  }
-}
-
-
-
-
 class _LuxuryChromeFramePainter extends CustomPainter {
   final double radius;
   final Color accent;
@@ -2520,32 +2757,6 @@ class _LuxuryChromeFramePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _LuxuryChromeFramePainter oldDelegate) {
-    return oldDelegate.radius != radius || oldDelegate.accent != accent;
-  }
-}
-
-
-
-
-class _ChromeCornerPainter extends CustomPainter {
-  final double radius;
-  final Color accent;
-
-  const _ChromeCornerPainter({
-    required this.radius,
-    required this.accent,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    _LuxuryChromeFramePainter(
-      radius: radius,
-      accent: accent,
-    ).paint(canvas, size);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ChromeCornerPainter oldDelegate) {
     return oldDelegate.radius != radius || oldDelegate.accent != accent;
   }
 }
