@@ -1,169 +1,194 @@
 part of 'app_shell.dart';
 
-// Coordinates describe the screen inside the reference phone, not its bezel.
-// One width-based scale keeps typography, strokes and artwork in proportion.
-const _amber = Color(0xFFFF9C38);
-const _ice = Color(0xFF26DCFF);
-const _paper = Color(0xFFEAEAF2);
+// Approved composition: 840 × 1870. Background and controls share coordinates.
+// Widgets remain live; artwork contains only garage, truck and wall lettering.
+const _amber = Color(0xFFFFBB4D);
+const _ice = Color(0xFF22DCEF);
+const _paper = Color(0xFFEDEFF2);
+const _garageMonths = ['Январь','Февраль','Март','Апрель','Май','Июнь',
+  'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
 class _ReferenceHomeDashboard extends StatelessWidget {
   final AppSession session;
   final _HomeMonthData data;
+  final DateTime month;
+  final ValueChanged<DateTime> onMonthChanged;
   final Size size;
   final ValueChanged<int> onNavigate;
   final VoidCallback onQuickAdd;
-
   const _ReferenceHomeDashboard({required this.session, required this.data,
-    required this.size, required this.onNavigate, required this.onQuickAdd});
+    required this.month, required this.onMonthChanged, required this.size,
+    required this.onNavigate, required this.onQuickAdd});
 
   @override
   Widget build(BuildContext context) {
-    final safeBottom = MediaQuery.paddingOf(context).bottom;
+    final bottom = MediaQuery.paddingOf(context).bottom;
     final scale = size.width / 840;
-    final height = math.max(1360.0, (size.height - safeBottom) / scale);
-    final extra = height - 1360;
-    final sceneScale = (800 + extra) / 800;
-    final menu = () => _openHomeMenu(context, session);
-    Widget place(double x, double y, double w, double h, Widget child) =>
-      Positioned(left: x, top: y, width: w, height: h, child: child);
-    Widget action(String label, VoidCallback tap, Widget child) =>
-      Semantics(button: true, label: label, child: GestureDetector(
-        behavior: HitTestBehavior.opaque, onTap: () {
-          HapticFeedback.selectionClick(); tap();
-        }, child: child));
-
+    // Short devices still fit the whole composition; only very short landscape
+    // windows scroll, so controls are never clipped or made microscopically small.
+    final height = math.max(1450.0, (size.height - bottom) / scale);
+    final sy = height / 1870;
+    Widget place(double x, double y, double w, double h, Widget child) => Positioned(
+      left: x, top: y * sy, width: w, height: h * sy,
+      child: FittedBox(fit: BoxFit.contain, alignment: Alignment.center,
+        child: SizedBox(width: w, height: h, child: child)));
+    void menu() { _openHomeMenu(context, session); }
+    void metric(String title, double tonnes) {
+      _garageInfo(context, title, '${_fmt1(tonnes)} т за ${_garageMonths[month.month-1].toLowerCase()} ${month.year}',
+        'Тоннаж пополняется при добавлении рейса с выбранным типом «$title».');
+    }
+    final displayName = session.displayName == 'Водитель' ? 'Аркадий' : session.displayName;
+    final initials = displayName == 'Аркадий' ? 'АБ' : displayName.trim().split(RegExp(r'\s+'))
+      .where((word) => word.isNotEmpty).take(2).map((word) => word[0]).join().toUpperCase();
     final canvas = SizedBox(width: 840, height: height, child: Stack(children: [
-      Positioned.fill(child: Container(color: const Color(0xFF02070A))),
-      Positioned(left: 0, top: -50, width: 840, height: 1120 + extra,
-        child: Image.asset('assets/images/garage_scene.png', fit: BoxFit.fill,
-          filterQuality: FilterQuality.high)),
-      Positioned.fill(child: IgnorePointer(child: DecoratedBox(decoration:
-        BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter,
-          end: Alignment.bottomCenter, stops: const [0, .15, .55, .79, 1],
-          colors: [Colors.black.withValues(alpha: .27), Colors.transparent,
-            Colors.transparent, const Color(0xDC02070A), const Color(0xFF02070A)]))))),
-      // Bent leaders terminate on the truck; they never run through labels.
-      Positioned(left: 0, top: 0, width: 840, height: 800 + extra,
-        child: const IgnorePointer(child: CustomPaint(painter: _GarageLeaders()))),
-      place(36, 18, 216, 76, action('Профиль', menu, Row(children: [
-        Container(width: 70, height: 70, decoration: BoxDecoration(
-          shape: BoxShape.circle, border: Border.all(color: const Color(0xFFE6D7BC)),
-          gradient: const LinearGradient(colors: [Color(0xFF14202B), Color(0xFF402615)])),
-          child: const Icon(Icons.person_outline_rounded, color: _paper, size: 40)),
-        const SizedBox(width: 18), Expanded(child: Column(
-          mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start,
-          children: [_garageText(session.displayName, 22, weight: FontWeight.w600),
-            _garageText(session.role.title, 16, color: const Color(0xFFCED0D7))]))]))),
-      place(270, 26, 215, 64, Transform.rotate(angle: -.16,
-        child: const Text('Движение\nэто жизнь', textAlign: TextAlign.center,
-          style: TextStyle(fontFamily: 'serif', fontStyle: FontStyle.italic,
-            color: _paper, fontSize: 27, height: .95, fontWeight: FontWeight.w300)))),
-      place(575, 25, 154, 66, Row(children: [
-        const _GarageIcon('sun', color: Color(0xFFFFC438), size: 42),
-        const SizedBox(width: 10), Expanded(child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _garageText('-12°', 28, weight: FontWeight.w600),
-            _garageText('Петропавловск', 13)]))])),
-      place(753, 26, 58, 58, action('Уведомления', () {
-        showModalBottomSheet<void>(context: context, backgroundColor: const Color(0xFF10181E),
-          builder: (_) => const SafeArea(child: Padding(padding: EdgeInsets.all(28),
-            child: Text('Уведомления ещё не подключены', style: TextStyle(color: _paper)))));
-      }, _GarageGlass(radius: 40, child: const Center(
-        child: _GarageIcon('bell', color: Color(0xFFFFD9A4), size: 28))))),
-      place(8, 150, 94, 656 * sceneScale, _GarageRail(
-        onShift: () => onNavigate(1), onTrips: () => onNavigate(1),
-        onFuel: onQuickAdd, onExpenses: onQuickAdd,
-        onStats: () => onNavigate(4), onInvoices: () => onNavigate(3), onMore: menu)),
-      place(260, 164, 312, 78, action('Открыть текущую смену', () => onNavigate(1),
-        const _GarageShift())),
-      place(660, 174, 151, 118, Transform.rotate(angle: -.1,
-        child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(7),
-          color: const Color(0x550F0904), border: Border.all(color: _amber, width: 1.8),
-          boxShadow: const [BoxShadow(color: Color(0x66FF730C), blurRadius: 14)]),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            const Text('ГАЗЕЛЬ', style: TextStyle(color: Color(0xFFFFE7C9),
-              fontStyle: FontStyle.italic, fontSize: 28, fontWeight: FontWeight.w700,
-              letterSpacing: 3, shadows: [Shadow(color: _amber, blurRadius: 10)])),
-            const SizedBox(height: 10), _garageText('БОЛЬШЕ\nЧЕМ РАБОТА', 15,
-              align: TextAlign.center, color: const Color(0xFFE9D2BE))])))),
-      place(112, 274 * sceneScale, 205, 100, _GarageHud(kind: 'flame',
-        label: 'Газ', value: '${_fmt1(data.gas)} л', color: _ice, onTap: onQuickAdd)),
-      place(112, 486 * sceneScale, 205, 100, _GarageHud(kind: 'fuel',
-        label: 'Бензин', value: '${_fmt1(data.petrol)} л',
-        color: const Color(0xFFFF4E53), onTap: onQuickAdd)),
-      place(610, 300 * sceneScale, 223, 94, _GarageHud(kind: 'box',
-        label: 'Тоннаж', value: '${_fmt1(data.tonnage)} т', color: _amber,
-        onTap: () => onNavigate(4))),
-      place(661, 414 * sceneScale, 172, 94, _GarageHud(kind: 'route',
-        label: 'Рейсы', value: '${data.trips}', color: const Color(0xFFD58AFF),
-        onTap: () => onNavigate(1))),
-      place(668, 599 * sceneScale, 165, 90, _GarageHud(kind: 'road',
-        label: 'Пробег', value: '${_fmtInt(data.mileage)} км', color: const Color(0xFFFFBA59),
-        compact: true, onTap: () => onNavigate(4))),
-      place(22, 825 + extra, 296, 190, _GarageSalary(data: data,
-        onTap: () => onNavigate(4))),
-      place(337, 798 + extra, 184, 200, action('Завершить смену: открыть управление сменой',
-        () => onNavigate(1), const _GarageEndShift())),
-      place(538, 825 + extra, 284, 182, const _GarageQuote()),
-      place(20, 1035 + extra, 805, 136, _GarageTrip(onTap: () => onNavigate(1))),
-      place(10, 1190 + extra, 820, 135, _GarageNavigation(
-        onWork: () => onNavigate(1), onAdd: onQuickAdd,
-        onInvoices: () => onNavigate(3), onMore: menu)),
-      place(130, 1330 + extra, 580, 25, const Text('С В О Й  П У Т Ь .   С В О И  П Р А В И Л А .',
-        textAlign: TextAlign.center, style: TextStyle(color: Color(0xFFD1D2D5), fontSize: 12))),
+      Positioned.fill(child: Image.asset('assets/images/garage_approved.png',
+        fit: BoxFit.fill, filterQuality: FilterQuality.high)),
+      Positioned(left: 0, top: 0, width: 840, height: 355 * sy,
+        child: const IgnorePointer(child: DecoratedBox(decoration: BoxDecoration(
+          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            colors: [Color(0xB3000609), Color(0x8800070B), Color(0x0000070B)], stops: [0,.72,1]))))),
+      Positioned(left: 0, top: 1120 * sy, width: 840, height: 750 * sy,
+        child: const IgnorePointer(child: DecoratedBox(decoration: BoxDecoration(
+          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            colors: [Color(0x2202070A), Color(0x8802070A), Color(0x6602070A)]))))),
+      place(20, 30, 276, 75, _GarageTap(label: 'Профиль', onTap: menu, child: Row(children: [
+        Container(width: 70, height: 70, decoration: BoxDecoration(shape: BoxShape.circle,
+          color: const Color(0x88080D0E), border: Border.all(color: _amber, width: 1.5),
+          boxShadow: const [BoxShadow(color: Color(0x22FF961C), blurRadius: 14)]),
+          child: Center(child: _garageText(initials, 26, weight: FontWeight.w600))),
+        const SizedBox(width: 20), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center, children: [
+            _garageText(displayName, 24, weight: FontWeight.w600),
+            const SizedBox(height: 4), _garageText(session.role.title, 20, color: const Color(0xFFADB4BA))]))]))),
+      place(343, 41, 158, 42, Column(children: [
+        Transform.scale(scaleX: 1.12, child: const Text('ГАЗЕЛЬ', style: TextStyle(
+          color: Color(0xFFB7BEC7), fontSize: 25, letterSpacing: 3,
+          fontWeight: FontWeight.w700, fontStyle: FontStyle.italic))),
+        const SizedBox(height: 7), Container(width: 68, height: 2, color: _amber)])),
+      place(611, 38, 125, 55, const Row(children: [
+        _GarageIcon('sun', color: _amber, size: 43), SizedBox(width: 12),
+        Text('-12°', style: TextStyle(color: _paper, fontSize: 31, fontWeight: FontWeight.w600))])),
+      place(766, 25, 61, 73, _GarageTap(label: 'Уведомления', onTap: () =>
+        _garageInfo(context, 'Уведомления', 'Сервис пока не подключён', 'Здесь будут уведомления приложения.'),
+        child: const Center(child: _GarageIcon('bellOutline', size: 39)))),
+      place(190, 119, 460, 37, Center(child: _garageText('Заработано за месяц', 24, color: const Color(0xFFBCC2C9)))),
+      place(263, 155, 317, 63, Center(child: FittedBox(fit: BoxFit.scaleDown,
+        child: _garageText('${_fmtInt(data.salary)} ₸', 65, color: _amber, weight: FontWeight.w600)))),
+      place(201, 153, 54, 69, _GarageTap(label: 'Предыдущий месяц', onTap: () =>
+        onMonthChanged(DateTime(month.year, month.month-1)), child: const Icon(Icons.chevron_left, color: Color(0xFF959DA5), size: 41))),
+      place(585, 153, 54, 69, _GarageTap(label: 'Следующий месяц', onTap: () =>
+        onMonthChanged(DateTime(month.year, month.month+1)), child: const Icon(Icons.chevron_right, color: Color(0xFF959DA5), size: 41))),
+      place(230, 218, 380, 43, _GarageTap(label: 'Выбрать месяц', onTap: () => _chooseMonth(context),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          _garageText('${_garageMonths[month.month-1]} ${month.year}', 25),
+          const Icon(Icons.expand_more, color: _paper, size: 28)]))),
+      place(208, 274, 420, 63, _GarageTap(label: 'Текущая смена', onTap: () => onNavigate(1), child: const _GarageShift())),
+      place(2, 139, 106, 675, _GarageRail(onShift: () => onNavigate(1),
+        onTrips: () => onNavigate(1), onFuel: () => _openFuelEntry(context),
+        onExpenses: onQuickAdd, onStats: () => onNavigate(4))),
+      Positioned.fill(child: const IgnorePointer(child: CustomPaint(painter: _GarageLeaders()))),
+      place(127, 541, 206, 86, _GarageHud(kind: 'flame', label: 'Газ',
+        value: '${_fmt1(data.gas)} л', color: _ice, onTap: () => _openFuelEntry(context))),
+      place(119, 810, 212, 85, _GarageHud(kind: 'fuel', label: 'Бензин',
+        value: '${_fmt1(data.petrol)} л', color: const Color(0xFFFF6454), onTap: () => _openFuelEntry(context))),
+      place(605, 571, 230, 88, _GarageHud(kind: 'city', label: 'Город',
+        value: '${_fmt1(data.city)} т', color: _amber, onTap: () => metric('Город',data.city))),
+      place(648, 682, 189, 87, _GarageHud(kind: 'district', label: 'Район',
+        value: '${_fmt1(data.region)} т', color: const Color(0xFFD58BE8), onTap: () => metric('Район',data.region))),
+      place(681, 795, 154, 170, _GarageTap(label: 'Пробег', onTap: () => onNavigate(4),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const SizedBox(width: 86, height: 84, child: CustomPaint(painter: _GarageRing(_amber),
+            child: Center(child: _GarageIcon('road', color: _amber, size: 42)))),
+          const SizedBox(height: 5), _garageText('Пробег', 19),
+          FittedBox(fit: BoxFit.scaleDown, child: _garageText('${_fmtInt(data.mileage)} км', 27, weight: FontWeight.w600)),
+          _garageText('за месяц', 17)]))),
+      place(247, 1106, 355, 44, _GarageOil(login: session.login)),
+      place(20, 1175, 287, 223, _GarageSalary(data: data, onTap: () => onNavigate(4))),
+      place(317, 1168, 207, 216, _GarageTap(label: 'Завершить смену',
+        onTap: () => onNavigate(1), child: const _GarageEndShift())),
+      place(533, 1175, 287, 223, const _GarageQuote()),
+      place(21, 1420, 798, 153, _GarageTrip(onTap: () => onNavigate(1))),
+      place(0, 1626, 840, 150, _GarageNavigation(onWork: () => onNavigate(1),
+        onAdd: onQuickAdd, onInvoices: () => onNavigate(3), onMore: menu)),
     ]));
     return ColoredBox(color: const Color(0xFF02070A), child: SingleChildScrollView(
-      physics: const ClampingScrollPhysics(),
-      child: Padding(padding: EdgeInsets.only(bottom: safeBottom),
-        child: SizedBox(width: size.width, height: height * scale,
+      physics: const ClampingScrollPhysics(), child: Padding(padding: EdgeInsets.only(bottom: bottom),
+        child: SizedBox(width: size.width, height: height*scale,
           child: FittedBox(fit: BoxFit.fill, alignment: Alignment.topCenter,
-            child: MediaQuery.withClampedTextScaling(minScaleFactor: 1, maxScaleFactor: 1,
-              child: canvas))))));
+            child: MediaQuery.withClampedTextScaling(minScaleFactor: 1, maxScaleFactor: 1, child: canvas))))));
+  }
+
+  Future<void> _chooseMonth(BuildContext context) async {
+    final selected = await showModalBottomSheet<DateTime>(context: context,
+      backgroundColor: const Color(0xFF0C151C), builder: (sheetContext) => SafeArea(
+        child: SizedBox(height: 300, child: GridView.count(crossAxisCount: 3,
+          childAspectRatio: 2.2, padding: const EdgeInsets.all(16),
+          children: List.generate(12, (i) => TextButton(onPressed: () =>
+            Navigator.pop(sheetContext, DateTime(month.year,i+1)),
+            child: Text(_garageMonths[i], style: TextStyle(color: i+1 == month.month ? _amber : _paper))))))));
+    if (selected != null) onMonthChanged(selected);
   }
 }
 
 Widget _garageText(String value, double size, {Color color = _paper,
-  FontWeight weight = FontWeight.w400, TextAlign align = TextAlign.start}) =>
-  Text(value, textAlign: align, maxLines: 2, overflow: TextOverflow.ellipsis,
-    style: TextStyle(color: color, fontSize: size, height: 1.25, fontWeight: weight));
+  FontWeight weight = FontWeight.w400, TextAlign align = TextAlign.start}) => Text(value,
+    textAlign: align, maxLines: 2, overflow: TextOverflow.ellipsis,
+    style: TextStyle(color: color, fontSize: size, height: 1.12, fontWeight: weight,
+      letterSpacing: 0, shadows: const [Shadow(color: Color(0xAA000000), blurRadius: 4)]));
+
+class _GarageTap extends StatelessWidget {
+  final String label; final VoidCallback onTap; final Widget child;
+  const _GarageTap({required this.label, required this.onTap, required this.child});
+  @override
+  Widget build(BuildContext context) => Semantics(button: true, label: label,
+    child: GestureDetector(behavior: HitTestBehavior.opaque, onTap: () {
+      HapticFeedback.selectionClick(); onTap();
+    }, child: child));
+}
+
+void _garageInfo(BuildContext context, String title, String value, String description) {
+  showModalBottomSheet<void>(context: context, backgroundColor: const Color(0xFF0D171E),
+    builder: (_) => SafeArea(child: Padding(padding: const EdgeInsets.all(24),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
+        children: [Text(title, style: const TextStyle(fontSize: 22, color: _paper)),
+          const SizedBox(height: 16), Text(value, style: const TextStyle(fontSize: 23, color: _amber)),
+          const SizedBox(height: 12), Text(description, style: const TextStyle(fontSize: 15, color: _paper))]))));
+}
 
 class _GarageGlass extends StatelessWidget {
-  final Widget child;
-  final double radius;
-  final Color edge;
-  const _GarageGlass({required this.child, this.radius = 22,
-    this.edge = const Color(0xFF53616C)});
+  final Widget child; final double radius;
+  const _GarageGlass({required this.child, this.radius = 20});
   @override
   Widget build(BuildContext context) => Container(decoration: BoxDecoration(
-    borderRadius: BorderRadius.circular(radius), border: Border.all(color: edge.withValues(alpha: .6)),
+    borderRadius: BorderRadius.circular(radius), border: Border.all(color: const Color(0x88778288)),
     gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
-      colors: [Color(0xED1D252D), Color(0xEF080E13), Color(0xDD0A161D)])),
+      colors: [Color(0xBA131D22), Color(0xD5060F14)])),
     child: ClipRRect(borderRadius: BorderRadius.circular(radius), child: child));
 }
 
 class _GarageRail extends StatelessWidget {
-  final VoidCallback onShift, onTrips, onFuel, onExpenses, onStats, onInvoices, onMore;
+  final VoidCallback onShift,onTrips,onFuel,onExpenses,onStats;
   const _GarageRail({required this.onShift, required this.onTrips, required this.onFuel,
-    required this.onExpenses, required this.onStats, required this.onInvoices, required this.onMore});
+    required this.onExpenses, required this.onStats});
   @override
   Widget build(BuildContext context) {
-    final items = [('shift','Смена',onShift), ('truck','Рейсы',onTrips),
-      ('fuel','Топливо',onFuel), ('expense','Расходы',onExpenses),
-      ('chart','Статистика',onStats), ('invoice','Накладные',onInvoices), ('more','Ещё',onMore)];
-    return _GarageGlass(radius: 27, edge: _amber, child: Column(children: [
-      for (var i = 0; i < items.length; i++) Expanded(child: Semantics(
-        button: true, label: items[i].$2, child: GestureDetector(
-          behavior: HitTestBehavior.opaque, onTap: items[i].$3,
-          child: Container(margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-            decoration: i == 0 ? BoxDecoration(borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: _amber, width: 1.5),
-              gradient: const RadialGradient(colors: [Color(0xFF4A2D11), Color(0xFF100C08)]),
-              boxShadow: const [BoxShadow(color: Color(0x88FF791A), blurRadius: 16)]) : null,
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              _GarageIcon(items[i].$1, color: i == 0 ? const Color(0xFFFFCA67) : const Color(0xFFBABCD5), size: 34),
-              const SizedBox(height: 9), _garageText(items[i].$2, 15,
-                color: i == 0 ? const Color(0xFFFFD875) : _paper)])))))
-    ]));
+    final items=[('shift','Смена',onShift),('truck','Рейсы',onTrips),('fuel','Топливо',onFuel),
+      ('expense','Расходы',onExpenses),('chart','Статистика',onStats)];
+    return ClipRRect(borderRadius: BorderRadius.circular(22), child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 2.5, sigmaY: 2.5), child: Container(
+        decoration: BoxDecoration(color: const Color(0x40060D12),
+          borderRadius: BorderRadius.circular(22), border: Border.all(color: const Color(0x668C969C))),
+        padding: const EdgeInsets.symmetric(vertical: 22),
+        child: Column(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          for(var i=0;i<items.length;i++) _GarageTap(label: items[i].$2, onTap: items[i].$3,
+            child: Container(width: 97, height: 111, decoration: i==0 ? BoxDecoration(
+              color: const Color(0x550C0B06), borderRadius: BorderRadius.circular(17),
+              border: Border.all(color: _amber, width: 1.6),
+              boxShadow: const [BoxShadow(color: Color(0x33FFAF27), blurRadius: 13)]) : null,
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                _GarageIcon(items[i].$1, color: i==0 ? _amber : const Color(0xFFB8BDC6), size: 40),
+                const SizedBox(height: 15), _garageText(items[i].$2, 18, color: i==0 ? _amber : _paper)])))
+        ]))));
   }
 }
 
@@ -171,243 +196,226 @@ class _GarageShift extends StatelessWidget {
   const _GarageShift();
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    decoration: BoxDecoration(borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: const Color(0xFF8DE6E0)),
-      gradient: const LinearGradient(colors: [Color(0xD50A4347), Color(0xEF021E24)]),
-      boxShadow: const [BoxShadow(color: Color(0x5522CECA), blurRadius: 20)]),
-    child: Row(children: [Container(width: 44, height: 44,
-      decoration: const BoxDecoration(shape: BoxShape.circle,
-        gradient: RadialGradient(colors: [Color(0xFF00DEC9), Color(0xFF004749)])),
-      child: const Center(child: Icon(Icons.circle, color: Color(0xFF04E2C8), size: 18))),
-      const SizedBox(width: 12), Expanded(child: Column(
-        mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start,
-        children: [_garageText('Смена открыта', 19, weight: FontWeight.w600),
-          _garageText('02:14:26', 30, color: _ice, weight: FontWeight.w600)])),
-      Container(width: 48, height: 48, decoration: BoxDecoration(shape: BoxShape.circle,
-        color: const Color(0xAA071015), border: Border.all(color: const Color(0xFF70CFCC))),
-        child: const Icon(Icons.pause_rounded, color: _paper, size: 30))]));
+    padding: const EdgeInsets.symmetric(horizontal: 19),
+    decoration: BoxDecoration(borderRadius: BorderRadius.circular(31),
+      border: Border.all(color: _ice, width: 1.5), color: const Color(0xC0042028),
+      boxShadow: const [BoxShadow(color: Color(0x3323DDE7), blurRadius: 16)]),
+    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+      const _GarageIcon('shift', color: _ice, size: 33), const SizedBox(width: 14),
+      _garageText('Смена открыта', 23, color: _ice, weight: FontWeight.w500),
+      const SizedBox(width: 17), Container(width: 1,height: 28,color: const Color(0x8876DADE)),
+      const SizedBox(width: 17), _garageText('02:14:26', 27, color: _ice, weight: FontWeight.w600)]));
 }
 
 class _GarageHud extends StatelessWidget {
-  final String kind, label, value;
-  final Color color;
-  final VoidCallback onTap;
-  final bool compact;
-  const _GarageHud({required this.kind, required this.label, required this.value,
-    required this.color, required this.onTap, this.compact = false});
+  final String kind,label,value; final Color color; final VoidCallback onTap;
+  const _GarageHud({required this.kind,required this.label,required this.value,required this.color,required this.onTap});
   @override
-  Widget build(BuildContext context) => Semantics(button: true, label: '$label: $value',
-    child: GestureDetector(behavior: HitTestBehavior.opaque, onTap: onTap,
-      child: Row(children: [SizedBox(width: compact ? 68 : 78, height: compact ? 82 : 94,
-        child: CustomPaint(painter: _GarageRing(color), child: Center(
-          child: _GarageIcon(kind, color: kind == 'box' ? _paper : color, size: compact ? 39 : 43)))),
-        const SizedBox(width: 10), Expanded(child: Column(
-          mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start,
-          children: [_garageText(label, compact ? 15 : 17),
-            FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
-              child: _garageText(value, compact ? 22 : 28, weight: FontWeight.w600)),
-            _garageText('за месяц', 15)]))])));
+  Widget build(BuildContext context) => _GarageTap(label: '$label: $value',onTap:onTap,
+    child: Row(children: [SizedBox(width: 83,height: 83,child: CustomPaint(painter: _GarageRing(color),
+      child: Center(child: _GarageIcon(kind,color:color,size:42)))),
+      const SizedBox(width: 13), Expanded(child: Column(crossAxisAlignment:CrossAxisAlignment.start,
+        mainAxisAlignment:MainAxisAlignment.center,children:[_garageText(label,19),
+          const SizedBox(height: 4), FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+            child:_garageText(value,29,weight:FontWeight.w600)),
+          const SizedBox(height: 4), _garageText('за месяц',17)]))]));
 }
 
 class _GarageRing extends CustomPainter {
-  final Color color;
-  const _GarageRing(this.color);
+  final Color color; const _GarageRing(this.color);
   @override
-  void paint(Canvas canvas, Size size) {
-    final oval = Rect.fromLTWH(2, 2, size.width - 4, size.height - 4);
-    canvas.drawOval(oval, Paint()..shader = RadialGradient(colors: [
-      const Color(0xE60A1119), const Color(0xDD080C12), color.withValues(alpha: .16)]).createShader(oval));
-    for (final arc in [(0.10, 1.2), (1.46, 1.36), (3.02, 1.28), (4.53, .67)]) {
-      canvas.drawArc(oval, arc.$1, arc.$2, false, Paint()..style = PaintingStyle.stroke
-        ..strokeWidth = 6..color = color.withValues(alpha: .45)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7));
-      canvas.drawArc(oval, arc.$1, arc.$2, false, Paint()..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5..color = color);
+  void paint(Canvas canvas,Size size) {
+    final center=Offset(size.width/2,size.height/2);
+    final radius=math.min(size.width,size.height)/2-4;
+    final rect=Rect.fromCircle(center:center,radius:radius);
+    canvas.drawCircle(center,radius-3,Paint()..color=const Color(0xB308141B));
+    for(var i=0;i<28;i++) {
+      final a=-math.pi/2+i*math.pi*2/28;
+      canvas.drawArc(rect,a,.166,false,Paint()..color=i<23?color:color.withValues(alpha:.22)
+        ..style=PaintingStyle.stroke..strokeWidth=6);
     }
   }
   @override
-  bool shouldRepaint(_GarageRing old) => old.color != color;
+  bool shouldRepaint(_GarageRing old)=>old.color!=color;
 }
 
 class _GarageLeaders extends CustomPainter {
   const _GarageLeaders();
   @override
-  void paint(Canvas canvas, Size size) {
-    canvas.save(); canvas.scale(size.width / 840, size.height / 800);
-    void line(Color color, List<Offset> points) {
-      final path = Path()..moveTo(points.first.dx, points.first.dy);
-      for (final p in points.skip(1)) { path.lineTo(p.dx, p.dy); }
-      canvas.drawPath(path, Paint()..color = color.withValues(alpha: .7)
-        ..style = PaintingStyle.stroke..strokeWidth = 6..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
-      canvas.drawPath(path, Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 1.7);
-      canvas.drawCircle(points.last, 7, Paint()..color = color..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5));
-      canvas.drawCircle(points.last, 2.6, Paint()..color = Colors.white);
+  void paint(Canvas c,Size size) {
+    c.save();c.scale(size.width/840,size.height/1870);
+    void draw(Color color,List<Offset> points) {
+      final path=Path()..moveTo(points.first.dx,points.first.dy);
+      for(final p in points.skip(1)){path.lineTo(p.dx,p.dy);}
+      c.drawPath(path,Paint()..color=color..style=PaintingStyle.stroke..strokeWidth=1.7);
+      c.drawCircle(points.last,4.5,Paint()..color=color);
     }
-    line(_ice, const [Offset(146,371),Offset(188,371),Offset(257,420)]);
-    line(const Color(0xFFFF5A42), const [Offset(145,581),Offset(192,581),Offset(243,615)]);
-    line(_amber, const [Offset(612,353),Offset(583,353),Offset(548,382)]);
-    line(const Color(0xFFF18BCB), const [Offset(663,462),Offset(645,462),Offset(618,482)]);
-    canvas.restore();
-  }
-  @override
-  bool shouldRepaint(_GarageLeaders old) => false;
-}
-
-class _GarageSalary extends StatelessWidget {
-  final _HomeMonthData data; final VoidCallback onTap;
-  const _GarageSalary({required this.data, required this.onTap});
-  @override
-  Widget build(BuildContext context) => GestureDetector(onTap: onTap,
-    child: _GarageGlass(edge: const Color(0xFF8A6A48), child: Padding(
-      padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-        children: [_garageText('Заработано за месяц', 17),
-          _garageText('${_fmtInt(data.salary)} ₸', 34, weight: FontWeight.w600),
-          const SizedBox(height: 8), const Expanded(child: CustomPaint(
-            size: Size(double.infinity, 42), painter: _GarageBars())),
-          const SizedBox(height: 8), ClipRRect(borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(value: (data.salary / 40000).clamp(0.0, 1.0),
-              minHeight: 9, color: _amber, backgroundColor: const Color(0xFF242B32))),
-          const SizedBox(height: 8), Row(children: [Expanded(child: _garageText('Цель: 40 000 ₸', 14)),
-            _garageText('${(data.salary / 40000 * 100).round()}%', 14)])]))));
-}
-
-class _GarageBars extends CustomPainter {
-  const _GarageBars();
-  @override
-  void paint(Canvas canvas, Size size) {
-    const values = [.24,.54,.45,.37,.48,.68,.94,.53,.37,.62,1,.80,.40];
-    final width = size.width / values.length;
-    for (var i=0; i<values.length; i++) {
-      final rect = Rect.fromLTWH(i*width+5, size.height*(1-values[i]), 6, size.height*values[i]);
-      canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(3)), Paint()
-        ..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-          colors: [i<7 ? const Color(0xFFFFC780) : const Color(0xFF82949F),
-            i<7 ? const Color(0xFFB4550C) : const Color(0xFF151E27)]).createShader(rect));
-    }
-  }
-  @override
-  bool shouldRepaint(_GarageBars old) => false;
-}
-
-class _GarageEndShift extends StatelessWidget {
-  const _GarageEndShift();
-  @override
-  Widget build(BuildContext context) => Center(child: Container(width: 174, height: 174,
-    decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: const Color(0xFFFFE6BB), width: 2.5),
-      gradient: const RadialGradient(colors: [Color(0xFF231004), Color(0xFF080807), Color(0xFF683000)], stops: [0,.83,1]),
-      boxShadow: const [BoxShadow(color: Color(0xFFFF780E), blurRadius: 12, spreadRadius: 2),
-        BoxShadow(color: Color(0x88FF710A), blurRadius: 34, spreadRadius: 9)]),
-    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Container(width: 26, height: 27, decoration: BoxDecoration(borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: const Color(0xFFFFE4AF)),
-        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
-          colors: [Color(0xFFFFE6A7), Color(0xFFFF9A20)]),
-        boxShadow: const [BoxShadow(color: Color(0x99FF7400), blurRadius: 20)])),
-      const SizedBox(height: 21), _garageText('ЗАВЕРШИТЬ\nСМЕНУ', 18, align: TextAlign.center)])));
-}
-
-class _GarageQuote extends StatelessWidget {
-  const _GarageQuote();
-  @override
-  Widget build(BuildContext context) => _GarageGlass(child: Stack(children: [
-    const Positioned.fill(child: CustomPaint(painter: _GarageRoadArt())),
-    Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
-      colors: [const Color(0xFF0D1821), const Color(0xFF0D1821).withValues(alpha: .1)])))),
-    Padding(padding: const EdgeInsets.all(26), child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-      children: [const Text('“', style: TextStyle(color: _amber, fontSize: 52, height: .7)),
-        const SizedBox(height: 12), _garageText('Дороги не спрашивают,', 16),
-        _garageText('куда ты идёшь.', 16), _garageText('Они просто ведут.', 16)]))]));
-}
-
-class _GarageTrip extends StatelessWidget {
-  final VoidCallback onTap;
-  const _GarageTrip({required this.onTap});
-  @override
-  Widget build(BuildContext context) => _GarageGlass(child: Padding(padding: const EdgeInsets.all(16),
-    child: Row(children: [ClipRRect(borderRadius: BorderRadius.circular(14),
-      child: const SizedBox(width: 108, height: 104, child: CustomPaint(painter: _GarageRoadArt()))),
-      const SizedBox(width: 22), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center, children: [_garageText('Текущий рейс', 16),
-          const SizedBox(height: 6), FittedBox(fit: BoxFit.scaleDown, child:
-            _garageText('Петропавловск  →  Кокшетау', 23, weight: FontWeight.w600)),
-          const SizedBox(height: 9), Row(children: [const _GarageIcon('pin', size: 22),
-            const SizedBox(width: 7), _garageText('124 км  ·  1,8 т  ·  ≈2 ч 10 мин', 16)])])),
-      const SizedBox(width: 16), GestureDetector(onTap: onTap, child: Container(
-        width: 198, height: 70, decoration: BoxDecoration(borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: _amber, width: 1.4), color: const Color(0xBB090D10),
-          boxShadow: const [BoxShadow(color: Color(0x55FF8318), blurRadius: 16)]),
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          const _GarageIcon('navigation', color: _amber, size: 35), const SizedBox(width: 14),
-          _garageText('Навигация', 18)]))),
-      const SizedBox(width: 14), GestureDetector(onTap: onTap, child: const SizedBox(width: 38, height: 72,
-        child: _GarageGlass(radius: 15, child: Center(child: RotatedBox(quarterTurns: 1,
-          child: _GarageIcon('more', size: 28))))))])));
-}
-
-class _GarageNavigation extends StatelessWidget {
-  final VoidCallback onWork, onAdd, onInvoices, onMore;
-  const _GarageNavigation({required this.onWork, required this.onAdd,
-    required this.onInvoices, required this.onMore});
-  @override
-  Widget build(BuildContext context) {
-    final items = [('home','Главная', () {}), ('map','Карта',onWork),
-      ('plus','Добавить',onAdd), ('invoice','Накладные',onInvoices), ('grid','Ещё',onMore)];
-    return Stack(clipBehavior: Clip.none, children: [
-      Positioned.fill(child: _GarageGlass(radius: 36, child: Row(children: [
-        for (var i=0; i<5; i++) Expanded(child: Semantics(button: true, label: items[i].$2,
-          child: GestureDetector(behavior: HitTestBehavior.opaque, onTap: items[i].$3,
-            child: Container(decoration: i==0 ? const BoxDecoration(
-              gradient: RadialGradient(colors: [Color(0x885B330D), Colors.transparent], radius: 1)) : null,
-              child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-                if(i!=2) _GarageIcon(items[i].$1, color: i==0 ? const Color(0xFFFFC260) : _paper, size: 37),
-                const SizedBox(height: 13), _garageText(items[i].$2, 18,
-                  color: i==0 ? const Color(0xFFFFD66B) : _paper), const SizedBox(height: 20)])))))
-      ]))),
-      Positioned(left: 360, top: -14, width: 100, height: 100,
-        child: Semantics(button: true, label: 'Добавить', child: GestureDetector(onTap: onAdd,
-          child: Container(decoration: BoxDecoration(shape: BoxShape.circle,
-            gradient: const RadialGradient(colors: [Color(0xFF352112), Color(0xFF080B0C)]),
-            border: Border.all(color: const Color(0xFFFFD3A0), width: 2.5),
-            boxShadow: const [BoxShadow(color: Color(0xCCFF7920), blurRadius: 14)]),
-            child: const Center(child: _GarageIcon('plus', color: _amber, size: 44)))))),
-      Positioned(left: 42, bottom: 1, width: 93, child: Container(height: 3,
-        decoration: const BoxDecoration(color: Color(0xFFFFD27A),
-          boxShadow: [BoxShadow(color: Color(0xFFFF7800), blurRadius: 10, spreadRadius: 3)])))
-    ]);
-  }
-}
-
-// Small self-contained vector illustration; no remote image requests at launch.
-class _GarageRoadArt extends CustomPainter {
-  const _GarageRoadArt();
-  @override
-  void paint(Canvas c, Size s) {
-    c.save(); c.clipRect(Offset.zero & s); c.scale(s.width/200, s.height/180);
-    c.drawRect(const Rect.fromLTWH(0,0,200,180), Paint()..shader = const LinearGradient(
-      begin: Alignment.topCenter, end: Alignment.bottomCenter,
-      colors: [Color(0xFF385B76), Color(0xFFE2A169), Color(0xFF122536)], stops: [0,.52,1])
-      .createShader(const Rect.fromLTWH(0,0,200,180)));
-    c.drawPath(Path()..moveTo(0,105)..lineTo(27,61)..lineTo(45,84)..lineTo(68,46)
-      ..lineTo(104,111)..lineTo(145,69)..lineTo(167,91)..lineTo(200,37)..lineTo(200,180)..lineTo(0,180)..close(),
-      Paint()..color = const Color(0xFF1B3549));
-    c.drawPath(Path()..moveTo(0,125)..lineTo(28,94)..lineTo(43,121)..lineTo(70,86)
-      ..lineTo(105,124)..lineTo(155,99)..lineTo(200,82)..lineTo(200,180)..lineTo(0,180)..close(),
-      Paint()..color = const Color(0xFF101D27));
-    final road = Path()..moveTo(91,112)..cubicTo(148,131,54,135,154,180)
-      ..lineTo(43,180)..cubicTo(18,138,139,129,91,112)..close();
-    c.drawPath(road, Paint()..color = const Color(0xFF566068));
-    c.drawPath(Path()..moveTo(92,114)..cubicTo(142,131,31,139,75,180),
-      Paint()..style=PaintingStyle.stroke..strokeWidth=1.8..color=const Color(0xFFE7B475));
-    c.drawPath(Path()..moveTo(93,114)..cubicTo(155,134,63,136,147,180),
-      Paint()..style=PaintingStyle.stroke..strokeWidth=1.2..color=const Color(0xFFC4B9A2));
-    c.drawPath(Path()..moveTo(94,141)..lineTo(91,149)..moveTo(94,160)..lineTo(105,178),
-      Paint()..style=PaintingStyle.stroke..strokeWidth=2..color=const Color(0xFFFFD99A));
+    draw(_ice,const[Offset(195,622),Offset(219,659),Offset(251,681)]);
+    draw(const Color(0xFFFF6454),const[Offset(161,895),Offset(161,914),Offset(205,932)]);
+    draw(_amber,const[Offset(607,628),Offset(590,628),Offset(560,678)]);
+    draw(const Color(0xFFD58BE8),const[Offset(649,732),Offset(633,732),Offset(621,746)]);
+    draw(_amber,const[Offset(682,819),Offset(650,819)]);
     c.restore();
   }
   @override
-  bool shouldRepaint(_GarageRoadArt old) => false;
+  bool shouldRepaint(_GarageLeaders old)=>false;
 }
 
+class _GarageOil extends StatefulWidget {
+  final String login; const _GarageOil({required this.login});
+  @override
+  State<_GarageOil> createState()=>_GarageOilState();
+}
+class _GarageOilState extends State<_GarageOil> {
+  int remaining=2350;
+  String get _key=>'garage_oil_remaining_${widget.login}';
+  @override
+  void initState(){super.initState();_load();}
+  Future<void> _load() async {
+    final p=await SharedPreferences.getInstance();
+    if(mounted)setState(()=>remaining=p.getInt(_key)??2350);
+  }
+  Future<void> _edit() async {
+    final result=await showDialog<int>(context:context,
+      builder: (_) => _GarageOilDialog(initialValue: remaining));
+    if(result!=null){
+      final p=await SharedPreferences.getInstance();await p.setInt(_key,result);
+      if(mounted)setState(()=>remaining=result);
+    }
+  }
+  @override
+  Widget build(BuildContext context)=>_GarageTap(label:'До замены масла',onTap:_edit,
+    child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+      const _GarageIcon('oil',color:_amber,size:33),const SizedBox(width:14),
+      _garageText('До замены масла  ·  ',20),
+      Flexible(child:FittedBox(fit:BoxFit.scaleDown,child:Text.rich(TextSpan(children:[
+        TextSpan(text:_fmtInt(remaining.toDouble()),style:const TextStyle(color:_amber,fontWeight:FontWeight.w600)),
+        const TextSpan(text:' км')]),style:const TextStyle(color:_paper,fontSize:23))))]));
+}
+
+class _GarageOilDialog extends StatefulWidget {
+  final int initialValue;
+  const _GarageOilDialog({required this.initialValue});
+  @override
+  State<_GarageOilDialog> createState() => _GarageOilDialogState();
+}
+class _GarageOilDialogState extends State<_GarageOilDialog> {
+  late final TextEditingController controller;
+  @override
+  void initState() { super.initState(); controller = TextEditingController(text: widget.initialValue.toString()); }
+  @override
+  void dispose() { controller.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    backgroundColor: const Color(0xFF0D171E), title: const Text('Замена масла'),
+    content: TextField(controller: controller, autofocus: true, keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      decoration: const InputDecoration(labelText: 'Осталось до замены, км')),
+    actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
+      TextButton(onPressed: () { final n = int.tryParse(controller.text); if(n != null) Navigator.pop(context,n); },
+        child: const Text('Сохранить'))]);
+}
+
+class _GarageSalary extends StatelessWidget {
+  final _HomeMonthData data;final VoidCallback onTap;
+  const _GarageSalary({required this.data,required this.onTap});
+  @override
+  Widget build(BuildContext context)=>_GarageTap(label:'Заработано сегодня',onTap:onTap,
+    child:_GarageGlass(child:Padding(padding:const EdgeInsets.all(21),child:Column(
+      crossAxisAlignment:CrossAxisAlignment.start,children:[_garageText('Заработано сегодня',20),
+        const SizedBox(height:7),FittedBox(fit:BoxFit.scaleDown,child:_garageText('${_fmtInt(data.todaySalary)} ₸',38,weight:FontWeight.w600)),
+        const SizedBox(height:12),const Expanded(child:CustomPaint(size:Size(double.infinity,60),painter:_GarageBars())),
+        const SizedBox(height:13),ClipRRect(borderRadius:BorderRadius.circular(8),
+          child:LinearProgressIndicator(value:(data.todaySalary/40000).clamp(0.0,1.0),
+            minHeight:11,color:_amber,backgroundColor:const Color(0xFF303536))),
+        const SizedBox(height:12),Row(children:[Expanded(child:_garageText('Цель: 40 000 ₸',18)),
+          _garageText('${(data.todaySalary/40000*100).round()}%',18)])]))));
+}
+class _GarageBars extends CustomPainter {
+  const _GarageBars();
+  @override
+  void paint(Canvas c,Size s){
+    const values=[.24,.4,.30,.25,.47,.35,.53,.75,1.0,.47];
+    for(var i=0;i<values.length;i++){
+      final rect=Rect.fromLTWH(i*s.width/values.length+1,s.height*(1-values[i]),11,s.height*values[i]);
+      c.drawRRect(RRect.fromRectAndRadius(rect,const Radius.circular(2)),Paint()..shader=
+        const LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,
+          colors:[Color(0xFFFFD48B),Color(0xFFC17B21),Color(0xFF38230F)]).createShader(rect));
+    }
+  }
+  @override
+  bool shouldRepaint(_GarageBars old)=>false;
+}
+class _GarageEndShift extends StatelessWidget {
+  const _GarageEndShift();
+  @override
+  Widget build(BuildContext context)=>Center(child:Container(width:195,height:195,
+    decoration:BoxDecoration(shape:BoxShape.circle,
+      border:Border.all(color:const Color(0xFFFFEDD4),width:2.3),
+      gradient:const RadialGradient(colors:[Color(0xCC21160B),Color(0xEA080A09),Color(0xED542802)],stops:[0,.85,1]),
+      boxShadow:const[BoxShadow(color:Color(0xFFFF890E),blurRadius:8,spreadRadius:2),
+        BoxShadow(color:Color(0x66FF7800),blurRadius:22,spreadRadius:7)]),
+    child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+      Container(width:32,height:32,decoration:BoxDecoration(borderRadius:BorderRadius.circular(5),
+        border:Border.all(color:const Color(0xFFFFE6AD)),
+        gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
+          colors:[Color(0xFFFFD980),Color(0xFFFFAF26)]),
+        boxShadow:const[BoxShadow(color:Color(0x88FF8D00),blurRadius:20)])),
+      const SizedBox(height:21),_garageText('ЗАВЕРШИТЬ\nСМЕНУ',22,align:TextAlign.center)])));
+}
+class _GarageQuote extends StatelessWidget {
+  const _GarageQuote();
+  @override
+  Widget build(BuildContext context)=>_GarageGlass(child:Stack(children:[
+    Positioned.fill(child:Image.asset('assets/images/road_approved.png',fit:BoxFit.cover)),
+    const Positioned.fill(child:DecoratedBox(decoration:BoxDecoration(gradient:LinearGradient(
+      begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[Colors.transparent,Color(0xE600080D)],stops:[.25,1])))),
+    Positioned(left:21,right:16,bottom:19,child:Text('Дороги не спрашивают,\nкуда ты идёшь.\nОни просто ведут.',
+      style:const TextStyle(color:_paper,fontSize:19,height:1.32,
+        shadows:[Shadow(color:Colors.black,blurRadius:5)])))
+  ]));
+}
+class _GarageTrip extends StatelessWidget {
+  final VoidCallback onTap;const _GarageTrip({required this.onTap});
+  @override
+  Widget build(BuildContext context)=>_GarageGlass(child:Padding(padding:const EdgeInsets.all(17),
+    child:Row(children:[ClipRRect(borderRadius:BorderRadius.circular(17),child:Image.asset(
+      'assets/images/road_approved.png',width:143,height:121,fit:BoxFit.cover)),
+      const SizedBox(width:23),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,
+        mainAxisAlignment:MainAxisAlignment.center,children:[_garageText('Текущий рейс',19,color:const Color(0xFFB6BEC5)),
+          const SizedBox(height:13),FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,
+            child:_garageText('Петропавловск → Кокшетау',26,weight:FontWeight.w600)),
+          const SizedBox(height:12),FittedBox(fit:BoxFit.scaleDown,child:_garageText('124 км · 1,8 т · 2 ч 10 мин',21))])),
+      const SizedBox(width:15),_GarageTap(label:'Навигация',onTap:onTap,child:Container(width:204,height:77,
+        decoration:BoxDecoration(color:const Color(0xA4050C11),borderRadius:BorderRadius.circular(20),
+          border:Border.all(color:_amber,width:1.6)),child:Row(mainAxisAlignment:MainAxisAlignment.center,
+            children:[const _GarageIcon('navigationOutline',color:_amber,size:38),const SizedBox(width:12),_garageText('Навигация',21)])))
+    ])));
+}
+class _GarageNavigation extends StatelessWidget {
+  final VoidCallback onWork,onAdd,onInvoices,onMore;
+  const _GarageNavigation({required this.onWork,required this.onAdd,required this.onInvoices,required this.onMore});
+  @override
+  Widget build(BuildContext context){
+    final items=[('homeOutline','Главная',(){}),('map','Карта',onWork),('plus','Добавить',onAdd),
+      ('invoice','Накладные',onInvoices),('gridOutline','Ещё',onMore)];
+    return Stack(clipBehavior:Clip.none,children:[
+      Positioned(left:0,right:0,top:18,bottom:0,child:Container(decoration:const BoxDecoration(
+        color:Color(0xCC040B10),border:Border(top:BorderSide(color:Color(0x667C8C94)))),
+        child:Row(children:[for(var i=0;i<5;i++)Expanded(child:_GarageTap(label:items[i].$2,
+          onTap:items[i].$3,child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+            SizedBox(height:52,child:i==2?null:_GarageIcon(items[i].$1,color:i==0?_amber:_paper,size:44)),
+            const SizedBox(height:15),_garageText(items[i].$2,22,color:i==0?_amber:_paper)])))]))),
+      Positioned(left:373,top:0,width:94,height:94,child:_GarageTap(label:'Добавить',onTap:onAdd,
+        child:Container(decoration:BoxDecoration(shape:BoxShape.circle,
+          color:const Color(0xFF070E12),border:Border.all(color:_amber,width:2),
+          boxShadow:const[BoxShadow(color:Color(0x44FFA332),blurRadius:14)]),
+          child:const Center(child:_GarageIcon('plus',size:43))))),
+      Positioned(left:47,bottom:5,width:80,height:2,child:Container(decoration:const BoxDecoration(color:_amber,
+        boxShadow:[BoxShadow(color:Color(0xFFFFA32E),blurRadius:9,spreadRadius:2)])))
+    ]);
+  }
+}
 class _GarageIcon extends StatelessWidget {
   final String kind; final Color color; final double size;
   const _GarageIcon(this.kind, {this.color = _paper, this.size = 32});
@@ -468,9 +476,35 @@ class _GarageIconPainter extends CustomPainter {
         c.drawCircle(const Offset(8,25),3,Paint()..color=const Color(0xFF10151A));c.drawCircle(const Offset(8,25),3,p);
         c.drawCircle(const Offset(25,25),3,Paint()..color=const Color(0xFF10151A));c.drawCircle(const Offset(25,25),3,p);break;
       case 'shift':
-        for(var i=0;i<8;i++) {final a=i*math.pi/4; c.drawLine(Offset(16+12*math.cos(a),16+12*math.sin(a)),Offset(16+14*math.cos(a),16+14*math.sin(a)),p);}
-        final pts=List.generate(8,(i)=>Offset(16+13*math.cos(i*math.pi/4),16+13*math.sin(i*math.pi/4)));
-        path(pts,close:true);c.drawCircle(const Offset(16,16),4,p);break;
+        c.drawCircle(const Offset(16,16),13,p);line(16,8,16,17);line(16,17,22,21);break;
+      case 'city':
+        c.drawRect(const Rect.fromLTWH(4,17,5,12),p);
+        c.drawRect(const Rect.fromLTWH(13,4,5,25),p);
+        c.drawRect(const Rect.fromLTWH(23,11,5,18),p);
+        line(2,30,30,30);line(6.5,20,6.5,25);line(15.5,8,15.5,24);break;
+      case 'district':
+        path(const [Offset(2,21),Offset(10,10),Offset(15,16),Offset(24,4),Offset(31,12)]);
+        path(const [Offset(11,30),Offset(19,16),Offset(22,16),Offset(26,30)]);
+        line(20,22,19,27);break;
+      case 'oil':
+        path(const [Offset(3,9),Offset(18,9),Offset(20,12),Offset(30,8),Offset(25,19),Offset(8,19)],close:true);
+        path(const [Offset(3,9),Offset(1,5),Offset(6,5),Offset(10,9)]);
+        line(13,8,13,4);line(10,4,16,4);
+        c.drawPath(Path()..moveTo(29,22)..quadraticBezierTo(24,28,29,30)
+          ..quadraticBezierTo(34,28,29,22)..close(),fill);break;
+      case 'homeOutline':
+        path(const [Offset(3,14),Offset(16,2),Offset(29,14),Offset(29,30),Offset(19,30),
+          Offset(19,21),Offset(13,21),Offset(13,30),Offset(3,30)],close:true);break;
+      case 'gridOutline':
+        for(final x in [3.0,19.0]) {for(final y in [3.0,19.0]) {
+          c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(x,y,10,10),const Radius.circular(2)),p);
+        }}break;
+      case 'navigationOutline':
+        path(const [Offset(2,14),Offset(29,3),Offset(19,30),Offset(15,18)],close:true);break;
+      case 'bellOutline':
+        c.drawPath(Path()..moveTo(6,25)..quadraticBezierTo(9,21,9,12)
+          ..cubicTo(9,3,23,3,23,12)..quadraticBezierTo(23,21,26,25)..close(),p);
+        line(16,2,16,5);c.drawArc(const Rect.fromLTWH(13,25,6,5),0,math.pi,false,p);break;
       case 'chart':
         for(var i=0;i<3;i++) { final top=[13.0,3.0,9.0][i]; c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(5.0+i*9,top,4,29-top),const Radius.circular(2)),fill); } break;
       case 'invoice':

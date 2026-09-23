@@ -124,7 +124,10 @@ class _AppShellState extends State<AppShell> {
     return Scaffold(
       body: Stack(
         children: [
-          const _AppBackground(),
+          if (widget.session.role != AppRole.loader && _index == 0)
+            Positioned.fill(child: Image.asset('assets/images/garage_approved.png', fit: BoxFit.fill))
+          else
+            const _AppBackground(),
           SafeArea(
             bottom: false,
             child: IndexedStack(
@@ -460,6 +463,9 @@ class _HomeMonthData {
   final int trips;
   final double mileage;
   final double salary;
+  final double city;
+  final double region;
+  final double todaySalary;
 
   const _HomeMonthData({
     required this.gas,
@@ -468,22 +474,34 @@ class _HomeMonthData {
     required this.trips,
     required this.mileage,
     required this.salary,
+    this.city = 184.6,
+    this.region = 100,
+    this.todaySalary = 32450,
   });
 
-  static String _monthKey(String name) {
-    final d = DateTime.now();
+  static String _monthKey(String name, [DateTime? month]) {
+    final d = month ?? DateTime.now();
     return 'home_${d.year}_${d.month}_$name';
   }
 
-  static Future<_HomeMonthData> load() async {
+  static Future<_HomeMonthData> load([DateTime? month]) async {
     final p = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    final selected = month ?? now;
+    final current = selected.year == now.year && selected.month == now.month;
+    String key(String name) => _monthKey(name, selected);
+    // Existing monthly keys remain intact. Previous unsplit trips are retained
+    // in the total; only trips with an explicit type enter the new breakdown.
     return _HomeMonthData(
-      gas: p.getDouble(_monthKey('gas')) ?? 286,
-      petrol: p.getDouble(_monthKey('petrol')) ?? 74,
-      tonnage: p.getDouble(_monthKey('tonnage')) ?? 284.6,
-      trips: p.getInt(_monthKey('trips')) ?? 48,
-      mileage: p.getDouble(_monthKey('mileage')) ?? 3124,
-      salary: p.getDouble(_monthKey('salary')) ?? 32450,
+      gas: p.getDouble(key('gas')) ?? (current ? 286 : 0),
+      petrol: p.getDouble(key('petrol')) ?? (current ? 74 : 0),
+      tonnage: p.getDouble(key('tonnage')) ?? (current ? 284.6 : 0),
+      trips: p.getInt(key('trips')) ?? (current ? 48 : 0),
+      mileage: p.getDouble(key('mileage')) ?? (current ? 3124 : 0),
+      salary: p.getDouble(key('salary')) ?? (current ? 324500 : 0),
+      city: p.getDouble(key('city_tonnage')) ?? (current ? 184.6 : 0),
+      region: p.getDouble(key('region_tonnage')) ?? (current ? 100 : 0),
+      todaySalary: p.getDouble('home_day_${now.year}_${now.month}_${now.day}_salary') ?? 32450,
     );
   }
 
@@ -494,12 +512,15 @@ class _HomeMonthData {
     _homeDataRevision.value++;
   }
 
-  static Future<void> addTrip(double tonnage) async {
+  static Future<void> addTrip(double tonnage, {String type = 'Город'}) async {
+    if (!tonnage.isFinite || tonnage <= 0) return;
     final p = await SharedPreferences.getInstance();
     final tripKey = _monthKey('trips');
     final tonKey = _monthKey('tonnage');
     await p.setInt(tripKey, (p.getInt(tripKey) ?? 48) + 1);
     await p.setDouble(tonKey, (p.getDouble(tonKey) ?? 284.6) + tonnage);
+    final splitKey = _monthKey(type == 'Район' ? 'region_tonnage' : 'city_tonnage');
+    await p.setDouble(splitKey, (p.getDouble(splitKey) ?? (type == 'Район' ? 100 : 184.6)) + tonnage);
     _homeDataRevision.value++;
   }
 }
@@ -519,46 +540,42 @@ String _fmtInt(double value) {
   return out.toString();
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   final AppSession session;
   final ValueChanged<int> onNavigate;
   final VoidCallback onQuickAdd;
-
-  const HomePage({
-    super.key,
-    required this.session,
-    required this.onNavigate,
-    required this.onQuickAdd,
-  });
-
+  const HomePage({super.key, required this.session, required this.onNavigate, required this.onQuickAdd});
   @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<int>(
-      valueListenable: _homeDataRevision,
-      builder: (context, _, __) => FutureBuilder<_HomeMonthData>(
-        future: _HomeMonthData.load(),
-        builder: (context, snap) {
-          final data = snap.data ?? const _HomeMonthData(
-            gas: 286,
-            petrol: 74,
-            tonnage: 284.6,
-            trips: 48,
-            mileage: 3124,
-            salary: 32450,
-          );
-          return LayoutBuilder(
-            builder: (context, c) => _ReferenceHomeDashboard(
-              session: session,
-              data: data,
-              size: Size(c.maxWidth, c.maxHeight),
-              onNavigate: onNavigate,
-              onQuickAdd: onQuickAdd,
-            ),
-          );
-        },
-      ),
-    );
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
+  late Future<_HomeMonthData> _data;
+  @override
+  void initState() {
+    super.initState();
+    _data = _HomeMonthData.load(_month);
+    _homeDataRevision.addListener(_reload);
   }
+  void _reload() {
+    if (mounted) setState(() => _data = _HomeMonthData.load(_month));
+  }
+  void _selectMonth(DateTime month) {
+    setState(() { _month = DateTime(month.year, month.month); _data = _HomeMonthData.load(_month); });
+  }
+  @override
+  void dispose() { _homeDataRevision.removeListener(_reload); super.dispose(); }
+  @override
+  Widget build(BuildContext context) => FutureBuilder<_HomeMonthData>(
+    future: _data,
+    builder: (context, snap) {
+      final data = snap.data ?? const _HomeMonthData(gas: 286, petrol: 74,
+        tonnage: 284.6, trips: 48, mileage: 3124, salary: 324500);
+      return LayoutBuilder(builder: (context, c) => _ReferenceHomeDashboard(
+        session: widget.session, data: data, month: _month, onMonthChanged: _selectMonth,
+        size: Size(c.maxWidth, c.maxHeight), onNavigate: widget.onNavigate, onQuickAdd: widget.onQuickAdd));
+    });
 }
 
 class _HomeTopBar extends StatelessWidget {
@@ -3675,7 +3692,8 @@ class _TripEntrySheetState extends State<_TripEntrySheet> {
             onTap: () async {
               HapticFeedback.mediumImpact();
               final tonnage = double.tryParse(_tonnageController.text.replaceAll(',', '.')) ?? 0;
-              await _HomeMonthData.addTrip(tonnage);
+              if (!tonnage.isFinite || tonnage <= 0) return;
+              await _HomeMonthData.addTrip(tonnage, type: _type);
               if (context.mounted) Navigator.pop(context);
             },
           ),
