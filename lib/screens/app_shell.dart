@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_role.dart';
 import '../services/session_service.dart';
@@ -442,58 +443,200 @@ class _MiniChromeOrbPainter extends CustomPainter {
 
 
 
+final ValueNotifier<int> _homeDataRevision = ValueNotifier<int>(0);
+
+class _HomeMonthData {
+  final double gas;
+  final double petrol;
+  final double tonnage;
+  final int trips;
+  final double mileage;
+  final double salary;
+
+  const _HomeMonthData({
+    required this.gas,
+    required this.petrol,
+    required this.tonnage,
+    required this.trips,
+    required this.mileage,
+    required this.salary,
+  });
+
+  static String _monthKey(String name) {
+    final d = DateTime.now();
+    return 'home_${d.year}_${d.month}_$name';
+  }
+
+  static Future<_HomeMonthData> load() async {
+    final p = await SharedPreferences.getInstance();
+    return _HomeMonthData(
+      gas: p.getDouble(_monthKey('gas')) ?? 286,
+      petrol: p.getDouble(_monthKey('petrol')) ?? 74,
+      tonnage: p.getDouble(_monthKey('tonnage')) ?? 284.6,
+      trips: p.getInt(_monthKey('trips')) ?? 48,
+      mileage: p.getDouble(_monthKey('mileage')) ?? 3124,
+      salary: p.getDouble(_monthKey('salary')) ?? 32450,
+    );
+  }
+
+  static Future<void> addFuel(String fuel, double litres) async {
+    final p = await SharedPreferences.getInstance();
+    final key = _monthKey(fuel == 'Газ' ? 'gas' : 'petrol');
+    await p.setDouble(key, (p.getDouble(key) ?? (fuel == 'Газ' ? 286 : 74)) + litres);
+    _homeDataRevision.value++;
+  }
+
+  static Future<void> addTrip(double tonnage) async {
+    final p = await SharedPreferences.getInstance();
+    final tripKey = _monthKey('trips');
+    final tonKey = _monthKey('tonnage');
+    await p.setInt(tripKey, (p.getInt(tripKey) ?? 48) + 1);
+    await p.setDouble(tonKey, (p.getDouble(tonKey) ?? 284.6) + tonnage);
+    _homeDataRevision.value++;
+  }
+}
+
+String _fmt1(double value) {
+  if ((value - value.round()).abs() < .001) return value.round().toString();
+  return value.toStringAsFixed(1).replaceAll('.', ',');
+}
+
+String _fmtInt(double value) {
+  final raw = value.round().toString();
+  final out = StringBuffer();
+  for (var i = 0; i < raw.length; i++) {
+    if (i > 0 && (raw.length - i) % 3 == 0) out.write(' ');
+    out.write(raw[i]);
+  }
+  return out.toString();
+}
+
 class HomePage extends StatelessWidget {
   final AppSession session;
 
-  const HomePage({
-    super.key,
-    required this.session,
-  });
+  const HomePage({super.key, required this.session});
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        final gap = 7.0;
-        final pad = 10.0;
-
-        return ListView(
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
-          padding: EdgeInsets.fromLTRB(pad, 8, pad, 22),
-          children: [
-            _HomeTopBar(session: session),
-            const SizedBox(height: 8),
-            _HomeTruckHero(
-              height: (w - pad * 2) * .39,
-              onTap: () => _showSalarySheet(context),
-            ),
-            const SizedBox(height: 7),
-            _HomeSalaryCard(
-              gap: gap,
-              onPaidRoutesTap: () => _showPaidRoutesSheet(context),
-            ),
-            const SizedBox(height: 7),
-            const _HomeTonnageCard(),
-            const SizedBox(height: 7),
-            const _HomeMaintenanceCard(),
-            const SizedBox(height: 7),
-            const _HomeDynamicsCard(),
-          ],
-        );
-      },
+    return ValueListenableBuilder<int>(
+      valueListenable: _homeDataRevision,
+      builder: (context, _, __) => FutureBuilder<_HomeMonthData>(
+        future: _HomeMonthData.load(),
+        builder: (context, snap) {
+          final data = snap.data ?? const _HomeMonthData(
+            gas: 286, petrol: 74, tonnage: 284.6, trips: 48,
+            mileage: 3124, salary: 32450,
+          );
+          return ListView(
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 22),
+            children: [
+              _HomeTopBar(session: session),
+              const SizedBox(height: 8),
+              _GarageHero(data: data),
+              const SizedBox(height: 9),
+              _HomeLiveRow(data: data),
+              const SizedBox(height: 9),
+              const _CurrentTripCard(),
+              const SizedBox(height: 10),
+              const _HomeMaintenanceCard(),
+              const SizedBox(height: 7),
+              const _HomeDynamicsCard(),
+            ],
+          );
+        },
+      ),
     );
   }
 }
 
+class _GarageHero extends StatelessWidget {
+  final _HomeMonthData data;
+  const _GarageHero({required this.data});
 
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: .76,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset('assets/images/garage_scene.png', fit: BoxFit.cover, alignment: const Alignment(0, -.05)),
+            const DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
+              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+              colors: [Color(0x33000000), Color(0x00000000), Color(0xA8000000)], stops: [0, .58, 1],
+            ))),
+            Positioned(top: 13, left: 0, right: 0, child: Center(child: _ShiftPill())),
+            Positioned(left: 11, top: 78, child: _HudMetric(icon: Icons.local_fire_department_rounded, label: 'Газ', value: '${_fmt1(data.gas)} л', note: 'за месяц', color: const Color(0xFF39D8FF), side: _HudSide.left)),
+            Positioned(left: 11, top: 172, child: _HudMetric(icon: Icons.local_gas_station_rounded, label: 'Бензин', value: '${_fmt1(data.petrol)} л', note: 'за месяц', color: const Color(0xFFFF4D52), side: _HudSide.left)),
+            Positioned(right: 11, top: 91, child: _HudMetric(icon: Icons.inventory_2_outlined, label: 'Тоннаж', value: '${_fmt1(data.tonnage)} т', note: 'за месяц', color: const Color(0xFFFFA13B), side: _HudSide.right)),
+            Positioned(right: 11, top: 186, child: _HudMetric(icon: Icons.alt_route_rounded, label: 'Рейсы', value: '${data.trips}', note: 'за месяц', color: const Color(0xFFE66CFF), side: _HudSide.right)),
+            Positioned(right: 15, bottom: 20, child: _HudMetric(icon: Icons.route_rounded, label: 'Пробег', value: '${_fmtInt(data.mileage)} км', note: 'за месяц', color: const Color(0xFFFFB348), side: _HudSide.right, compact: true)),
+            Positioned(left: 16, bottom: 17, child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(color: const Color(0xB8080B0E), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0x55FF8A2B))),
+              child: const Row(mainAxisSize: MainAxisSize.min, children: [Text('KZ', style: TextStyle(color: Color(0xFF52B9FF), fontSize: 8, fontWeight: FontWeight.w900)), SizedBox(width: 4), Text('H139915', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: .6))]),
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
+enum _HudSide { left, right }
 
+class _HudMetric extends StatelessWidget {
+  final IconData icon; final String label; final String value; final String note; final Color color; final _HudSide side; final bool compact;
+  const _HudMetric({required this.icon, required this.label, required this.value, required this.note, required this.color, required this.side, this.compact = false});
+  @override
+  Widget build(BuildContext context) {
+    final info = Column(crossAxisAlignment: side == _HudSide.left ? CrossAxisAlignment.start : CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
+      Text(label, style: const TextStyle(color: Color(0xFFD8DCE2), fontSize: 9, fontWeight: FontWeight.w600)),
+      Text(value, style: TextStyle(color: Colors.white, fontSize: compact ? 14 : 18, height: 1.05, fontWeight: FontWeight.w900, shadows: [Shadow(color: color.withValues(alpha: .35), blurRadius: 12)])),
+      Text(note, style: const TextStyle(color: Color(0xFFB0B4BA), fontSize: 7.4)),
+    ]);
+    final orb = Container(width: compact ? 37 : 43, height: compact ? 37 : 43, decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xB8090D11), border: Border.all(color: color.withValues(alpha: .85), width: 1.2), boxShadow: [BoxShadow(color: color.withValues(alpha: .30), blurRadius: 14)]), child: Icon(icon, color: color, size: compact ? 20 : 23));
+    return Row(mainAxisSize: MainAxisSize.min, children: side == _HudSide.left ? [orb, const SizedBox(width: 7), info] : [info, const SizedBox(width: 7), orb]);
+  }
+}
 
+class _ShiftPill extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(16),
+    child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 13, sigmaY: 13), child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+      decoration: BoxDecoration(color: const Color(0xB20A2022), borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xAA2FE6DB)), boxShadow: const [BoxShadow(color: Color(0x442FE6DB), blurRadius: 16)]),
+      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.circle, color: Color(0xFF16E5B5), size: 11), SizedBox(width: 8),
+        Column(mainAxisSize: MainAxisSize.min, children: [Text('Смена открыта', style: TextStyle(color: Color(0xFFDDFBF5), fontSize: 9, fontWeight: FontWeight.w700)), Text('02:14:26', style: TextStyle(color: Color(0xFF2EE5E8), fontSize: 18, height: 1.05, fontWeight: FontWeight.w900))]),
+        SizedBox(width: 12), Icon(Icons.pause_rounded, color: Colors.white, size: 20),
+      ]),
+    )),
+  );
+}
 
+class _HomeLiveRow extends StatelessWidget {
+  final _HomeMonthData data;
+  const _HomeLiveRow({required this.data});
+  @override
+  Widget build(BuildContext context) => Row(children: [
+    Expanded(child: _RefHomeTile(radius: 20, accent: AppColors.orange, onTap: () => _showSalarySheet(context), child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Заработано сегодня', style: TextStyle(color: Color(0xFFB8BBC0), fontSize: 9)), const SizedBox(height: 4), Text('${_fmtInt(data.salary)} ₸', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)), const SizedBox(height: 7), const LinearProgressIndicator(value: .81, minHeight: 4, borderRadius: BorderRadius.all(Radius.circular(9)), backgroundColor: Color(0xFF272B31), color: AppColors.orange), const SizedBox(height: 5), const Text('Цель дня: 40 000 ₸', style: TextStyle(color: Color(0xFF9EA2A8), fontSize: 8))])))),
+    const SizedBox(width: 8),
+    Expanded(child: InkWell(onTap: () { HapticFeedback.mediumImpact(); }, borderRadius: BorderRadius.circular(20), child: Container(height: 105, decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFF08090B), border: Border.all(color: const Color(0xFFFF842C), width: 2), boxShadow: const [BoxShadow(color: Color(0x66FF7418), blurRadius: 22)]), alignment: Alignment.center, child: const Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.stop_rounded, color: Color(0xFFFFA14F), size: 22), SizedBox(height: 4), Text('ЗАВЕРШИТЬ\nСМЕНУ', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 9.5, height: 1.1, fontWeight: FontWeight.w700))])))),
+  ]);
+}
 
+class _CurrentTripCard extends StatelessWidget {
+  const _CurrentTripCard();
+  @override
+  Widget build(BuildContext context) => _RefHomeTile(radius: 20, accent: AppColors.orange, child: const Padding(padding: EdgeInsets.all(14), child: Row(children: [
+    Icon(Icons.route_rounded, color: AppColors.orangeSoft, size: 28), SizedBox(width: 11), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Текущий рейс', style: TextStyle(color: Color(0xFF9EA2A8), fontSize: 8.5)), SizedBox(height: 3), Text('Петропавловск  →  Кокшетау', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900)), SizedBox(height: 4), Text('124 км  •  1,8 т  •  ≈ 2 ч 10 мин', style: TextStyle(color: Color(0xFFC0C3C8), fontSize: 8.5))]))
+  ])));
+}
 
 class _HomeTopBar extends StatelessWidget {
   final AppSession session;
@@ -3554,6 +3697,13 @@ class _TripEntrySheet extends StatefulWidget {
 class _TripEntrySheetState extends State<_TripEntrySheet> {
   String _type = 'Город';
   String _direction = 'Петропавловск';
+  final TextEditingController _tonnageController = TextEditingController();
+
+  @override
+  void dispose() {
+    _tonnageController.dispose();
+    super.dispose();
+  }
 
   List<String> get _directions => _type == 'Город'
       ? const ['Петропавловск', 'Бишкуль']
@@ -3591,12 +3741,19 @@ class _TripEntrySheetState extends State<_TripEntrySheet> {
               }
             },
           ),
+          const SizedBox(height: 14),
+          _QuickNumberField(
+            controller: _tonnageController,
+            hint: 'Тоннаж, т',
+          ),
           const SizedBox(height: 18),
           _QuickSaveButton(
             text: 'Добавить рейс',
-            onTap: () {
+            onTap: () async {
               HapticFeedback.mediumImpact();
-              Navigator.pop(context);
+              final tonnage = double.tryParse(_tonnageController.text.replaceAll(',', '.')) ?? 0;
+              await _HomeMonthData.addTrip(tonnage);
+              if (context.mounted) Navigator.pop(context);
             },
           ),
         ],
@@ -3653,9 +3810,11 @@ class _FuelEntrySheetState extends State<_FuelEntrySheet> {
           const SizedBox(height: 18),
           _QuickSaveButton(
             text: 'Сохранить',
-            onTap: () {
+            onTap: () async {
               HapticFeedback.mediumImpact();
-              Navigator.pop(context);
+              final litres = double.tryParse(_controller.text.replaceAll(',', '.')) ?? 0;
+              if (litres > 0) await _HomeMonthData.addFuel(_fuel, litres);
+              if (context.mounted) Navigator.pop(context);
             },
           ),
         ],
