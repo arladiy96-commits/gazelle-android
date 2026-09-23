@@ -36,8 +36,8 @@ Future<void> _openMaintenance(BuildContext context,AppSession session,{String? i
     final reduced=MediaQuery.disableAnimationsOf(context);
     await Navigator.of(context).push<void>(PageRouteBuilder<void>(
       opaque:false,barrierColor:Colors.transparent,
-      transitionDuration:Duration(milliseconds:reduced?0:1150),
-      reverseTransitionDuration:Duration(milliseconds:reduced?0:850),
+      transitionDuration:Duration(milliseconds:reduced?0:2100),
+      reverseTransitionDuration:Duration(milliseconds:reduced?0:1500),
       pageBuilder:(context,animation,secondary)=>_MaintenancePage(session:session,
         animation:animation,initialItem:initialItem),
       transitionsBuilder:(context,animation,secondary,child)=>child));
@@ -62,6 +62,19 @@ class _MaintenancePage extends StatefulWidget {
   State<_MaintenancePage> createState()=>_MaintenancePageState();
 }
 class _MaintenancePageState extends State<_MaintenancePage> {
+  static const _hoodAudio=MethodChannel('gazelle/hood_audio');
+  bool _soundPlayed=false;
+  Future<void> _audio(String method) async {
+    try {await _hoodAudio.invokeMethod<void>(method);} on PlatformException catch (_) {} on MissingPluginException catch (_) {}
+  }
+  void _onAnimation(){
+    if(!_soundPlayed&&widget.animation.status==AnimationStatus.forward&&widget.animation.value>=.50){
+      _soundPlayed=true;_audio('play');
+    }
+  }
+  @override
+  void dispose(){widget.animation.removeListener(_onAnimation);_audio('stop');super.dispose();}
+
   late final MaintenanceRepository _repository;
   MaintenanceBook? _book;
   String? _selected;
@@ -69,7 +82,8 @@ class _MaintenancePageState extends State<_MaintenancePage> {
   String? _error;
   @override
   void initState(){super.initState();_repository=MaintenanceRepository(widget.session.login);
-    _selected=widget.initialItem;_load();}
+    _selected=widget.initialItem;_load();
+    widget.animation.addListener(_onAnimation);}
   Future<void> _load() async {
     try {final book=await _repository.load();if(mounted)setState((){_book=book;_error=null;});}
     catch(e){if(mounted)setState(()=>_error='Не удалось прочитать историю ТО. Данные не перезаписаны.');}
@@ -113,15 +127,15 @@ class _MaintenancePageState extends State<_MaintenancePage> {
     child:Scaffold(backgroundColor:Colors.transparent,body:AnimatedBuilder(animation:widget.animation,
       builder:(context,_){
         final t=MediaQuery.disableAnimationsOf(context)?1.0:widget.animation.value;
-        final zoom=Curves.easeInOutCubic.transform(_servicePhase(t,0,.55));
-        final front=Curves.easeInOut.transform(_servicePhase(t,.2,.57));
-        final opened=Curves.easeInOut.transform(_servicePhase(t,.56,.88));
-        final controls=_servicePhase(t,.78,1);
+        final zoom=Curves.easeInOutCubic.transform(_servicePhase(t,0,.64));
+        final front=Curves.easeInOutCubic.transform(_servicePhase(t,.18,.58));
+        final opened=Curves.easeInOutCubic.transform(_servicePhase(t,.50,.94));
+        final controls=Curves.easeInOut.transform(_servicePhase(t,.83,1));
         return Opacity(opacity:_servicePhase(t,0,.12),child:Stack(children:[
           Positioned.fill(child:ClipRect(child:Transform.scale(scale:1+1.05*zoom,
             alignment:const Alignment(.28,-.12),child:Image.asset('assets/images/garage_approved.png',fit:BoxFit.fill)))),
-          Positioned.fill(child:Opacity(opacity:front,child:Image.asset('assets/images/service_closed.png',fit:BoxFit.fill))),
-          Positioned.fill(child:Opacity(opacity:opened,child:Image.asset('assets/images/service_open.png',fit:BoxFit.fill))),
+          Positioned.fill(child:Opacity(opacity:front,child:Transform.scale(scale:1.035-.035*zoom,child:Image.asset('assets/images/service_closed.png',fit:BoxFit.fill)))),
+          Positioned.fill(child:Opacity(opacity:opened,child:Transform.scale(scale:1.035-.035*zoom,child:Image.asset('assets/images/service_open.png',fit:BoxFit.fill)))),
           Positioned.fill(child:SafeArea(bottom:true,child:LayoutBuilder(builder:(context,c){
             final scale=c.maxWidth/840;final h=math.max(1570.0,c.maxHeight/scale);final sy=h/1870;
             Widget p(double x,double y,double w,double height,Widget child)=>Positioned(
@@ -240,7 +254,7 @@ class _MaintenancePageState extends State<_MaintenancePage> {
           const Icon(Icons.edit_note,color:_paper,size:42),const SizedBox(width:25),
           Expanded(child:_garageText((_book!.notes[item.id]??'').isEmpty?'Добавить':_book!.notes[item.id]!,23,color:const Color(0xFFB9CFDC))),
           const Icon(Icons.chevron_right,color:_paper,size:30)]))))),
-      p(38,1584,765,96,_ServiceButton(label:item.usesDate?'Записать продление':'Записать замену',onTap:()=>_record(item))),
+      p(38,1584,765,96,_ServiceButton(label:item.id.startsWith('other_')?'Записать работу':item.usesDate?'Записать продление':'Записать замену',onTap:()=>_record(item))),
       p(35,1705,770,96,_GarageTap(label:'Все работы по разделу',onTap:()=>setState((){_category=item.category;_selected=null;}),
         child:_ServiceGlass(child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
           const Icon(Icons.format_list_bulleted,color:_paper,size:35),const SizedBox(width:20),
@@ -374,7 +388,7 @@ class _MaintenanceEntryFormState extends State<_MaintenanceEntryForm> {
       if(widget.item.usesDate)TextButton.icon(onPressed:()=>_pick(true),icon:const Icon(Icons.event),label:Text(_nextDate==null?'Указать срок действия':'До ${_serviceDate(_nextDate!)}'))
       else _number(_next,'Следующая замена на пробеге, км (необязательно)',optional:true),
       _number(_cost,'Стоимость, ₸ (необязательно)',optional:true,money:true),
-      TextFormField(controller:_note,maxLines:3,style:const TextStyle(color:_paper),decoration:const InputDecoration(labelText:'Что сделано',border:OutlineInputBorder())),
+      TextFormField(controller:_note,maxLines:3,validator:(v)=>widget.item.id.startsWith('other_')&&(v??'').trim().isEmpty?'Укажите название работы или документа':null,style:const TextStyle(color:_paper),decoration:const InputDecoration(labelText:'Что сделано',border:OutlineInputBorder())),
       if(_error!=null)Padding(padding:const EdgeInsets.only(top:12),child:Text(_error!,style:const TextStyle(color:Colors.redAccent))),
       const SizedBox(height:20),OutlinedButton(onPressed:_saving?null:_save,style:OutlinedButton.styleFrom(foregroundColor:_amber,side:const BorderSide(color:_amber),padding:const EdgeInsets.all(18)),child:Text(_saving?'Сохранение…':'Сохранить обслуживание')),
     ])))))));
@@ -389,10 +403,32 @@ class _ServiceNoteDialogState extends State<_ServiceNoteDialog> {
   @override
   void dispose(){_text.dispose();super.dispose();}
   @override
-  Widget build(BuildContext context)=>AlertDialog(backgroundColor:const Color(0xFF09151D),
-    shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(22),side:BorderSide(color:_amber.withValues(alpha:.5))),
-    title:const Text('Примечание',style:TextStyle(color:_amber)),
-    content:TextField(controller:_text,maxLines:4,style:const TextStyle(color:_paper)),
-    actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Отмена')),
-      TextButton(onPressed:()=>Navigator.pop(context,_text.text),child:const Text('Сохранить',style:TextStyle(color:_amber)))]);
+  Widget build(BuildContext context)=>Dialog(
+    backgroundColor:Colors.transparent,surfaceTintColor:Colors.transparent,elevation:0,
+    insetPadding:const EdgeInsets.symmetric(horizontal:22,vertical:24),
+    child:ClipRRect(borderRadius:BorderRadius.circular(24),child:BackdropFilter(
+      filter:ImageFilter.blur(sigmaX:16,sigmaY:16),child:Container(
+        decoration:BoxDecoration(borderRadius:BorderRadius.circular(24),
+          gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
+            colors:[Color(0xCE18313C),Color(0xE008141C)]),
+          border:Border.all(color:_amber.withValues(alpha:.65)),
+          boxShadow:[BoxShadow(color:_amber.withValues(alpha:.12),blurRadius:22)]),
+        padding:const EdgeInsets.all(22),child:SingleChildScrollView(child:Column(
+          mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          Row(children:[const Icon(Icons.edit_note_rounded,color:_amber,size:28),const SizedBox(width:12),
+            const Expanded(child:Text('Примечание',style:TextStyle(color:_paper,fontSize:21,fontWeight:FontWeight.w500))),
+            IconButton(onPressed:()=>Navigator.pop(context),tooltip:'Закрыть',icon:const Icon(Icons.close,color:_ice,size:22))]),
+          const SizedBox(height:12),
+          TextField(controller:_text,minLines:3,maxLines:6,style:const TextStyle(color:_paper,fontSize:16,height:1.5),
+            cursorColor:_amber,decoration:InputDecoration(hintText:'Детали, марка масла или важная заметка…',
+              hintStyle:TextStyle(color:_ice.withValues(alpha:.65),fontSize:15),
+              filled:true,fillColor:const Color(0x55040D12),contentPadding:const EdgeInsets.all(16),
+              enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(15),borderSide:BorderSide(color:_ice.withValues(alpha:.3))),
+              focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(15),borderSide:const BorderSide(color:_amber)))),
+          const SizedBox(height:20),OutlinedButton.icon(
+            onPressed:()=>Navigator.pop(context,_text.text),icon:const Icon(Icons.check,size:20),label:const Text('Сохранить'),
+            style:OutlinedButton.styleFrom(foregroundColor:_amber,backgroundColor:const Color(0x33293739),
+              side:const BorderSide(color:_amber),padding:const EdgeInsets.symmetric(vertical:15),
+              shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)))),
+        ]))))));
 }
