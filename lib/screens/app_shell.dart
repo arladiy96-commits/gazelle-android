@@ -1176,6 +1176,7 @@ class _RefHomeTile extends StatelessWidget {
   }
 }
 
+
 class _RefMetricTile extends StatelessWidget {
   final String title;
   final String value;
@@ -1203,83 +1204,110 @@ class _RefMetricTile extends StatelessWidget {
       onTap: onTap,
       child: SizedBox(
         height: 98,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 10, 9, 9),
-          child: Stack(
-            children: [
-              Positioned(
-                right: 0,
-                top: 0,
-                child: _RefNeonIcon(
-                  icon: icon,
-                  color: accent,
-                  size: 19,
+        child: Stack(
+          children: [
+            Positioned(
+              right: -8,
+              top: -12,
+              child: IgnorePointer(
+                child: Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: accent.withValues(alpha: .22),
+                        blurRadius: 22,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 10, 9, 9),
+              child: Stack(
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Color(0xFFB7BAC0),
-                      fontSize: 8.5,
-                      fontWeight: FontWeight.w700,
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: _RefNeonIcon(
+                      icon: icon,
+                      color: accent,
+                      size: 19,
                     ),
                   ),
-                  const Spacer(),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      value,
-                      style: const TextStyle(
-                        color: AppColors.text,
-                        fontSize: 19,
-                        height: 1,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -.45,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Row(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        note,
+                        title,
                         style: const TextStyle(
-                          color: Color(0xFF8A8E95),
-                          fontSize: 7.3,
+                          color: Color(0xFFB5B8BD),
+                          fontSize: 8.4,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      if (delta.isNotEmpty) ...[
-                        const Spacer(),
-                        const Icon(
-                          Icons.arrow_upward_rounded,
-                          size: 8,
-                          color: Color(0xFF55E66B),
-                        ),
-                        const SizedBox(width: 1),
-                        Text(
-                          delta,
+                      const Spacer(),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          value,
                           style: const TextStyle(
-                            color: Color(0xFF55E66B),
-                            fontSize: 7.2,
+                            color: AppColors.text,
+                            fontSize: 19,
+                            height: 1,
                             fontWeight: FontWeight.w900,
+                            letterSpacing: -.45,
                           ),
                         ),
-                      ],
+                      ),
+                      const SizedBox(height: 5),
+                      Row(
+                        children: [
+                          Text(
+                            note,
+                            style: const TextStyle(
+                              color: Color(0xFF888C92),
+                              fontSize: 7.2,
+                            ),
+                          ),
+                          if (delta.isNotEmpty) ...[
+                            const Spacer(),
+                            const Icon(
+                              Icons.arrow_upward_rounded,
+                              size: 8,
+                              color: Color(0xFF55E66B),
+                            ),
+                            const SizedBox(width: 1),
+                            Text(
+                              delta,
+                              style: const TextStyle(
+                                color: Color(0xFF55E66B),
+                                fontSize: 7.1,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ],
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
+
+
+
 
 class _RefGaugeTile extends StatelessWidget {
   final String title;
@@ -1310,100 +1338,178 @@ class _RefGaugeTile extends StatelessWidget {
       onTap: onTap,
       child: SizedBox(
         height: 164,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 9, 10, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    title.toUpperCase(),
-                    style: const TextStyle(
-                      color: Color(0xFFB7BAC0),
-                      fontSize: 8.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: .55,
-                    ),
-                  ),
-                  const Spacer(),
-                  _RefNeonIcon(
-                    icon: icon,
-                    color: AppColors.orange,
-                    size: 17,
-                  ),
-                ],
+        child: Stack(
+          children: [
+            const Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _RefGaugeGlassSwooshPainter(),
+                ),
               ),
-              const SizedBox(height: 3),
-              Expanded(
-                child: Center(
-                  child: SizedBox(
-                    width: 112,
-                    height: 112,
-                    child: CustomPaint(
-                      painter: _RefGaugePainter(progress: progress),
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              value,
-                              style: const TextStyle(
-                                color: AppColors.text,
-                                fontSize: 18.5,
-                                height: 1,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -.45,
-                              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 9, 10, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        title.toUpperCase(),
+                        style: const TextStyle(
+                          color: Color(0xFFB4B7BC),
+                          fontSize: 8.4,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: .5,
+                        ),
+                      ),
+                      const Spacer(),
+                      _RefNeonIcon(
+                        icon: icon,
+                        color: AppColors.orange,
+                        size: 17,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Expanded(
+                    child: Center(
+                      child: SizedBox(
+                        width: 112,
+                        height: 112,
+                        child: CustomPaint(
+                          painter: _RefGaugePainter(progress: progress),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  value,
+                                  style: const TextStyle(
+                                    color: AppColors.text,
+                                    fontSize: 18.5,
+                                    height: 1,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -.45,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  unit,
+                                  style: const TextStyle(
+                                    color: Color(0xFF92969C),
+                                    fontSize: 7.4,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 5),
-                            Text(
-                              unit,
-                              style: const TextStyle(
-                                color: Color(0xFF9A9DA3),
-                                fontSize: 7.5,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      leftCaption,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFFB2B5BA),
-                        fontSize: 7.1,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          leftCaption,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFFA7AAB0),
+                            fontSize: 7.0,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      rightCaption,
-                      textAlign: TextAlign.right,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFFB2B5BA),
-                        fontSize: 7.1,
+                      Expanded(
+                        child: Text(
+                          rightCaption,
+                          textAlign: TextAlign.right,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFFA7AAB0),
+                            fontSize: 7.0,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
+}
+
+
+
+
+class _RefGaugeGlassSwooshPainter extends CustomPainter {
+  const _RefGaugeGlassSwooshPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Path()
+      ..moveTo(size.width * .47, -8)
+      ..cubicTo(
+        size.width * .68,
+        size.height * .02,
+        size.width * .72,
+        size.height * .19,
+        size.width * .92,
+        size.height * .23,
+      )
+      ..cubicTo(
+        size.width * .78,
+        size.height * .27,
+        size.width * .72,
+        size.height * .34,
+        size.width * .66,
+        size.height * .48,
+      );
+
+    final wide = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 10
+      ..strokeCap = StrokeCap.round
+      ..color = const Color(0x18FFFFFF)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
+    canvas.drawPath(p, wide);
+
+    final thin = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = .65
+      ..strokeCap = StrokeCap.round
+      ..shader = const LinearGradient(
+        colors: [
+          Color(0x00FFFFFF),
+          Color(0xA8FFFFFF),
+          Color(0x10FFFFFF),
+        ],
+      ).createShader(Offset.zero & size);
+    canvas.drawPath(p, thin);
+
+    final warm = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.5
+      ..strokeCap = StrokeCap.round
+      ..color = const Color(0x2EFF7418)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawArc(
+      Rect.fromLTWH(size.width * .72, 4, size.width * .40, size.height * .42),
+      .35,
+      1.35,
+      false,
+      warm,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _RefGaugePainter extends CustomPainter {
@@ -1485,6 +1591,7 @@ class _RefGaugePainter extends CustomPainter {
   }
 }
 
+
 class _RefHeaderButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
@@ -1507,11 +1614,22 @@ class _RefHeaderButton extends StatelessWidget {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            const Positioned.fill(
+            Positioned.fill(
               child: _RefHomeTile(
                 radius: 15,
                 accent: AppColors.orange,
-                child: SizedBox.expand(),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(-.55, -.55),
+                      radius: 1.15,
+                      colors: [
+                        Colors.white.withValues(alpha: .055),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
             Center(
@@ -1548,6 +1666,8 @@ class _RefHeaderButton extends StatelessWidget {
     );
   }
 }
+
+
 
 class _RefIconPlate extends StatelessWidget {
   final IconData icon;
@@ -1661,6 +1781,7 @@ class _RefSegment extends StatelessWidget {
   }
 }
 
+
 class _RefHomeGlassPainter extends CustomPainter {
   final double radius;
   final Color accent;
@@ -1678,75 +1799,133 @@ class _RefHomeGlassPainter extends CustomPainter {
     canvas.save();
     canvas.clipRRect(rr);
 
+    // Deep black glass. Reference is not grey — it is almost black.
     final base = Paint()
       ..shader = const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Color(0xFF2B2F34),
-          Color(0xFF15181C),
-          Color(0xFF090B0D),
-          Color(0xFF030405),
+          Color(0xFF171A1E),
+          Color(0xFF0C0E11),
+          Color(0xFF050608),
+          Color(0xFF020304),
         ],
-        stops: [0, .20, .62, 1],
+        stops: [0, .28, .68, 1],
       ).createShader(rect);
     canvas.drawRRect(rr, base);
 
-    final leftWarm = Paint()
+    // Very soft warm contamination from the illuminated edge.
+    final warmTL = Paint()
       ..shader = RadialGradient(
-        center: const Alignment(-1.18, -.92),
-        radius: .95,
+        center: const Alignment(-1.05, -.92),
+        radius: .72,
         colors: [
-          accent.withValues(alpha: .20),
-          accent.withValues(alpha: .055),
+          accent.withValues(alpha: .115),
+          accent.withValues(alpha: .030),
           Colors.transparent,
         ],
+        stops: const [0, .46, 1],
       ).createShader(rect);
-    canvas.drawRRect(rr, leftWarm);
+    canvas.drawRRect(rr, warmTL);
 
-    final rightWarm = Paint()
+    final warmBR = Paint()
       ..shader = RadialGradient(
-        center: const Alignment(1.12, 1.02),
-        radius: .78,
+        center: const Alignment(1.05, 1.05),
+        radius: .72,
         colors: [
-          accent.withValues(alpha: .14),
-          accent.withValues(alpha: .025),
+          accent.withValues(alpha: .085),
+          accent.withValues(alpha: .018),
           Colors.transparent,
         ],
+        stops: const [0, .48, 1],
       ).createShader(rect);
-    canvas.drawRRect(rr, rightWarm);
+    canvas.drawRRect(rr, warmBR);
 
-    final reflection = Path()
-      ..moveTo(-size.width * .08, size.height * .04)
-      ..lineTo(size.width * .62, -size.height * .03)
-      ..lineTo(size.width * .80, size.height * .14)
-      ..lineTo(size.width * .04, size.height * .28)
+    // Main internal glass sweep.
+    final sweep = Path()
+      ..moveTo(-size.width * .20, size.height * .18)
+      ..cubicTo(
+        size.width * .12,
+        size.height * .02,
+        size.width * .46,
+        size.height * .02,
+        size.width * .84,
+        -size.height * .05,
+      )
+      ..lineTo(size.width * .95, size.height * .09)
+      ..cubicTo(
+        size.width * .53,
+        size.height * .17,
+        size.width * .18,
+        size.height * .16,
+        -size.width * .08,
+        size.height * .36,
+      )
       ..close();
 
-    final shine = Paint()
+    final sweepPaint = Paint()
       ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
         colors: [
           Color(0x00FFFFFF),
-          Color(0x1CFFFFFF),
+          Color(0x20FFFFFF),
           Color(0x08FFFFFF),
           Color(0x00FFFFFF),
         ],
-        stops: [0, .40, .66, 1],
+        stops: [0, .40, .64, 1],
       ).createShader(rect)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
-    canvas.drawPath(reflection, shine);
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawPath(sweep, sweepPaint);
 
-    final depthRect = rect.deflate(4.2);
+    // Secondary curved reflection, gives the "moulded glass" look.
+    final innerCurve = Path()
+      ..moveTo(size.width * .58, -size.height * .03)
+      ..cubicTo(
+        size.width * .72,
+        size.height * .10,
+        size.width * .80,
+        size.height * .26,
+        size.width * .98,
+        size.height * .30,
+      );
+
+    final curvePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(2.2, size.shortestSide * .018)
+      ..strokeCap = StrokeCap.round
+      ..color = const Color(0x18FFFFFF)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
+    canvas.drawPath(innerCurve, curvePaint);
+
+    // Real inner depth: dark lower/right bevel.
+    final depthRect = rect.deflate(3.5);
     final depthRR = RRect.fromRectAndRadius(
       depthRect,
-      Radius.circular(math.max(2, radius - 4)),
+      Radius.circular(math.max(2, radius - 3.5)),
     );
-    final innerShadow = Paint()
+    final depth = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 5.3
-      ..color = const Color(0x72000000)
+      ..strokeWidth = 5.8
+      ..color = const Color(0x7A000000)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-    canvas.drawRRect(depthRR, innerShadow);
+    canvas.drawRRect(depthRR, depth);
+
+    // Subtle upper/left internal edge.
+    final innerEdge = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = .55
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0x5CFFFFFF),
+          Color(0x12FFFFFF),
+          Color(0x00000000),
+          Color(0x38000000),
+        ],
+      ).createShader(depthRect);
+    canvas.drawRRect(depthRR, innerEdge);
 
     canvas.restore();
   }
@@ -1756,6 +1935,9 @@ class _RefHomeGlassPainter extends CustomPainter {
     return oldDelegate.radius != radius || oldDelegate.accent != accent;
   }
 }
+
+
+
 
 class _RefHomeFramePainter extends CustomPainter {
   final double radius;
@@ -1771,105 +1953,112 @@ class _RefHomeFramePainter extends CustomPainter {
     final rect = Rect.fromLTWH(.8, .8, size.width - 1.6, size.height - 1.6);
     final rr = RRect.fromRectAndRadius(rect, Radius.circular(radius));
 
+    // Dark chrome perimeter: mostly black/steel.
     final metal = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.18
+      ..strokeWidth = .9
       ..shader = const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Color(0xFFC5C8CC),
-          Color(0xFF595E65),
-          Color(0xFF17191D),
-          Color(0xFF686D74),
-          Color(0xFF24272C),
+          Color(0xFF6F747A),
+          Color(0xFF34383D),
+          Color(0xFF15171A),
+          Color(0xFF33373C),
+          Color(0xFF111316),
         ],
-        stops: [0, .13, .47, .72, 1],
+        stops: [0, .18, .48, .74, 1],
       ).createShader(rect);
     canvas.drawRRect(rr, metal);
 
-    final innerRect = rect.deflate(2.25);
+    // Inner dark bevel.
+    final innerRect = rect.deflate(2.0);
     final innerRR = RRect.fromRectAndRadius(
       innerRect,
-      Radius.circular(math.max(2, radius - 2.2)),
+      Radius.circular(math.max(2, radius - 2)),
     );
     final inner = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = .63
-      ..shader = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0x88FFFFFF),
-          Color(0x20FFFFFF),
-          Color(0x15000000),
-          Color(0x70000000),
-        ],
-      ).createShader(innerRect);
+      ..strokeWidth = .48
+      ..color = const Color(0x4C969BA1);
     canvas.drawRRect(innerRR, inner);
 
+    // Chrome appears only in short reflected sections.
+    final chromeGlow = Paint()
+      ..color = const Color(0x44FFFFFF)
+      ..strokeWidth = 3.3
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.5);
+    final chromeCore = Paint()
+      ..color = const Color(0xB8F4F5F6)
+      ..strokeWidth = .62
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(
+      Offset(radius * .72, 1.25),
+      Offset(size.width * .34, 1.25),
+      chromeGlow,
+    );
+    canvas.drawLine(
+      Offset(radius * .72, 1.20),
+      Offset(size.width * .34, 1.20),
+      chromeCore,
+    );
+
+    canvas.drawLine(
+      Offset(size.width - 1.25, radius * .80),
+      Offset(size.width - 1.25, size.height * .22),
+      chromeGlow,
+    );
+    canvas.drawLine(
+      Offset(size.width - 1.20, radius * .80),
+      Offset(size.width - 1.20, size.height * .22),
+      chromeCore,
+    );
+
+    // Orange "burns": local and asymmetrical, like the reference.
     final hotGlow = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4.8
       ..strokeCap = StrokeCap.round
-      ..color = accent.withValues(alpha: .72)
+      ..color = accent.withValues(alpha: .58)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9);
 
     final hotCore = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.22
+      ..strokeWidth = 1.10
       ..strokeCap = StrokeCap.round
-      ..color = Color.lerp(accent, Colors.white, .11)!;
+      ..color = Color.lerp(accent, Colors.white, .08)!;
 
-    final tl = Rect.fromLTWH(-7, -7, radius * 2.18, radius * 2.18);
-    canvas.drawArc(tl, math.pi * .94, math.pi * .55, false, hotGlow);
-    canvas.drawArc(tl, math.pi * .94, math.pi * .55, false, hotCore);
+    final tl = Rect.fromLTWH(-6, -6, radius * 2.12, radius * 2.12);
+    canvas.drawArc(tl, math.pi * .94, math.pi * .50, false, hotGlow);
+    canvas.drawArc(tl, math.pi * .94, math.pi * .50, false, hotCore);
 
     final br = Rect.fromLTWH(
-      size.width - radius * 2.08,
-      size.height - radius * 2.08,
-      radius * 2.22,
-      radius * 2.22,
+      size.width - radius * 2.02,
+      size.height - radius * 2.02,
+      radius * 2.14,
+      radius * 2.14,
     );
-    canvas.drawArc(br, -math.pi * .08, math.pi * .56, false, hotGlow);
-    canvas.drawArc(br, -math.pi * .08, math.pi * .56, false, hotCore);
+    canvas.drawArc(br, -math.pi * .08, math.pi * .53, false, hotGlow);
+    canvas.drawArc(br, -math.pi * .08, math.pi * .53, false, hotCore);
 
+    // Side glow segments, not full lit borders.
     final sideGlow = Paint()
-      ..color = accent.withValues(alpha: .58)
-      ..strokeWidth = 3.8
+      ..color = accent.withValues(alpha: .43)
+      ..strokeWidth = 3.2
       ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
 
     canvas.drawLine(
-      Offset(1.3, size.height * .29),
-      Offset(1.3, size.height * .48),
+      Offset(1.15, size.height * .30),
+      Offset(1.15, size.height * .44),
       sideGlow,
     );
     canvas.drawLine(
-      Offset(size.width - 1.3, size.height * .62),
-      Offset(size.width - 1.3, size.height * .77),
+      Offset(size.width - 1.15, size.height * .66),
+      Offset(size.width - 1.15, size.height * .76),
       sideGlow,
-    );
-
-    final silverGlow = Paint()
-      ..color = const Color(0x50FFFFFF)
-      ..strokeWidth = 2.7
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
-    canvas.drawLine(
-      Offset(radius * .72, 1.35),
-      Offset(size.width * .39, 1.35),
-      silverGlow,
-    );
-
-    final silverCore = Paint()
-      ..color = const Color(0xB4FFFFFF)
-      ..strokeWidth = .65
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(
-      Offset(radius * .72, 1.3),
-      Offset(size.width * .39, 1.3),
-      silverCore,
     );
   }
 
@@ -1878,6 +2067,8 @@ class _RefHomeFramePainter extends CustomPainter {
     return oldDelegate.radius != radius || oldDelegate.accent != accent;
   }
 }
+
+
 
 
 BoxDecoration _homePanelDecoration({
