@@ -25,3 +25,5 @@ flutter:
     - assets/videos/tamerlan_intro.mp4
     - assets/images/home_truck.jpg
     - assets/images/garage_scene.png
+    - assets/images/garage_approved.png
+    - assets/images/road_approved.png
