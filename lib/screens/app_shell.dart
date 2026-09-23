@@ -571,7 +571,7 @@ class _NewHomeScene extends StatelessWidget {
           ))),
           Positioned(left: 18, top: 14, child: _NewDriverChip(onTap: () => _openHomeMenu(context, session))),
           const Positioned(right: 18, top: 18, child: _NewWeather()),
-          const Positioned(top: 96, left: 0, right: 0, child: Center(child: _ShiftPill())),
+          const Positioned(top: 96, left: 0, right: 0, child: Center(child: _NewShiftPill())),
           Positioned(left: 12, top: 176, child: _SceneHud(icon: Icons.local_fire_department_rounded, label: 'Газ', value: '${_fmt1(data.gas)} л', color: const Color(0xFF31D7FF), lineRight: true)),
           Positioned(left: 14, top: 294, child: _SceneHud(icon: Icons.local_gas_station_rounded, label: 'Бензин', value: '${_fmt1(data.petrol)} л', color: const Color(0xFFFF4553), lineRight: true)),
           Positioned(right: 12, top: 184, child: _SceneHud(icon: Icons.inventory_2_outlined, label: 'Тоннаж', value: '${_fmt1(data.tonnage)} т', color: const Color(0xFFFFA13A), lineRight: false)),
@@ -589,6 +589,31 @@ class _NewHomeScene extends StatelessWidget {
       ),
     );
   }
+}
+
+class _NewShiftPill extends StatelessWidget {
+  const _NewShiftPill();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+    decoration: BoxDecoration(
+      color: const Color(0xCC073A3A),
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: const Color(0xFF29D7C6), width: 1.2),
+      boxShadow: const [BoxShadow(color: Color(0x5529D7C6), blurRadius: 18)],
+    ),
+    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(Icons.circle, color: Color(0xFF18E6B7), size: 12),
+      SizedBox(width: 10),
+      Column(mainAxisSize: MainAxisSize.min, children: [
+        Text('Смена открыта', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+        Text('02:14:26', style: TextStyle(color: Color(0xFF29E5E0), fontSize: 22, height: 1.05, fontWeight: FontWeight.w900)),
+      ]),
+      SizedBox(width: 14),
+      Icon(Icons.pause_rounded, color: Colors.white, size: 24),
+    ]),
+  );
 }
 
 class _NewDriverChip extends StatelessWidget {
@@ -700,7 +725,7 @@ class _NewGlassPanel extends StatelessWidget {
   final Widget child;
   const _NewGlassPanel({required this.child});
   @override
-  Widget build(BuildContext context) => ClipRRect(borderRadius: BorderRadius.circular(20), child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16), child: Container(minHeight: 105, decoration: BoxDecoration(color: const Color(0xC60A0D11), borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0x553D4651))), child: child)));
+  Widget build(BuildContext context) => ClipRRect(borderRadius: BorderRadius.circular(20), child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16), child: Container(constraints: const BoxConstraints(minHeight: 105), decoration: BoxDecoration(color: const Color(0xC60A0D11), borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0x553D4651))), child: child)));
 }
 
 class _NewTripCard extends StatelessWidget {
