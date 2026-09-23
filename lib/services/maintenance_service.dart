@@ -17,10 +17,13 @@ class MaintenanceCatalog {
     MaintenanceItem('coolant','Антифриз','Двигатель','coolant'),
     MaintenanceItem('battery','Аккумулятор','Двигатель','battery'),
     MaintenanceItem('belts','Ремни','Двигатель','belt'),
+    MaintenanceItem('other_engine','Другое','Двигатель','other'),
     MaintenanceItem('brakes','Тормозные колодки','Ходовая','brakes'),
     MaintenanceItem('tyres','Шины','Ходовая','tyre'),
+    MaintenanceItem('other_chassis','Другое','Ходовая','other'),
     MaintenanceItem('inspection','Техосмотр','Документы','document',usesDate:true),
     MaintenanceItem('insurance','Страховка','Документы','document',usesDate:true),
+    MaintenanceItem('other_documents','Другое','Документы','other',usesDate:true),
   ];
   static MaintenanceItem byId(String id)=>items.firstWhere((item)=>item.id==id);
 }
@@ -86,6 +89,7 @@ class MaintenanceRepository {
     required int atKm,required int currentKm,int? nextKm,DateTime? nextDate,
     double? cost,String note=''}) async {
     final item=MaintenanceCatalog.byId(itemId);
+    if(itemId.startsWith('other_')&&note.trim().isEmpty)throw ArgumentError('Укажите, что именно сделано');
     if(atKm<0||currentKm<atKm)throw ArgumentError('Пробег обслуживания не может быть больше текущего');
     if(nextKm!=null&&nextKm<=atKm)throw ArgumentError('Следующая замена должна быть позже пробега обслуживания');
     if(item.usesDate&&nextDate==null)throw ArgumentError('Укажите срок действия');
