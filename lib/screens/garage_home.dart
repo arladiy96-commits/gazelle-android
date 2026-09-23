@@ -102,7 +102,8 @@ class _ReferenceHomeDashboard extends StatelessWidget {
           const SizedBox(height: 5), _garageText('Пробег', 19),
           FittedBox(fit: BoxFit.scaleDown, child: _garageText('${_fmtInt(data.mileage)} км', 27, weight: FontWeight.w600)),
           _garageText('за месяц', 17)]))),
-      place(247, 1106, 355, 44, _GarageOil(login: session.login)),
+      place(454, 784, 218, 67, _ServiceHoodTarget(session: session)),
+      place(247, 1106, 355, 44, _GarageOil(login: session.login, onOpen: () => _openMaintenance(context, session, initialItem: 'oil'))),
       place(20, 1175, 287, 223, _GarageSalary(data: data, onTap: () => onNavigate(4))),
       place(317, 1168, 207, 216, _GarageTap(label: 'Завершить смену',
         onTap: () => onNavigate(1), child: const _GarageEndShift())),
@@ -262,35 +263,32 @@ class _GarageLeaders extends CustomPainter {
 }
 
 class _GarageOil extends StatefulWidget {
-  final String login; const _GarageOil({required this.login});
+  final String login;
+  final VoidCallback onOpen;
+  const _GarageOil({required this.login,required this.onOpen});
   @override
   State<_GarageOil> createState()=>_GarageOilState();
 }
 class _GarageOilState extends State<_GarageOil> {
-  int remaining=2350;
-  String get _key=>'garage_oil_remaining_${widget.login}';
+  int? remaining=2350;
   @override
-  void initState(){super.initState();_load();}
+  void initState(){super.initState();_homeDataRevision.addListener(_load);_load();}
+  @override
+  void dispose(){_homeDataRevision.removeListener(_load);super.dispose();}
   Future<void> _load() async {
-    final p=await SharedPreferences.getInstance();
-    if(mounted)setState(()=>remaining=p.getInt(_key)??2350);
-  }
-  Future<void> _edit() async {
-    final result=await showDialog<int>(context:context,
-      builder: (_) => _GarageOilDialog(initialValue: remaining));
-    if(result!=null){
-      final p=await SharedPreferences.getInstance();await p.setInt(_key,result);
-      if(mounted)setState(()=>remaining=result);
-    }
+    try {final book=await MaintenanceRepository(widget.login).load();
+      final next=book.latest('oil')?.nextKm;
+      if(mounted)setState(()=>remaining=next==null?null:next-book.odometer);
+    }catch(_){if(mounted)setState(()=>remaining=null);}
   }
   @override
-  Widget build(BuildContext context)=>_GarageTap(label:'До замены масла',onTap:_edit,
+  Widget build(BuildContext context)=>_GarageTap(label:'До замены масла',onTap:widget.onOpen,
     child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
       const _GarageIcon('oil',color:_amber,size:33),const SizedBox(width:14),
       _garageText('До замены масла  ·  ',20),
-      Flexible(child:FittedBox(fit:BoxFit.scaleDown,child:Text.rich(TextSpan(children:[
-        TextSpan(text:_fmtInt(remaining.toDouble()),style:const TextStyle(color:_amber,fontWeight:FontWeight.w600)),
-        const TextSpan(text:' км')]),style:const TextStyle(color:_paper,fontSize:23))))]));
+      Flexible(child:FittedBox(fit:BoxFit.scaleDown,child:Text(
+        remaining==null?'—':'${_fmtInt(remaining!.toDouble())} км',
+        style:TextStyle(color:remaining!=null&&remaining!<0?Colors.redAccent:_amber,fontSize:23))))]));
 }
 
 class _GarageOilDialog extends StatefulWidget {

@@ -7,11 +7,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_role.dart';
 import '../services/session_service.dart';
+import '../services/maintenance_service.dart';
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
 
 part 'garage_home.dart';
 part 'work_dashboard.dart';
+part 'maintenance_dashboard.dart';
 
 class AppShell extends StatefulWidget {
   final AppSession session;
