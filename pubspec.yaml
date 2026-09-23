@@ -24,3 +24,4 @@ flutter:
   assets:
     - assets/videos/tamerlan_intro.mp4
     - assets/images/home_truck.jpg
+    - assets/images/garage_scene.png
