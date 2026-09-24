@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'test_store.dart';
 
 /// Stable IDs keep history intact when a title or the catalogue order changes.
 class MaintenanceItem {
@@ -73,21 +73,24 @@ class MaintenanceRepository {
   MaintenanceRepository(this.account);
   String get key=>'maintenance_v1_${Uri.encodeComponent(account)}';
   Future<MaintenanceBook> load() async {
-    final prefs=await SharedPreferences.getInstance();
+    final prefs=await TestPreferences.getInstance();
     final raw=prefs.getString(key);
-    if(raw==null)return MaintenanceBook.preview(remaining:prefs.getInt('garage_oil_remaining_$account')??2350);
+    if(raw==null){final b=await TestStore.load();return MaintenanceBook(odometer:(b.active?['currentKm'] as num?)?.toInt()??128540);}
     // Do not silently replace a damaged/unknown file with demo data.
     final json=jsonDecode(raw) as Map<String,dynamic>;
     if(json['version']!=1)throw const FormatException('Неизвестная версия данных ТО');
-    return MaintenanceBook.fromJson(json);
+    final saved=MaintenanceBook.fromJson(json);final b=await TestStore.load();
+    final current=b.active??(b.shifts.isEmpty?null:b.shifts.last);
+    final km=(current?['currentKm'] as num?)?.toInt()??saved.odometer;
+    return MaintenanceBook(odometer:km>saved.odometer?km:saved.odometer,entries:saved.entries,notes:saved.notes,example:saved.example);
   }
   Future<void> save(MaintenanceBook book) async {
-    final prefs=await SharedPreferences.getInstance();
+    final prefs=await TestPreferences.getInstance();
     if(!await prefs.setString(key,jsonEncode(book.toJson())))throw StateError('Не удалось сохранить ТО');
   }
   Future<MaintenanceBook> record({required String itemId,required DateTime date,
     required int atKm,required int currentKm,int? nextKm,DateTime? nextDate,
-    double? cost,String note=''}) async {
+    double? cost,String note='',String? entryId}) async {
     final item=MaintenanceCatalog.byId(itemId);
     if(itemId.startsWith('other_')&&note.trim().isEmpty)throw ArgumentError('Укажите, что именно сделано');
     if(atKm<0||currentKm<atKm)throw ArgumentError('Пробег обслуживания не может быть больше текущего');
@@ -96,11 +99,16 @@ class MaintenanceRepository {
     if(nextDate!=null&&!nextDate.isAfter(date))throw ArgumentError('Срок должен быть позже даты обслуживания');
     if(cost!=null&&(!cost.isFinite||cost<0))throw ArgumentError('Проверьте стоимость');
     final book=await load();
-    final real=book.entries.where((entry)=>!entry.example).toList();
+    if(entryId!=null&&!book.entries.any((e)=>e.id==entryId))throw StateError('Запись уже удалена');
+    final real=book.entries.where((entry)=>!entry.example&&entry.id!=entryId).toList();
     if(real.any((entry)=>entry.odometer>currentKm))throw ArgumentError('Текущий пробег меньше пробега в истории');
-    final entry=MaintenanceEntry(id:DateTime.now().microsecondsSinceEpoch.toString(),
+    final entry=MaintenanceEntry(id:entryId??DateTime.now().microsecondsSinceEpoch.toString(),
       itemId:itemId,date:date,odometer:atKm,nextKm:nextKm,nextDate:nextDate,cost:cost,note:note.trim());
     final updated=MaintenanceBook(odometer:currentKm,entries:[...real,entry],notes:book.notes);
+    await save(updated);return updated;
+  }
+  Future<MaintenanceBook> delete(String id) async {
+    final book=await load();final updated=MaintenanceBook(odometer:book.odometer,entries:book.entries.where((e)=>e.id!=id).toList(),notes:book.notes);
     await save(updated);return updated;
   }
   Future<MaintenanceBook> setNote(String id,String note) async {
