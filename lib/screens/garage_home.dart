@@ -33,10 +33,7 @@ class _ReferenceHomeDashboard extends StatelessWidget {
       child: FittedBox(fit: BoxFit.contain, alignment: Alignment.center,
         child: SizedBox(width: w, height: h, child: child)));
     void menu() { _openHomeMenu(context, session); }
-    void metric(String title, double tonnes) {
-      _garageInfo(context, title, '${_fmt1(tonnes)} т за ${_garageMonths[month.month-1].toLowerCase()} ${month.year}',
-        'Тоннаж пополняется при добавлении рейса с выбранным типом «$title».');
-    }
+    void details(String title) { _openMetricDetails(context,title,month); }
     final displayName = session.displayName == 'Водитель' ? 'Аркадий' : session.displayName;
     final initials = displayName == 'Аркадий' ? 'АБ' : displayName.trim().split(RegExp(r'\s+'))
       .where((word) => word.isNotEmpty).take(2).map((word) => word[0]).join().toUpperCase();
@@ -72,8 +69,8 @@ class _ReferenceHomeDashboard extends StatelessWidget {
         _garageInfo(context, 'Уведомления', 'Сервис пока не подключён', 'Здесь будут уведомления приложения.'),
         child: const Center(child: _GarageIcon('bellOutline', size: 39)))),
       place(190, 119, 460, 37, Center(child: _garageText('Заработано за месяц', 24, color: const Color(0xFFBCC2C9)))),
-      place(263, 155, 317, 63, Center(child: FittedBox(fit: BoxFit.scaleDown,
-        child: _garageText('${_fmtInt(data.salary)} ₸', 65, color: _amber, weight: FontWeight.w600)))),
+      place(263, 155, 317, 63, _GarageTap(label: 'Зарплата', onTap: () => details('Зарплата'), child: Center(child: FittedBox(fit: BoxFit.scaleDown,
+        child: _garageText('${_fmtInt(data.salary)} ₸', 65, color: _amber, weight: FontWeight.w600))))),
       place(201, 153, 54, 69, _GarageTap(label: 'Предыдущий месяц', onTap: () =>
         onMonthChanged(DateTime(month.year, month.month-1)), child: const Icon(Icons.chevron_left, color: Color(0xFF959DA5), size: 41))),
       place(585, 153, 54, 69, _GarageTap(label: 'Следующий месяц', onTap: () =>
@@ -88,14 +85,14 @@ class _ReferenceHomeDashboard extends StatelessWidget {
         onExpenses: onQuickAdd, onStats: () => onNavigate(4))),
       Positioned.fill(child: const IgnorePointer(child: CustomPaint(painter: _GarageLeaders()))),
       place(127, 541, 206, 86, _GarageHud(kind: 'flame', label: 'Газ',
-        value: '${_fmt1(data.gas)} л', color: _ice, onTap: () => _openFuelEntry(context))),
+        value: '${_fmt1(data.gas)} л', color: _ice, onTap: () => details('Газ'))),
       place(119, 810, 212, 85, _GarageHud(kind: 'fuel', label: 'Бензин',
-        value: '${_fmt1(data.petrol)} л', color: const Color(0xFFFF6454), onTap: () => _openFuelEntry(context))),
+        value: '${_fmt1(data.petrol)} л', color: const Color(0xFFFF6454), onTap: () => details('Бензин'))),
       place(605, 571, 230, 88, _GarageHud(kind: 'city', label: 'Город',
-        value: '${_fmt1(data.city)} т', color: _amber, onTap: () => metric('Город',data.city))),
+        value: '${_fmt1(data.city)} т', color: _amber, onTap: () => details('Город'))),
       place(648, 682, 189, 87, _GarageHud(kind: 'district', label: 'Район',
-        value: '${_fmt1(data.region)} т', color: const Color(0xFFD58BE8), onTap: () => metric('Район',data.region))),
-      place(681, 795, 154, 170, _GarageTap(label: 'Пробег', onTap: () => onNavigate(4),
+        value: '${_fmt1(data.region)} т', color: const Color(0xFFD58BE8), onTap: () => details('Район'))),
+      place(681, 795, 154, 170, _GarageTap(label: 'Пробег', onTap: () => details('Пробег'),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const SizedBox(width: 86, height: 84, child: CustomPaint(painter: _GarageRing(_amber),
             child: Center(child: _GarageIcon('road', color: _amber, size: 42)))),
@@ -104,7 +101,7 @@ class _ReferenceHomeDashboard extends StatelessWidget {
           _garageText('за месяц', 17)]))),
       place(454, 784, 218, 67, _ServiceHoodTarget(session: session)),
       place(247, 1106, 355, 44, _GarageOil(login: session.login, onOpen: () => _openMaintenance(context, session, initialItem: 'oil'))),
-      place(20, 1175, 287, 223, _GarageSalary(data: data, onTap: () => onNavigate(4))),
+      place(20, 1175, 287, 223, _GarageSalary(data: data, onTap: () => details('Зарплата'))),
       place(317, 1168, 207, 216, _GarageTap(label: 'Завершить смену',
         onTap: () => onNavigate(1), child: const _GarageEndShift())),
       place(533, 1175, 287, 223, const _GarageQuote()),

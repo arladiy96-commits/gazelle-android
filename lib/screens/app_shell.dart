@@ -8,12 +8,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_role.dart';
 import '../services/session_service.dart';
 import '../services/maintenance_service.dart';
+import '../services/activity_service.dart';
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
 
 part 'garage_home.dart';
 part 'work_dashboard.dart';
 part 'maintenance_dashboard.dart';
+part 'metric_details.dart';
 
 class AppShell extends StatefulWidget {
   final AppSession session;
@@ -496,39 +498,32 @@ class _HomeMonthData {
     final selected = month ?? now;
     final current = selected.year == now.year && selected.month == now.month;
     String key(String name) => _monthKey(name, selected);
+    final journal=await ActivityRepository.load(selected);
+    double? journalValue(String metric)=>journal.baseline.isEmpty?null:journal.total(metric);
     // Existing monthly keys remain intact. Previous unsplit trips are retained
     // in the total; only trips with an explicit type enter the new breakdown.
     return _HomeMonthData(
-      gas: p.getDouble(key('gas')) ?? (current ? 286 : 0),
-      petrol: p.getDouble(key('petrol')) ?? (current ? 74 : 0),
-      tonnage: p.getDouble(key('tonnage')) ?? (current ? 284.6 : 0),
-      trips: p.getInt(key('trips')) ?? (current ? 48 : 0),
+      gas: journalValue('gas') ?? p.getDouble(key('gas')) ?? (current ? 286 : 0),
+      petrol: journalValue('petrol') ?? p.getDouble(key('petrol')) ?? (current ? 74 : 0),
+      tonnage: journalValue('tonnage') ?? p.getDouble(key('tonnage')) ?? (current ? 284.6 : 0),
+      trips: journalValue('trips')?.round() ?? p.getInt(key('trips')) ?? (current ? 48 : 0),
       mileage: p.getDouble(key('mileage')) ?? (current ? 3124 : 0),
       salary: p.getDouble(key('salary')) ?? (current ? 324500 : 0),
-      city: p.getDouble(key('city_tonnage')) ?? (current ? 184.6 : 0),
-      region: p.getDouble(key('region_tonnage')) ?? (current ? 100 : 0),
+      city: journalValue('city_tonnage') ?? p.getDouble(key('city_tonnage')) ?? (current ? 184.6 : 0),
+      region: journalValue('region_tonnage') ?? p.getDouble(key('region_tonnage')) ?? (current ? 100 : 0),
       todaySalary: p.getDouble('home_day_${now.year}_${now.month}_${now.day}_salary') ?? 32450,
     );
   }
 
-  static Future<void> addFuel(String fuel, double litres) async {
-    final p = await SharedPreferences.getInstance();
-    final key = _monthKey(fuel == 'Газ' ? 'gas' : 'petrol');
-    await p.setDouble(key, (p.getDouble(key) ?? (fuel == 'Газ' ? 286 : 74)) + litres);
+  static Future<void> addFuel(String fuel,double litres) async {
+    await ActivityRepository.add(kind:'fuel',type:fuel,amount:litres);
+    _homeDataRevision.value++;
+  }
+  static Future<void> addTrip(double tonnage,{String type='Город',String direction=''}) async {
+    await ActivityRepository.add(kind:'trip',type:type,amount:tonnage,direction:direction);
     _homeDataRevision.value++;
   }
 
-  static Future<void> addTrip(double tonnage, {String type = 'Город'}) async {
-    if (!tonnage.isFinite || tonnage <= 0) return;
-    final p = await SharedPreferences.getInstance();
-    final tripKey = _monthKey('trips');
-    final tonKey = _monthKey('tonnage');
-    await p.setInt(tripKey, (p.getInt(tripKey) ?? 48) + 1);
-    await p.setDouble(tonKey, (p.getDouble(tonKey) ?? 284.6) + tonnage);
-    final splitKey = _monthKey(type == 'Район' ? 'region_tonnage' : 'city_tonnage');
-    await p.setDouble(splitKey, (p.getDouble(splitKey) ?? (type == 'Район' ? 100 : 184.6)) + tonnage);
-    _homeDataRevision.value++;
-  }
 }
 
 String _fmt1(double value) {
@@ -3641,6 +3636,7 @@ class _TripEntrySheet extends StatefulWidget {
 }
 
 class _TripEntrySheetState extends State<_TripEntrySheet> {
+  bool _saving=false;
   String _type = 'Город';
   String _direction = 'Петропавловск';
   final TextEditingController _tonnageController = TextEditingController();
@@ -3699,7 +3695,9 @@ class _TripEntrySheetState extends State<_TripEntrySheet> {
               HapticFeedback.mediumImpact();
               final tonnage = double.tryParse(_tonnageController.text.replaceAll(',', '.')) ?? 0;
               if (!tonnage.isFinite || tonnage <= 0) return;
-              await _HomeMonthData.addTrip(tonnage, type: _type);
+              if(_saving)return;_saving=true;
+              try {await _HomeMonthData.addTrip(tonnage, type: _type, direction: _direction);}
+              catch(_){_saving=false;if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Рейс не сохранён. Повторите попытку.')));return;}
               if (context.mounted) Navigator.pop(context);
             },
           ),
@@ -3726,6 +3724,7 @@ class _FuelEntrySheet extends StatefulWidget {
 }
 
 class _FuelEntrySheetState extends State<_FuelEntrySheet> {
+  bool _saving=false;
   String _fuel = 'Газ';
   final TextEditingController _controller = TextEditingController();
 
@@ -3760,7 +3759,9 @@ class _FuelEntrySheetState extends State<_FuelEntrySheet> {
             onTap: () async {
               HapticFeedback.mediumImpact();
               final litres = double.tryParse(_controller.text.replaceAll(',', '.')) ?? 0;
-              if (litres > 0) await _HomeMonthData.addFuel(_fuel, litres);
+              if(!litres.isFinite||litres<=0||_saving)return;_saving=true;
+              try {await _HomeMonthData.addFuel(_fuel, litres);}
+              catch(_){_saving=false;if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Заправка не сохранена. Повторите попытку.')));return;}
               if (context.mounted) Navigator.pop(context);
             },
           ),
