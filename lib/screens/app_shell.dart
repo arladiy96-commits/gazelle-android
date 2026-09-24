@@ -16,7 +16,7 @@ part 'garage_home.dart';
 part 'work_dashboard.dart';
 part 'maintenance_dashboard.dart';
 part 'metric_details.dart';
-
+part 'garage_sections.dart';
 class AppShell extends StatefulWidget {
   final AppSession session;
 
