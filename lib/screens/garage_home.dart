@@ -80,9 +80,11 @@ class _ReferenceHomeDashboard extends StatelessWidget {
           _garageText('${_garageMonths[month.month-1]} ${month.year}', 25),
           const Icon(Icons.expand_more, color: _paper, size: 28)]))),
       place(208, 274, 420, 63, _GarageTap(label: 'Текущая смена', onTap: () => onNavigate(1), child: const _GarageShift())),
-      place(2, 139, 106, 675, _GarageRail(onShift: () => onNavigate(1),
-        onTrips: () => onNavigate(1), onFuel: () => _openFuelEntry(context),
-        onExpenses: onQuickAdd, onStats: () => onNavigate(4))),
+      place(2, 139, 106, 675, _GarageRail(
+        onHistory: () => _openGarageSection(context,'История',session.login),
+        onDirections: () => _openGarageSection(context,'Направления',session.login),
+        onDocuments: () => _openGarageSection(context,'Документы',session.login),
+        onStats: () => _openGarageSection(context,'Статистика',session.login))),
       Positioned.fill(child: const IgnorePointer(child: CustomPaint(painter: _GarageLeaders()))),
       place(127, 541, 206, 86, _GarageHud(kind: 'flame', label: 'Газ',
         value: '${_fmt1(data.gas)} л', color: _ice, onTap: () => details('Газ'))),
@@ -165,28 +167,18 @@ class _GarageGlass extends StatelessWidget {
 }
 
 class _GarageRail extends StatelessWidget {
-  final VoidCallback onShift,onTrips,onFuel,onExpenses,onStats;
-  const _GarageRail({required this.onShift, required this.onTrips, required this.onFuel,
-    required this.onExpenses, required this.onStats});
+  final VoidCallback onHistory,onDirections,onDocuments,onStats;
+  const _GarageRail({required this.onHistory,required this.onDirections,required this.onDocuments,required this.onStats});
   @override
   Widget build(BuildContext context) {
-    final items=[('shift','Смена',onShift),('truck','Рейсы',onTrips),('fuel','Топливо',onFuel),
-      ('expense','Расходы',onExpenses),('chart','Статистика',onStats)];
-    return ClipRRect(borderRadius: BorderRadius.circular(22), child: BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 2.5, sigmaY: 2.5), child: Container(
-        decoration: BoxDecoration(color: const Color(0x40060D12),
-          borderRadius: BorderRadius.circular(22), border: Border.all(color: const Color(0x668C969C))),
-        padding: const EdgeInsets.symmetric(vertical: 22),
-        child: Column(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          for(var i=0;i<items.length;i++) _GarageTap(label: items[i].$2, onTap: items[i].$3,
-            child: Container(width: 97, height: 111, decoration: i==0 ? BoxDecoration(
-              color: const Color(0x550C0B06), borderRadius: BorderRadius.circular(17),
-              border: Border.all(color: _amber, width: 1.6),
-              boxShadow: const [BoxShadow(color: Color(0x33FFAF27), blurRadius: 13)]) : null,
-              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                _GarageIcon(items[i].$1, color: i==0 ? _amber : const Color(0xFFB8BDC6), size: 40),
-                const SizedBox(height: 15), _garageText(items[i].$2, 18, color: i==0 ? _amber : _paper)])))
-        ]))));
+    final items=[(Icons.history,'История',onHistory),(Icons.bar_chart_outlined,'Статистика',onStats),
+      (Icons.alt_route,'Направления',onDirections),(Icons.folder_outlined,'Документы',onDocuments)];
+    return ClipRRect(borderRadius:BorderRadius.circular(22),child:BackdropFilter(filter:ImageFilter.blur(sigmaX:2.5,sigmaY:2.5),
+      child:Container(decoration:BoxDecoration(color:const Color(0x40060D12),borderRadius:BorderRadius.circular(22),border:Border.all(color:const Color(0x558C969C))),
+        padding:const EdgeInsets.symmetric(vertical:18),child:Column(mainAxisAlignment:MainAxisAlignment.spaceAround,children:[
+          for(final item in items)_GarageTap(label:item.$2,onTap:item.$3,child:SizedBox(width:102,height:132,
+            child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Icon(item.$1,color:const Color(0xFFBBCAD3),size:40),
+              const SizedBox(height:16),FittedBox(fit:BoxFit.scaleDown,child:_garageText(item.$2,17))])))]))));
   }
 }
 
@@ -392,7 +384,7 @@ class _GarageNavigation extends StatelessWidget {
   const _GarageNavigation({required this.onWork,required this.onAdd,required this.onInvoices,required this.onMore});
   @override
   Widget build(BuildContext context){
-    final items=[('homeOutline','Главная',(){}),('map','Карта',onWork),('plus','Добавить',onAdd),
+    final items=[('homeOutline','Главная',(){}),('truck','Работа',onWork),('plus','Добавить',onAdd),
       ('invoice','Накладные',onInvoices),('gridOutline','Ещё',onMore)];
     return Stack(clipBehavior:Clip.none,children:[
       Positioned(left:0,right:0,top:18,bottom:0,child:Container(decoration:const BoxDecoration(

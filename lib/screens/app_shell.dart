@@ -16,6 +16,7 @@ part 'garage_home.dart';
 part 'work_dashboard.dart';
 part 'maintenance_dashboard.dart';
 part 'metric_details.dart';
+part 'garage_sections.dart';
 
 class AppShell extends StatefulWidget {
   final AppSession session;
@@ -70,9 +71,9 @@ class _AppShellState extends State<AppShell> {
         activeIcon: Icons.receipt_long_rounded,
       ),
       _NavItem(
-        label: 'Статистика',
-        icon: Icons.bar_chart_outlined,
-        activeIcon: Icons.bar_chart_rounded,
+        label: 'Ещё',
+        icon: Icons.grid_view_outlined,
+        activeIcon: Icons.grid_view_rounded,
       ),
     ];
   }
@@ -153,6 +154,10 @@ class _AppShellState extends State<AppShell> {
         onChanged: (value) {
           if (widget.session.role != AppRole.loader && value == 2) {
             _openQuickAdd();
+            return;
+          }
+          if (widget.session.role != AppRole.loader && value == 4) {
+            _openHomeMenu(context, widget.session);
             return;
           }
           HapticFeedback.selectionClick();
@@ -3189,233 +3194,47 @@ Future<void> _showQuickAddMenu(
 
 
 class _QuickAddMenu extends StatelessWidget {
-  final VoidCallback onTrip;
-  final VoidCallback onFuel;
-  final VoidCallback onInvoice;
-
-  const _QuickAddMenu({
-    required this.onTrip,
-    required this.onFuel,
-    required this.onInvoice,
-  });
-
+  final VoidCallback onTrip,onFuel,onInvoice;
+  const _QuickAddMenu({required this.onTrip,required this.onFuel,required this.onInvoice});
   @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            'assets/images/home_truck.jpg',
-            fit: BoxFit.cover,
-            alignment: Alignment.centerRight,
-          ),
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topRight,
-                end: Alignment.bottomLeft,
-                colors: [
-                  Color(0x3B000000),
-                  Color(0xB40A0B0D),
-                  Color(0xF6020304),
-                ],
-                stops: [0, .43, 1],
-              ),
-            ),
-          ),
-          BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
-            child: const SizedBox.expand(),
-          ),
-          CustomPaint(
-            foregroundPainter: const _FullScreenChromePainter(),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(17, 13, 17, 15),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        InkWell(
-                          customBorder: const CircleBorder(),
-                          onTap: () => Navigator.of(context).pop(),
-                          child: const SizedBox(
-                            width: 42,
-                            height: 42,
-                            child: Icon(
-                              Icons.close_rounded,
-                              color: AppColors.text,
-                              size: 29,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        const Text(
-                          'Новое действие',
-                          style: TextStyle(
-                            color: AppColors.text,
-                            fontSize: 19,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(flex: 1),
-                    const Text(
-                      'Что добавить?',
-                      style: TextStyle(
-                        color: AppColors.text,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -.9,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      'Выберите тип действия',
-                      style: TextStyle(
-                        color: AppColors.textSoft,
-                        fontSize: 11,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    _QuickActionOrb(
-                      icon: Icons.local_shipping_outlined,
-                      title: 'Рейс',
-                      subtitle: 'Добавить новый рейс',
-                      onTap: onTrip,
-                    ),
-                    const SizedBox(height: 12),
-                    _QuickActionOrb(
-                      icon: Icons.local_gas_station_rounded,
-                      title: 'Топливо',
-                      subtitle: 'Добавить заправку',
-                      onTap: onFuel,
-                    ),
-                    const SizedBox(height: 12),
-                    _QuickActionOrb(
-                      icon: Icons.receipt_long_outlined,
-                      title: 'Накладная',
-                      subtitle: 'Создать накладную',
-                      onTap: onInvoice,
-                    ),
-                    const Spacer(flex: 1),
-                    InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: () => Navigator.of(context).pop(),
-                      child: const _ChromeCloseOrb(),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context)=>Material(color:const Color(0xFF030B10),child:Stack(children:[
+    Positioned.fill(child:Image.asset('assets/images/work_approved.png',fit:BoxFit.cover)),
+    const Positioned.fill(child:ColoredBox(color:Color(0x5900070D))),
+    SafeArea(child:LayoutBuilder(builder:(context,box)=>SingleChildScrollView(child:ConstrainedBox(
+      constraints:BoxConstraints(minHeight:box.maxHeight),child:Padding(padding:const EdgeInsets.fromLTRB(20,8,20,24),child:Column(children:[
+        Row(children:[IconButton(tooltip:'Закрыть',onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close,color:_paper)),
+          Expanded(child:_dt('Новое действие',size:18,weight:FontWeight.w500))]),
+        const SizedBox(height:20),_dt('Что добавить?',size:21,weight:FontWeight.w500),const SizedBox(height:6),
+        _dt('Выберите действие',size:13,color:const Color(0xFFADC0CC)),const SizedBox(height:18),
+        _QuickActionOrb(icon:Icons.local_shipping_outlined,title:'Рейс',subtitle:'Город или район',onTap:onTrip),const SizedBox(height:16),
+        _QuickActionOrb(icon:Icons.local_gas_station_outlined,title:'Топливо',subtitle:'Газ или бензин',onTap:onFuel),const SizedBox(height:16),
+        _QuickActionOrb(icon:Icons.receipt_long_outlined,title:'Накладная',subtitle:'Создать накладную',onTap:onInvoice),
+      ]))))))]));
 }
 
-
-
-
-
-
-
-class _QuickActionOrb extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _QuickActionOrb({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
+class _QuickActionOrb extends StatefulWidget {
+  final IconData icon;final String title,subtitle;final VoidCallback onTap;
+  const _QuickActionOrb({required this.icon,required this.title,required this.subtitle,required this.onTap});
   @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      customBorder: const CircleBorder(),
-      onTap: () {
-        HapticFeedback.mediumImpact();
-        onTap();
-      },
-      child: SizedBox(
-        width: 158,
-        height: 158,
-        child: CustomPaint(
-          painter: const _ChromeOrbPainter(),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Positioned(
-                left: 26,
-                right: 26,
-                top: 17,
-                height: 42,
-                child: IgnorePointer(
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      borderRadius: BorderRadius.all(
-                        Radius.elliptical(90, 36),
-                      ),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Color(0x85FFFFFF),
-                          Color(0x22FFFFFF),
-                          Color(0x00FFFFFF),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _NeonIcon(
-                    icon: icon,
-                    color: AppColors.orange,
-                    size: 35,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: AppColors.text,
-                      fontSize: 19,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: AppColors.textSoft,
-                      fontSize: 9,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  State<_QuickActionOrb> createState()=>_QuickActionOrbState();
 }
-
-
-
-
-
+class _QuickActionOrbState extends State<_QuickActionOrb> {
+  bool _pressed=false;
+  @override
+  Widget build(BuildContext context)=>Semantics(button:true,label:widget.title,child:GestureDetector(
+    onTapDown:(_)=>setState(()=>_pressed=true),onTapCancel:()=>setState(()=>_pressed=false),
+    onTapUp:(_)=>setState(()=>_pressed=false),onTap:(){HapticFeedback.selectionClick();widget.onTap();},
+    child:AnimatedScale(scale:_pressed ? 0.95 : 1.0,duration:const Duration(milliseconds:180),curve:Curves.easeOutCubic,
+      child:Container(width:164,height:164,decoration:BoxDecoration(shape:BoxShape.circle,
+        gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF90A8B1),Color(0xFF24343D),Color(0xFF070C10),Color(0xFFC78832)]),
+        boxShadow:const [BoxShadow(color:Color(0xCC000000),blurRadius:16,offset:Offset(0,10)),BoxShadow(color:Color(0x44FFAD35),blurRadius:25,spreadRadius:1)]),
+        padding:const EdgeInsets.all(4),child:Container(decoration:BoxDecoration(shape:BoxShape.circle,border:Border.all(color:const Color(0xD9FFBD5A)),
+          gradient:const RadialGradient(center:Alignment(-.5,-.7),radius:1.2,colors:[Color(0xFF314752),Color(0xFF0D1D25),Color(0xFF02090E)])),
+          child:Stack(alignment:Alignment.center,children:[Positioned(top:9,left:27,right:27,child:Container(height:31,decoration:const BoxDecoration(
+            borderRadius:BorderRadius.all(Radius.elliptical(70,30)),gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[Color(0x3375E4EF),Color(0x0075E4EF)])))),
+            Column(mainAxisSize:MainAxisSize.min,children:[Icon(widget.icon,color:widget.title=='Топливо'?_ice:_amber,size:32,shadows:const [Shadow(color:Color(0x66FFB542),blurRadius:12)]),
+              const SizedBox(height:12),_dt(widget.title,size:17,weight:FontWeight.w500),const SizedBox(height:6),_dt(widget.subtitle,size:11,color:const Color(0xFFB6C5CE))])]))))));
+}
 
 void _openTripEntry(BuildContext context) {
 showModalBottomSheet<void>(
@@ -3772,104 +3591,20 @@ class _FuelEntrySheetState extends State<_FuelEntrySheet> {
 }
 
 class _QuickEntryShell extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Widget child;
-
-  const _QuickEntryShell({
-    required this.title,
-    required this.icon,
-    required this.child,
-  });
-
+  final String title;final IconData icon;final Widget child;
+  const _QuickEntryShell({required this.title,required this.icon,required this.child});
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      child: SafeArea(
-        top: false,
-        child: Container(
-          margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF25282E),
-                Color(0xFF101216),
-                Color(0xFF070809),
-              ],
-              stops: [0, .38, 1],
-            ),
-            borderRadius: BorderRadius.all(Radius.circular(30)),
-            border: Border.fromBorderSide(
-              BorderSide(color: Color(0xFF6B4A32), width: .9),
-            ),
-            boxShadow: [
-              BoxShadow(color: Color(0x99000000), blurRadius: 28, offset: Offset(0, -8)),
-              BoxShadow(color: Color(0x24FF7418), blurRadius: 24),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 42,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4A4B50),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1A140F),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: const Color(0xFF5A361E),
-                      ),
-                    ),
-                    child: Icon(
-                      icon,
-                      color: AppColors.orange,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: const TextStyle(
-                        color: AppColors.text,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      color: AppColors.textSoft,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              child,
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context)=>AnimatedPadding(duration:const Duration(milliseconds:220),curve:Curves.easeOutCubic,
+    padding:EdgeInsets.only(bottom:MediaQuery.viewInsetsOf(context).bottom),child:SafeArea(top:false,child:SingleChildScrollView(
+      padding:const EdgeInsets.fromLTRB(12,20,12,8),child:ClipRRect(borderRadius:BorderRadius.circular(22),
+        child:BackdropFilter(filter:ImageFilter.blur(sigmaX:12,sigmaY:12),child:Container(
+          padding:const EdgeInsets.fromLTRB(16,10,16,18),decoration:BoxDecoration(borderRadius:BorderRadius.circular(22),
+            border:Border.all(color:const Color(0x99E8AF57)),gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
+              colors:[Color(0xE01A303B),Color(0xF008141D)]),boxShadow:const [BoxShadow(color:Color(0x2200DDEE),blurRadius:20)]),
+          child:Column(mainAxisSize:MainAxisSize.min,children:[Container(width:34,height:3,decoration:BoxDecoration(color:const Color(0xFF637883),borderRadius:BorderRadius.circular(3))),
+            const SizedBox(height:10),Row(children:[Icon(icon,color:_amber,size:23),const SizedBox(width:12),Expanded(child:_dt(title,size:18,weight:FontWeight.w500)),
+              IconButton(tooltip:'Закрыть',onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close,color:_paper,size:21))]),
+            const SizedBox(height:12),child])))))));
 }
 
 class _QuickSegment extends StatelessWidget {
@@ -3904,26 +3639,27 @@ class _QuickSegment extends StatelessWidget {
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                height: 50,
+                height: 46,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: active
-                      ? const Color(0xFF25170E)
-                      : const Color(0xFF151619),
+                      ? const Color(0x332EDCEF)
+                      : const Color(0x88061119),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: active
-                        ? AppColors.orange
-                        : AppColors.line,
+                        ? _amber
+                        : const Color(0x667A929F),
                   ),
                 ),
                 child: Text(
                   value,
                   style: TextStyle(
                     color: active
-                        ? AppColors.orange
+                        ? _amber
                         : AppColors.textSoft,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
@@ -3954,9 +3690,9 @@ class _QuickSelectField extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
-          color: const Color(0xFF151619),
+          color: const Color(0x88061119),
           borderRadius: BorderRadius.circular(17),
-          border: Border.all(color: AppColors.line),
+          border: Border.all(color: Color(0x667A929F)),
         ),
         child: Row(
           children: [
@@ -3977,8 +3713,8 @@ class _QuickSelectField extends StatelessWidget {
                     value,
                     style: const TextStyle(
                       color: AppColors.text,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -3986,7 +3722,7 @@ class _QuickSelectField extends StatelessWidget {
             ),
             const Icon(
               Icons.keyboard_arrow_down_rounded,
-              color: AppColors.orange,
+              color: _amber,
             ),
           ],
         ),
@@ -4002,7 +3738,7 @@ Future<String?> _pickQuickValue(
 ) {
   return showModalBottomSheet<String>(
     context: context,
-    backgroundColor: const Color(0xFF111215),
+    backgroundColor: const Color(0xFF0B1B24),
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
         top: Radius.circular(28),
@@ -4020,7 +3756,7 @@ Future<String?> _pickQuickValue(
                 style: const TextStyle(
                   color: AppColors.text,
                   fontSize: 17,
-                  fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 10),
@@ -4034,7 +3770,7 @@ Future<String?> _pickQuickValue(
                   ),
                   trailing: const Icon(
                     Icons.chevron_right_rounded,
-                    color: AppColors.orange,
+                    color: _amber,
                   ),
                   onTap: () => Navigator.pop(sheetContext, value),
                 ),
@@ -4060,14 +3796,15 @@ class _QuickNumberField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
-      keyboardType: TextInputType.number,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [
-        FilteringTextInputFormatter.digitsOnly,
+        TextInputFormatter.withFunction((oldValue, newValue) =>
+          RegExp(r'^\d*([.,]\d*)?$').hasMatch(newValue.text) ? newValue : oldValue),
       ],
       style: const TextStyle(
         color: AppColors.text,
-        fontSize: 20,
-        fontWeight: FontWeight.w700,
+        fontSize: 16,
+                    fontWeight: FontWeight.w500,
       ),
       decoration: InputDecoration(
         hintText: hint,
@@ -4076,7 +3813,7 @@ class _QuickNumberField extends StatelessWidget {
           fontSize: 14,
         ),
         filled: true,
-        fillColor: const Color(0xFF151619),
+        fillColor: const Color(0x88061119),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 17,
@@ -4084,13 +3821,13 @@ class _QuickNumberField extends StatelessWidget {
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(17),
           borderSide: const BorderSide(
-            color: AppColors.line,
+            color: Color(0x667A929F),
           ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(17),
           borderSide: const BorderSide(
-            color: AppColors.orange,
+            color: _amber,
           ),
         ),
       ),
@@ -4111,13 +3848,13 @@ class _QuickSaveButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: 46,
       child: OutlinedButton(
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.orange,
+          foregroundColor: _amber,
           side: const BorderSide(
-            color: AppColors.orange,
+            color: _amber,
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(17),
@@ -4126,7 +3863,8 @@ class _QuickSaveButton extends StatelessWidget {
         child: Text(
           text,
           style: const TextStyle(
-            fontWeight: FontWeight.w800,
+            fontSize: 14,
+                    fontWeight: FontWeight.w500,
           ),
         ),
       ),
