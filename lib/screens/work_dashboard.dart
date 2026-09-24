@@ -1,14 +1,12 @@
 part of 'app_shell.dart';
 
-// Presentation snapshot for the approved design. No monthly totals are used.
-// The shift service and real GPS provider will supply this view data later.
+// Approved composition, bound to the isolated miniapp-compatible shift journal.
 class _WorkViewData {
   final int mileage, startOdometer, currentOdometer, trips;
   final double cityTonnage, regionTonnage;
   final String elapsed, started;
-  const _WorkViewData({this.mileage=124,this.startOdometer=128540,
-    this.currentOdometer=128664,this.trips=5,this.cityTonnage=8.4,
-    this.regionTonnage=12.6,this.elapsed='04:26:18',this.started='07:10'});
+  final bool open,paused;
+  const _WorkViewData({this.mileage=0,this.startOdometer=0,this.currentOdometer=0,this.trips=0,this.cityTonnage=0,this.regionTonnage=0,this.elapsed='00:00:00',this.started='—',this.open=false,this.paused=false});
 }
 
 class WorkPage extends StatelessWidget {
@@ -18,16 +16,23 @@ class WorkPage extends StatelessWidget {
   const WorkPage({super.key,required this.session,this.onNavigate,this.onQuickAdd});
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(builder:(context,c){
-    const data=_WorkViewData();
+  Widget build(BuildContext context) => _TestLive(builder:(book)=>LayoutBuilder(builder:(context,c){
+    final shift=book.active;final rows=shift==null?<Map<String,dynamic>>[]:book.forShift(shift['id'] as String);
+    double weight(String type)=>rows.where((e)=>e['kind']=='trip'&&e['type']==type).fold<double>(0,(v,e)=>v+(e['amount'] as num).toDouble())/1000;
+    final secs=shift==null?0:(book.elapsed(shift)*3600).round();
+    final data=_WorkViewData(open:shift!=null,paused:shift?['gpsStatus']=='paused',mileage:shift==null?0:book.mileage(shift).round(),
+      startOdometer:(shift?['startKm'] as num?)?.toInt()??0,currentOdometer:(shift?['currentKm'] as num?)?.toInt()??0,
+      trips:rows.where((e)=>e['kind']=='trip').length,cityTonnage:weight('Город'),regionTonnage:weight('Район'),
+      elapsed:'${secs~/3600}:${((secs~/60)%60).toString().padLeft(2,'0')}:${(secs%60).toString().padLeft(2,'0')}',
+      started:shift==null?'—':_detailTime(DateTime.parse(shift['start'] as String)));
+
     final bottom=MediaQuery.paddingOf(context).bottom;
     final scale=c.maxWidth/840;
     final h=math.max(1500.0,(c.maxHeight-bottom)/scale);
     final sy=h/1870;
     void navigate(int index){onNavigate?.call(index);}
     void quickAdd(){if(onQuickAdd!=null){onQuickAdd!();}else{_showQuickAddMenu(context,session);}}
-    void later(String title){_garageInfo(context,title,'Подключим на следующем этапе',
-      'Сейчас здесь утверждённый макет текущей смены. Учёт смены и GPS пока не подключены.');}
+    void later(String title){_testOpen(context);}
     Widget p(double x,double y,double w,double height,Widget child)=>Positioned(
       left:x,top:y*sy,width:w,height:height*sy,
       child:FittedBox(fit:BoxFit.contain,child:SizedBox(width:w,height:height,child:child)));
@@ -39,10 +44,10 @@ class WorkPage extends StatelessWidget {
       p(25,13,70,80,_GarageTap(label:'Вернуться на главную',onTap:()=>navigate(0),
         child:const Icon(Icons.arrow_back_ios_new_rounded,color:_paper,size:43))),
       p(220,15,400,78,Column(children:[_garageText('Работа',38,weight:FontWeight.w600),
-        const SizedBox(height:5),_garageText('Текущая смена',25,color:const Color(0xFFB7CBD6))])),
+        const SizedBox(height:5),_garageText('Тестовая смена',25,color:const Color(0xFFB7CBD6))])),
       p(751,13,68,80,_GarageTap(label:'Уведомления',onTap:()=>later('Уведомления'),
         child:const Center(child:_GarageIcon('bellOutline',size:40)))),
-      p(42,110,757,70,_WorkStatus(data:data,onPause:()=>later('Пауза смены'))),
+      p(42,110,757,70,_WorkStatus(data:data,onPause:(){if(shift==null){_testOpen(context);}else{_testRun(context,()=>TestStore.gps(shift['id'] as String,paused:!data.paused));}})),
       p(58,238,334,168,Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         _garageText('Пробег за смену',29),const SizedBox(height:12),
         Expanded(child:FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,
@@ -60,8 +65,8 @@ class WorkPage extends StatelessWidget {
         _garageText('Всего перевезено',23),const SizedBox(width:18),
         _garageText('${(data.cityTonnage+data.regionTonnage).toStringAsFixed(1).replaceAll('.',',')} т',31,color:_amber,weight:FontWeight.w600)])),
       p(28,646,786,428,_WorkMap(onNavigate:()=>later('Навигация'))),
-      p(29,1090,785,228,_WorkFuel(onAdd:()=>_openFuelEntry(context))),
-      p(29,1331,785,213,const _WorkEvents()),
+      p(29,1090,785,228,_WorkFuel(rows:rows,onAdd:()=>_openFuelEntry(context))),
+      p(29,1331,785,213,_WorkEvents(rows:rows,onOpen:()=>_testOpen(context))),
       p(49,1588,301,85,_GarageTap(label:'Добавить рейс',onTap:()=>_openTripEntry(context),
         child:Container(decoration:BoxDecoration(color:const Color(0xD8061016),
           borderRadius:BorderRadius.circular(22),border:Border.all(color:_amber,width:1.6)),
@@ -69,7 +74,7 @@ class WorkPage extends StatelessWidget {
             const _GarageIcon('truck',color:_amber,size:47),const SizedBox(width:18),
             _garageText('Добавить рейс',23,color:_amber)])))),
       p(584,1490,215,208,_GarageTap(label:'Завершить смену',onTap:()=>later('Завершение смены'),
-        child:const _GarageEndShift())),
+        child:const _TestHomeShiftButton())),
       p(0,1697,840,151,_WorkNavigation(onHome:()=>navigate(0),onAdd:quickAdd,
         onInvoices:()=>navigate(3),onMore:()=>_openHomeMenu(context,session))),
     ]));
@@ -78,7 +83,7 @@ class WorkPage extends StatelessWidget {
         child:SizedBox(width:c.maxWidth,height:h*scale,child:FittedBox(fit:BoxFit.fill,
           alignment:Alignment.topCenter,child:MediaQuery.withClampedTextScaling(
             minScaleFactor:1,maxScaleFactor:1,child:canvas))))));
-  });
+  }));
 }
 
 class _WorkPanel extends StatelessWidget {
@@ -102,13 +107,13 @@ class _WorkStatus extends StatelessWidget {
       boxShadow:const[BoxShadow(color:Color(0x221AE4F2),blurRadius:18)]),
     child:Row(children:[Container(width:19,height:19,decoration:const BoxDecoration(
       color:Color(0xFF00E69C),shape:BoxShape.circle,boxShadow:[BoxShadow(color:Color(0x4400E69C),blurRadius:18)])),
-      const SizedBox(width:20),_garageText('Смена открыта',26,color:_ice,weight:FontWeight.w600),
+      const SizedBox(width:20),_garageText(!data.open?'Смена закрыта':data.paused?'GPS на паузе':'Смена открыта',26,color:_ice,weight:FontWeight.w600),
       const Spacer(),_divider(),const Spacer(),_garageText(data.elapsed,29,color:_ice,weight:FontWeight.w600),
       const Spacer(),_divider(),const Spacer(),_garageText('Начало ',24,color:_ice),_garageText(data.started,25),
       const Spacer(),_GarageTap(label:'Пауза смены',onTap:onPause,child:Container(width:68,height:68,
         decoration:BoxDecoration(shape:BoxShape.circle,color:const Color(0xFF04141E),
           border:Border.all(color:_ice,width:2.5),boxShadow:const[BoxShadow(color:Color(0x6615DDE8),blurRadius:15)]),
-        child:const Icon(Icons.pause_rounded,color:_ice,size:42)))]));
+        child:Icon(data.paused||!data.open?Icons.play_arrow_rounded:Icons.pause_rounded,color:_ice,size:42)))]));
   Widget _divider()=>Container(width:1,height:28,color:const Color(0xAA39CDD4));
 }
 
@@ -141,8 +146,8 @@ class _WorkMap extends StatelessWidget {
           border:Border.all(color:const Color(0x66577987))),
         child:Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,
           mainAxisAlignment:MainAxisAlignment.center,children:[
-            _garageText('Склад → Бишкуль',27,weight:FontWeight.w600),const SizedBox(height:8),
-            _garageText('В пути · 18 км до точки',23,color:const Color(0xFFB5CDD9))])),
+            _garageText('Схема маршрута · демо',27,weight:FontWeight.w600),const SizedBox(height:8),
+            _garageText('Управление пробегом и сменой',23,color:const Color(0xFFB5CDD9))])),
           _GarageTap(label:'Навигация по маршруту смены',onTap:onNavigate,
             child:Container(width:72,height:72,decoration:BoxDecoration(shape:BoxShape.circle,
               color:const Color(0xCC061117),border:Border.all(color:_amber,width:2),
@@ -227,42 +232,20 @@ class _WorkMapPainter extends CustomPainter {
 }
 
 class _WorkFuel extends StatelessWidget {
-  final VoidCallback onAdd;const _WorkFuel({required this.onAdd});
-  @override
-  Widget build(BuildContext context)=>_WorkPanel(child:Padding(padding:const EdgeInsets.fromLTRB(17,13,17,12),
-    child:Column(children:[Row(children:[_garageText('Заправки за смену',27,weight:FontWeight.w600),
-      const Spacer(),_GarageTap(label:'Добавить заправку',onTap:onAdd,child:Row(children:[
-        const Icon(Icons.add_circle_outline,color:_ice,size:37),const SizedBox(width:12),_garageText('Добавить',24,color:_ice)]))]),
-      const SizedBox(height:11),_row('flame','Газ','+40 л','09:35','4 800 ₸',_ice),
-      _row('fuel','Бензин','+15 л','11:20','3 150 ₸',const Color(0xFFFF6653)),
-      const Spacer(),Row(mainAxisAlignment:MainAxisAlignment.end,children:[_garageText('Всего ',22),
-        _garageText('7 950 ₸',27,color:_amber,weight:FontWeight.w600)])])));
-  Widget _row(String icon,String title,String litres,String time,String cost,Color color)=>Container(
-    height:61,padding:const EdgeInsets.symmetric(horizontal:14),decoration:BoxDecoration(
-      color:const Color(0x88040C11),borderRadius:BorderRadius.circular(17),border:Border.all(color:const Color(0x775A6F77))),
-    child:Row(children:[Container(width:54,height:54,decoration:BoxDecoration(shape:BoxShape.circle,
-      border:Border.all(color:color.withValues(alpha:.22))),child:Center(child:_GarageIcon(icon,color:color,size:39))),
-      const SizedBox(width:23),SizedBox(width:168,child:_garageText(title,23)),
-      _garageText(litres,24,weight:FontWeight.w600),const Spacer(),_garageText('$time  ·  $cost',22,color:const Color(0xFFCDD5DE))]));
+  final VoidCallback onAdd;final List<Map<String,dynamic>> rows;
+  const _WorkFuel({required this.onAdd,required this.rows});
+  @override Widget build(BuildContext context){double litres(String type)=>rows.where((e)=>e['kind']=='fuel'&&e['type']==type).fold<double>(0,(v,e)=>v+(e['amount'] as num).toDouble());
+    return _WorkPanel(child:Padding(padding:const EdgeInsets.all(20),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Row(children:[_garageText('Заправки за смену',27),const Spacer(),_GarageTap(label:'Добавить топливо',onTap:onAdd,child:const Icon(Icons.add_circle_outline,color:_ice,size:38))]),
+      const SizedBox(height:20),_garageText('Газ     ${_fmt1(litres('Газ'))} л',30,color:_ice),const SizedBox(height:16),_garageText('Бензин     ${_fmt1(litres('Бензин'))} л',30,color:_amber)])));}
 }
-
 class _WorkEvents extends StatelessWidget {
-  const _WorkEvents();
-  @override
-  Widget build(BuildContext context)=>_WorkPanel(child:Padding(padding:const EdgeInsets.fromLTRB(19,15,19,12),
-    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      _garageText('События смены',27,weight:FontWeight.w600),const SizedBox(height:12),
-      _event(null,'11:45','Рейс завершён · Район · 6,2 т',_paper),
-      _event('fuel','11:20','Заправка · Бензин +15 л',const Color(0xFFFF6653)),
-      _event('flame','09:35','Заправка · Газ +40 л',_ice),
-    ])));
-  Widget _event(String? icon,String time,String description,Color color)=>SizedBox(height:47,child:Row(children:[
-    SizedBox(width:66,child:Center(child:icon==null?const Icon(Icons.flag_outlined,color:_paper,size:32):_GarageIcon(icon,color:color,size:32))),
-    SizedBox(width:77,child:_garageText(time,22,color:const Color(0xFFBFD0DC))),
-    SizedBox(width:25,child:Stack(alignment:Alignment.center,children:[Container(width:1,color:const Color(0xFF6D8E9D)),
-      Container(width:4,height:4,decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFADCEDB)))])),
-    const SizedBox(width:11),Expanded(child:_garageText(description,22)),
-  ]));
+  final List<Map<String,dynamic>> rows;final VoidCallback onOpen;
+  const _WorkEvents({required this.rows,required this.onOpen});
+  @override Widget build(BuildContext context)=>_GarageTap(label:'Записи смены: изменить или удалить',onTap:onOpen,child:_WorkPanel(child:Padding(padding:const EdgeInsets.all(18),
+    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_garageText('Записи смены · подробнее ›',27),const SizedBox(height:14),
+      if(rows.isEmpty)_garageText('Записей пока нет',24),
+      for(final e in rows.reversed.take(3))Padding(padding:const EdgeInsets.only(bottom:9),child:_garageText('${_detailTime(DateTime.parse(e['date'] as String))}   ${_testKind(e['kind'] as String)} · ${e['direction']??e['type']??''}',23))]))));
 }
 
 class _WorkNavigation extends StatelessWidget {

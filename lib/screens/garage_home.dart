@@ -56,7 +56,7 @@ class _ReferenceHomeDashboard extends StatelessWidget {
         const SizedBox(width: 20), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center, children: [
             _garageText(displayName, 24, weight: FontWeight.w600),
-            const SizedBox(height: 4), _garageText(session.role.title, 20, color: const Color(0xFFADB4BA))]))]))),
+            const SizedBox(height: 4), _garageText('Тестовый режим', 20, color: const Color(0xFFADB4BA))]))]))),
       place(343, 41, 158, 42, Column(children: [
         Transform.scale(scaleX: 1.12, child: const Text('ГАЗЕЛЬ', style: TextStyle(
           color: Color(0xFFB7BEC7), fontSize: 25, letterSpacing: 3,
@@ -79,7 +79,7 @@ class _ReferenceHomeDashboard extends StatelessWidget {
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           _garageText('${_garageMonths[month.month-1]} ${month.year}', 25),
           const Icon(Icons.expand_more, color: _paper, size: 28)]))),
-      place(208, 274, 420, 63, _GarageTap(label: 'Текущая смена', onTap: () => onNavigate(1), child: const _GarageShift())),
+      place(208, 274, 420, 63, _GarageTap(label: 'Текущая смена', onTap: () => onNavigate(1), child: const _TestHomeStatus())),
       place(2, 139, 106, 675, _GarageRail(
         onHistory: () => _openGarageSection(context,'История',session.login),
         onDirections: () => _openGarageSection(context,'Направления',session.login),
@@ -105,9 +105,9 @@ class _ReferenceHomeDashboard extends StatelessWidget {
       place(247, 1106, 355, 44, _GarageOil(login: session.login, onOpen: () => _openMaintenance(context, session, initialItem: 'oil'))),
       place(20, 1175, 287, 223, _GarageSalary(data: data, onTap: () => details('Зарплата'))),
       place(317, 1168, 207, 216, _GarageTap(label: 'Завершить смену',
-        onTap: () => onNavigate(1), child: const _GarageEndShift())),
+        onTap: () => _testOpen(context), child: const _TestHomeShiftButton())),
       place(533, 1175, 287, 223, const _GarageQuote()),
-      place(21, 1420, 798, 153, _GarageTrip(onTap: () => onNavigate(1))),
+      place(21, 1420, 798, 153, _TestHomeTrip(onTap: () => onNavigate(1))),
       place(0, 1626, 840, 150, _GarageNavigation(onWork: () => onNavigate(1),
         onAdd: onQuickAdd, onInvoices: () => onNavigate(3), onMore: menu)),
     ]));
@@ -259,7 +259,7 @@ class _GarageOil extends StatefulWidget {
   State<_GarageOil> createState()=>_GarageOilState();
 }
 class _GarageOilState extends State<_GarageOil> {
-  int? remaining=2350;
+  int? remaining;
   @override
   void initState(){super.initState();_homeDataRevision.addListener(_load);_load();}
   @override

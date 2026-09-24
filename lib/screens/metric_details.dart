@@ -50,7 +50,7 @@ class _MetricDetails extends StatefulWidget {
 }
 class _MetricDetailsState extends State<_MetricDetails> {
   late DateTime _month;
-  _HomeMonthData? _total;ActivityBook? _book;SharedPreferences? _prefs;
+  _HomeMonthData? _total;ActivityBook? _book;TestPreferences? _prefs;
   final _scroll=ScrollController();
   String? _error,_direction;bool _trips=false,_hideEmpty=false;int _loadId=0;
   bool get _weight=>['Город','Район'].contains(widget.metric);
@@ -61,7 +61,7 @@ class _MetricDetailsState extends State<_MetricDetails> {
   void dispose(){_loadId++;_homeDataRevision.removeListener(_load);_scroll.dispose();super.dispose();}
   Future<void> _load() async {
     final id=++_loadId;
-    try {final total=await _HomeMonthData.load(_month);final book=await ActivityRepository.load(_month);final prefs=await SharedPreferences.getInstance();
+    try {final total=await _HomeMonthData.load(_month);final book=await ActivityRepository.load(_month);final prefs=await TestPreferences.getInstance();
       if(mounted&&id==_loadId)setState((){_total=total;_book=book;_prefs=prefs;_error=null;});
     }catch(_){if(mounted&&id==_loadId)setState(()=>_error='Не удалось прочитать данные. Повторите попытку.');}
   }
@@ -150,19 +150,19 @@ class _DayDetails extends StatefulWidget {
   State<_DayDetails> createState()=>_DayDetailsState();
 }
 class _DayDetailsState extends State<_DayDetails> {
-  ActivityBook? _book;SharedPreferences? _prefs;String? _error;
+  ActivityBook? _book;TestPreferences? _prefs;String? _error;
   @override
-  void initState(){super.initState();_load();}
+  void initState(){super.initState();_homeDataRevision.addListener(_load);_load();}
+  @override
+  void dispose(){_homeDataRevision.removeListener(_load);super.dispose();}
   Future<void> _load() async {
-    try{final b=await ActivityRepository.load(widget.date);final p=await SharedPreferences.getInstance();
+    try{final b=await ActivityRepository.load(widget.date);final p=await TestPreferences.getInstance();
       if(mounted)setState((){_book=b;_prefs=p;_error=null;});}
     catch(_){if(mounted)setState(()=>_error='Не удалось прочитать отчёт');}
   }
   String get _key=>'home_day_${widget.date.year}_${widget.date.month}_${widget.date.day}_';
   double? _number(String name)=>(_prefs?.get('$_key$name') as num?)?.toDouble();
-  void _trip(ActivityEntry e)=>Navigator.of(context).push<void>(MaterialPageRoute(builder:(_)=>_DetailFrame(title:'Рейс',children:[
-    _DetailGlass(accent:true,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_dt(e.direction.isEmpty?'Направление не указано':e.direction,size:20),
-      _detailRow('Тип',e.type),_detailRow('Вес','${_fmtInt(e.amount*1000)} кг'),_detailRow('Дата',_detailDate(e.date)),_detailRow('Время',_detailTime(e.date))]))])));
+  void _trip(ActivityEntry e)=>_editActivity(context,e);
   @override
   Widget build(BuildContext context)=>_DetailFrame(title:'${_detailDate(widget.date)} ${widget.date.year}',children:[
     if(_error!=null)...[_DetailGlass(child:_dt(_error!)),_detailButton('Повторить',_load)]
@@ -173,6 +173,7 @@ class _DayDetailsState extends State<_DayDetails> {
     final rows=_book!.onDay(widget.date);final trips=rows.where((e)=>e.kind=='trip').toList();final fuel=rows.where((e)=>e.kind=='fuel').toList();
     final status=_prefs?.getString('${_key}status');final hours=_number('hours'),mileage=_number('mileage'),start=_number('odometer_start'),end=_number('odometer_end');
     return [
+      _detailButton('Изменить / удалить смену',()=>_testOpen(context,page:'История смен')),
       Center(child:_dt(switch(status){'completed'=>'Смена завершена','open'=>'Смена открыта',_=>'Статус смены не записан'},color:_amber,size:14)),const SizedBox(height:20),
       _DetailGlass(accent:true,child:Column(children:[Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         _dt(hours==null?'—':'${_fmt1(hours)} ч',size:24),const SizedBox(height:6),_dt('Отработано',size:14)])),
@@ -184,7 +185,7 @@ class _DayDetailsState extends State<_DayDetails> {
           '${_fmtInt(trips[i].amount*1000)} кг',subtitle:trips[i].type,onTap:()=>_trip(trips[i]))]))),
       _DetailGlass(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_dt('Топливо',size:17),const SizedBox(height:10),
         if(fuel.isEmpty)_dt('Заправки за этот день не записаны.',color:const Color(0xFFB3C6D0))
-        else ..._separated([for(final e in fuel)_detailRow(e.type,'${_fmt1(e.amount)} л',subtitle:_detailTime(e.date))])])),
+        else ..._separated([for(final e in fuel)_detailRow(e.type,'${_fmt1(e.amount)} л',subtitle:_detailTime(e.date),onTap:()=>_editActivity(context,e))])])),
       _detailButton('GPS за день',()=>Navigator.of(context).push<void>(MaterialPageRoute(builder:(_)=>_DetailFrame(title:'GPS · ${_detailDate(widget.date)}',children:[
         _DetailGlass(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_dt('Маршрут · скорость · стоянки',size:20),const SizedBox(height:12),
           _dt('GPS-история этого дня пока не подключена. После подключения здесь появятся маршрут и остановки.',color:const Color(0xFFB3C6D0))]))]))),icon:Icons.route),

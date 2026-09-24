@@ -1,9 +1,10 @@
 import 'dart:math' as math;
 import 'dart:ui';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/test_store.dart';
 
 import '../models/app_role.dart';
 import '../services/session_service.dart';
@@ -17,6 +18,7 @@ part 'work_dashboard.dart';
 part 'maintenance_dashboard.dart';
 part 'metric_details.dart';
 part 'garage_sections.dart';
+part 'test_mode.dart';
 
 class AppShell extends StatefulWidget {
   final AppSession session;
@@ -95,7 +97,7 @@ class _AppShellState extends State<AppShell> {
       WorkPage(session: widget.session,
         onNavigate: (index) => setState(() => _index = index), onQuickAdd: _openQuickAdd),
       const SizedBox.shrink(),
-      InvoicesPage(session: widget.session),
+      const _TestHub(page:'Накладные',embedded:true),
       StatisticsPage(session: widget.session),
     ];
   }
@@ -467,7 +469,7 @@ class _MiniChromeOrbPainter extends CustomPainter {
 
 
 
-final ValueNotifier<int> _homeDataRevision = ValueNotifier<int>(0);
+final ValueNotifier<int> _homeDataRevision = TestStore.revision;
 
 class _HomeMonthData {
   final double gas;
@@ -487,9 +489,9 @@ class _HomeMonthData {
     required this.trips,
     required this.mileage,
     required this.salary,
-    this.city = 184.6,
-    this.region = 100,
-    this.todaySalary = 32450,
+    this.city = 0,
+    this.region = 0,
+    this.todaySalary = 0,
   });
 
   static String _monthKey(String name, [DateTime? month]) {
@@ -498,35 +500,21 @@ class _HomeMonthData {
   }
 
   static Future<_HomeMonthData> load([DateTime? month]) async {
-    final p = await SharedPreferences.getInstance();
-    final now = DateTime.now();
-    final selected = month ?? now;
-    final current = selected.year == now.year && selected.month == now.month;
-    String key(String name) => _monthKey(name, selected);
-    final journal=await ActivityRepository.load(selected);
-    double? journalValue(String metric)=>journal.baseline.isEmpty?null:journal.total(metric);
-    // Existing monthly keys remain intact. Previous unsplit trips are retained
-    // in the total; only trips with an explicit type enter the new breakdown.
-    return _HomeMonthData(
-      gas: journalValue('gas') ?? p.getDouble(key('gas')) ?? (current ? 286 : 0),
-      petrol: journalValue('petrol') ?? p.getDouble(key('petrol')) ?? (current ? 74 : 0),
-      tonnage: journalValue('tonnage') ?? p.getDouble(key('tonnage')) ?? (current ? 284.6 : 0),
-      trips: journalValue('trips')?.round() ?? p.getInt(key('trips')) ?? (current ? 48 : 0),
-      mileage: p.getDouble(key('mileage')) ?? (current ? 3124 : 0),
-      salary: p.getDouble(key('salary')) ?? (current ? 324500 : 0),
-      city: journalValue('city_tonnage') ?? p.getDouble(key('city_tonnage')) ?? (current ? 184.6 : 0),
-      region: journalValue('region_tonnage') ?? p.getDouble(key('region_tonnage')) ?? (current ? 100 : 0),
-      todaySalary: p.getDouble('home_day_${now.year}_${now.month}_${now.day}_salary') ?? 32450,
-    );
+    final now=DateTime.now();final d=month??now;
+    final b=await TestStore.load();final journal=await ActivityRepository.load(d);
+    final stats=b.statistics(d);
+    return _HomeMonthData(gas:journal.total('gas'),petrol:journal.total('petrol'),tonnage:journal.total('tonnage'),trips:journal.total('trips').round(),
+      mileage:stats['mileage']!,salary:stats['salary']!,
+      city:journal.total('city_tonnage'),region:journal.total('region_tonnage'),todaySalary:b.statistics(now,day:now)['salary']!);
   }
 
   static Future<void> addFuel(String fuel,double litres) async {
     await ActivityRepository.add(kind:'fuel',type:fuel,amount:litres);
-    _homeDataRevision.value++;
+
   }
   static Future<void> addTrip(double tonnage,{String type='Город',String direction=''}) async {
     await ActivityRepository.add(kind:'trip',type:type,amount:tonnage,direction:direction);
-    _homeDataRevision.value++;
+
   }
 
 }
@@ -576,8 +564,8 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) => FutureBuilder<_HomeMonthData>(
     future: _data,
     builder: (context, snap) {
-      final data = snap.data ?? const _HomeMonthData(gas: 286, petrol: 74,
-        tonnage: 284.6, trips: 48, mileage: 3124, salary: 324500);
+      if(snap.hasError)return Center(child:_detailButton('Не удалось прочитать тестовые данные. Повторить',_reload));
+      final data = snap.data ?? const _HomeMonthData(gas: 0, petrol: 0,tonnage: 0, trips: 0, mileage: 0, salary: 0);
       return LayoutBuilder(builder: (context, c) => _ReferenceHomeDashboard(
         session: widget.session, data: data, month: _month, onMonthChanged: _selectMonth,
         size: Size(c.maxWidth, c.maxHeight), onNavigate: widget.onNavigate, onQuickAdd: widget.onQuickAdd));
@@ -2198,104 +2186,10 @@ BoxDecoration _homePanelDecoration({
   );
 }
 
-Future<void> _openHomeMenu(
-  BuildContext context,
-  AppSession session,
-) async {
-  HapticFeedback.selectionClick();
-
-  await showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
-    builder: (context) {
-      return Container(
-        margin: const EdgeInsets.all(10),
-        padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
-        decoration: _homePanelDecoration(
-          radius: 28,
-          borderColor: const Color(0xFF4A3425),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 44,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF34363A),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.grain_rounded,
-                    color: AppColors.orange,
-                  ),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Text(
-                      'ТАМЕРЛАН',
-                      style: TextStyle(
-                        color: AppColors.text,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    session.role.title,
-                    style: const TextStyle(
-                      color: AppColors.textSoft,
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              if (session.role == AppRole.admin)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(
-                    Icons.groups_2_outlined,
-                    color: AppColors.orange,
-                  ),
-                  title: const Text('Сотрудники'),
-                  subtitle: const Text('Водители, грузчики, доступы'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showEmployees(context);
-                  },
-                ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(
-                  Icons.tune_rounded,
-                  color: AppColors.orange,
-                ),
-                title: const Text('Настройки'),
-                subtitle: const Text('Интерфейс, звук, уведомления'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showFeatureStub(
-                    context,
-                    'Настройки',
-                    'Этот раздел подключим после Главной.',
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      );
-    },
-  );
+Future<void> _openHomeMenu(BuildContext context,AppSession session) async {
+  _testOpen(context,page:'Тестовые данные');
 }
+
 
 void _showSalarySheet(BuildContext context) {
   const rows = [
@@ -3174,7 +3068,7 @@ Future<void> _showQuickAddMenu(
                   () {
                     Navigator.of(rootContext).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => InvoicesPage(session: session),
+                        builder: (_) => const _TestHub(page:'Накладные'),
                       ),
                     );
                   },
@@ -3236,14 +3130,7 @@ class _QuickActionOrbState extends State<_QuickActionOrb> {
               const SizedBox(height:12),_dt(widget.title,size:17,weight:FontWeight.w500),const SizedBox(height:6),_dt(widget.subtitle,size:11,color:const Color(0xFFB6C5CE))])]))))));
 }
 
-void _openTripEntry(BuildContext context) {
-showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (sheetContext) => const _TripEntrySheet(),
-  );
-}
+void _openTripEntry(BuildContext context) => _testEditor(context,'trip');
 
 
 
@@ -3526,14 +3413,7 @@ class _TripEntrySheetState extends State<_TripEntrySheet> {
   }
 }
 
-void _openFuelEntry(BuildContext context) {
-showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (sheetContext) => const _FuelEntrySheet(),
-  );
-}
+void _openFuelEntry(BuildContext context) => _testEditor(context,'fuel');
 
 class _FuelEntrySheet extends StatefulWidget {
   const _FuelEntrySheet();

@@ -90,10 +90,10 @@ class _MaintenancePageState extends State<_MaintenancePage> {
   }
   void _back(){if(_selected!=null){setState(()=>_selected=null);}else{Navigator.of(context).maybePop();}}
   void _select(String id)=>setState(()=>_selected=id);
-  Future<void> _record(MaintenanceItem item) async {
+  Future<void> _record(MaintenanceItem item,{MaintenanceEntry? entry}) async {
     final book=_book;if(book==null)return;
     final updated=await showModalBottomSheet<MaintenanceBook>(context:context,isScrollControlled:true,
-      backgroundColor:Colors.transparent,builder:(_)=>_MaintenanceEntryForm(item:item,book:book,repository:_repository));
+      backgroundColor:Colors.transparent,builder:(_)=>_MaintenanceEntryForm(item:item,book:book,repository:_repository,entry:entry));
     if(updated!=null&&mounted)setState(()=>_book=updated);
   }
   Future<void> _note(MaintenanceItem item) async {
@@ -113,6 +113,8 @@ class _MaintenancePageState extends State<_MaintenancePage> {
           Expanded(child:entries.isEmpty?const Center(child:Text('Записей пока нет')):ListView.separated(
             itemCount:entries.length,separatorBuilder:(_,i)=>const Divider(color:Color(0xFF29414E)),
             itemBuilder:(_,i){final entry=entries[i];return ListTile(contentPadding:EdgeInsets.zero,
+              onTap:(){Navigator.pop(context);_record(item,entry:entry);},
+              trailing:IconButton(tooltip:'Удалить запись ТО',icon:const Icon(Icons.delete_outline,color:_amber),onPressed:() async{if(await _testConfirm(context,'Удалить запись обслуживания?')&&mounted){await _testRun(context,() async{final b=await _repository.delete(entry.id);if(mounted){Navigator.pop(context);setState(()=>_book=b);}});}}),
               title:Text('${_serviceDate(entry.date)} · ${_serviceKm(entry.odometer)}',style:const TextStyle(color:_paper)),
               subtitle:Text([if(entry.example)'Пример записи',if(entry.note.isNotEmpty)entry.note,
                 if(entry.nextKm!=null)'Следующая замена: ${_serviceKm(entry.nextKm)}',
@@ -334,7 +336,8 @@ class _MaintenanceEntryForm extends StatefulWidget {
   final MaintenanceItem item;
   final MaintenanceBook book;
   final MaintenanceRepository repository;
-  const _MaintenanceEntryForm({required this.item,required this.book,required this.repository});
+  final MaintenanceEntry? entry;
+  const _MaintenanceEntryForm({required this.item,required this.book,required this.repository,this.entry});
   @override
   State<_MaintenanceEntryForm> createState()=>_MaintenanceEntryFormState();
 }
@@ -347,7 +350,7 @@ class _MaintenanceEntryFormState extends State<_MaintenanceEntryForm> {
   bool _saving=false;
   String? _error;
   @override
-  void initState(){super.initState();_at=TextEditingController(text:'${widget.book.odometer}');_current=TextEditingController(text:'${widget.book.odometer}');}
+  void initState(){super.initState();_at=TextEditingController(text:'${widget.book.odometer}');_current=TextEditingController(text:'${widget.book.odometer}');final e=widget.entry;if(e!=null){_at.text='${e.odometer}';_date=e.date;_next.text=e.nextKm?.toString()??'';_nextDate=e.nextDate;_cost.text=e.cost?.toString()??'';_note.text=e.note;}}
   @override
   void dispose(){for(final c in [_at,_current,_next,_cost,_note]){c.dispose();}super.dispose();}
   Future<void> _pick(bool next) async {
@@ -361,7 +364,7 @@ class _MaintenanceEntryFormState extends State<_MaintenanceEntryForm> {
     if(widget.item.usesDate&&_nextDate==null){setState(()=>_error='Укажите срок действия');return;}
     setState((){_saving=true;_error=null;});
     try {
-      final book=await widget.repository.record(itemId:widget.item.id,date:_date,
+      final book=await widget.repository.record(itemId:widget.item.id,date:_date,entryId:widget.entry?.id,
         atKm:int.parse(_at.text),currentKm:int.parse(_current.text),nextKm:int.tryParse(_next.text),
         nextDate:_nextDate,cost:double.tryParse(_cost.text.replaceAll(',','.')),note:_note.text);
       if(mounted)Navigator.of(context).pop(book);

@@ -11,7 +11,7 @@ class _GarageSection extends StatefulWidget {
 }
 class _GarageSectionState extends State<_GarageSection> {
   DateTime _month=DateTime(DateTime.now().year,DateTime.now().month);
-  ActivityBook? _book;_HomeMonthData? _total;SharedPreferences? _prefs;
+  ActivityBook? _book;_HomeMonthData? _total;TestPreferences? _prefs;
   String _filter='Все';String? _error;int _request=0;
   @override
   void initState(){super.initState();_homeDataRevision.addListener(_load);_load();}
@@ -19,7 +19,7 @@ class _GarageSectionState extends State<_GarageSection> {
   void dispose(){_request++;_homeDataRevision.removeListener(_load);super.dispose();}
   Future<void> _load() async {
     final id=++_request;
-    try {final p=await SharedPreferences.getInstance();final b=await ActivityRepository.load(_month);final t=await _HomeMonthData.load(_month);
+    try {final p=await TestPreferences.getInstance();final b=await ActivityRepository.load(_month);final t=await _HomeMonthData.load(_month);
       if(mounted&&id==_request)setState((){_prefs=p;_book=b;_total=t;_error=null;});
     }catch(_){if(mounted&&id==_request)setState(()=>_error='Не удалось загрузить записи');}
   }
@@ -91,6 +91,8 @@ class _GarageSectionState extends State<_GarageSection> {
     return '${_detailDate(d)} ${d.year} · ${days<0?'Срок истёк':days==0?'Истекает сегодня':'Осталось $days дн.'}';}
   Future<void> _editDocument(String name) async {
     final old=DateTime.tryParse(_prefs!.getString(_docKey(name))??'');
+    if(old!=null){final choice=await showModalBottomSheet<String>(context:context,backgroundColor:Colors.transparent,builder:(c)=>_QuickEntryShell(title:name,icon:Icons.description_outlined,child:Column(children:[_detailButton('Изменить срок',()=>Navigator.pop(c,'edit')),_detailButton('Удалить срок',()=>Navigator.pop(c,'delete'))])));
+      if(!mounted||choice==null)return;if(choice=='delete'){await _testRun(context,() async{await _prefs!.remove(_docKey(name));});return;}}
     final now=DateTime.now();
     final date=await showDatePicker(context:context,initialDate:old??now,firstDate:DateTime(1900),lastDate:DateTime(2200),
       builder:(c,child)=>Theme(data:Theme.of(c).copyWith(colorScheme:const ColorScheme.dark(primary:_amber,surface:Color(0xFF0B1A22))),child:child!));
