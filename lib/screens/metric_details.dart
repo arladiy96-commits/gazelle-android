@@ -82,14 +82,70 @@ class _MetricDetailsState extends State<_MetricDetails> {
     if(selected!=null&&mounted)setState(()=>_direction=selected.isEmpty?null:selected);
   }
   @override
-  Widget build(BuildContext context)=>_DetailFrame(title:widget.metric,controller:_scroll,children:[
-    Row(mainAxisAlignment:MainAxisAlignment.center,children:[IconButton(tooltip:'Предыдущий месяц',onPressed:()=>_monthTo(-1),icon:const Icon(Icons.chevron_left,color:_amber)),
-      Flexible(child:_dt('${_garageMonths[_month.month-1]} ${_month.year}',size:15)),
-      IconButton(tooltip:'Следующий месяц',onPressed:()=>_monthTo(1),icon:const Icon(Icons.chevron_right,color:_amber))]),const SizedBox(height:12),
-    if(_error!=null)...[_DetailGlass(child:_dt(_error!)),_detailButton('Повторить',_load)]
-    else if(_total==null||_book==null)const Center(child:CircularProgressIndicator(color:_amber))
-    else ..._content(),
-  ]);
+  Widget build(BuildContext context){
+    if(widget.metric=='Район')return _districtScreen();
+    return _DetailFrame(title:widget.metric,controller:_scroll,children:[
+      Row(mainAxisAlignment:MainAxisAlignment.center,children:[IconButton(tooltip:'Предыдущий месяц',onPressed:()=>_monthTo(-1),icon:const Icon(Icons.chevron_left,color:_amber)),
+        Flexible(child:_dt('${_garageMonths[_month.month-1]} ${_month.year}',size:15)),
+        IconButton(tooltip:'Следующий месяц',onPressed:()=>_monthTo(1),icon:const Icon(Icons.chevron_right,color:_amber))]),const SizedBox(height:12),
+      if(_error!=null)...[_DetailGlass(child:_dt(_error!)),_detailButton('Повторить',_load)]
+      else if(_total==null||_book==null)const Center(child:CircularProgressIndicator(color:_amber))
+      else ..._content(),
+    ]);
+  }
+
+  Widget _districtScreen(){
+    final ready=_total!=null&&_book!=null&&_error==null;
+    final entries=ready?_entries:<ActivityEntry>[];
+    final total=ready?_total!.region:0.0;
+    final grouped=<DateTime,List<ActivityEntry>>{};
+    for(final e in entries){
+      final d=DateTime(e.date.year,e.date.month,e.date.day);
+      grouped.putIfAbsent(d,()=>[]).add(e);
+    }
+    final days=grouped.keys.toList()..sort((a,b)=>b.compareTo(a));
+    return Scaffold(backgroundColor:const Color(0xFF05090C),body:Stack(children:[
+      Positioned.fill(child:Image.asset('assets/images/district_approved.png',fit:BoxFit.cover,alignment:Alignment.topCenter)),
+      Positioned.fill(child:DecoratedBox(decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,stops:const[0,.46,.72,1],colors:[Colors.black.withValues(alpha:.10),Colors.black.withValues(alpha:.03),const Color(0xB20A0D0F),const Color(0xF205090C)])))),
+      SafeArea(child:Column(children:[
+        Padding(padding:const EdgeInsets.fromLTRB(12,4,12,0),child:Row(children:[
+          IconButton(onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.arrow_back_ios_new_rounded,color:_paper,size:22)),
+          Expanded(child:Text('Район',textAlign:TextAlign.center,style:const TextStyle(color:_paper,fontSize:20,fontWeight:FontWeight.w600))),
+          IconButton(onPressed:()=>Navigator.of(context).popUntil((r)=>r.isFirst),icon:const Icon(Icons.more_horiz,color:_paper,size:28)),
+        ])),
+        Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+          IconButton(onPressed:()=>_monthTo(-1),icon:const Icon(Icons.chevron_left_rounded,color:_amber,size:27)),
+          _dt('${_garageMonths[_month.month-1]} ${_month.year}',size:15,color:const Color(0xFFE8E8E8)),
+          IconButton(onPressed:()=>_monthTo(1),icon:const Icon(Icons.chevron_right_rounded,color:_amber,size:27)),
+        ]),
+        Expanded(flex:10,child:Stack(children:[
+          if(ready)Positioned(right:24,bottom:22,child:_DistrictTotal(value:'${_fmt1(total)} т')),
+          if(_error!=null)Center(child:Padding(padding:const EdgeInsets.all(24),child:_DetailGlass(child:Column(mainAxisSize:MainAxisSize.min,children:[_dt(_error!),const SizedBox(height:10),_detailButton('Повторить',_load)])))),
+          if(_error==null&&!ready)const Center(child:CircularProgressIndicator(color:_amber)),
+        ])),
+        Padding(padding:const EdgeInsets.fromLTRB(18,0,18,10),child:_DistrictTabs(trips:_trips,direction:_direction,onDays:()=>setState(()=>_trips=false),onTrips:()=>setState(()=>_trips=true),onFilter:_filter)),
+        Expanded(flex:8,child:Container(margin:const EdgeInsets.fromLTRB(18,0,18,8),decoration:BoxDecoration(borderRadius:BorderRadius.circular(22),border:Border.all(color:const Color(0xAFFFAD42),width:1),gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xD526211C),Color(0xD50A1014)]),boxShadow:const[BoxShadow(color:Color(0x22FF9D2E),blurRadius:18)]),child:ClipRRect(borderRadius:BorderRadius.circular(22),child:BackdropFilter(filter:ImageFilter.blur(sigmaX:8,sigmaY:8),child:Column(children:[
+          Padding(padding:const EdgeInsets.fromLTRB(18,16,8,8),child:Row(children:[Expanded(child:_dt(_trips?'Рейсы по району':'Перевозки по району',size:17,weight:FontWeight.w600)),IconButton(tooltip:_hideEmpty?'Показывать пустые дни':'Скрывать пустые дни',onPressed:()=>setState(()=>_hideEmpty=!_hideEmpty),icon:Icon(_hideEmpty?Icons.visibility_off_outlined:Icons.visibility_outlined,color:_amber,size:20))])),
+          const Divider(height:1,indent:18,endIndent:18,color:Color(0x554F5C62)),
+          Expanded(child:ready?_districtRows(entries,days):const SizedBox()),
+        ])))),
+        Padding(padding:const EdgeInsets.fromLTRB(22,4,22,10),child:Row(children:[const Icon(Icons.info_outline,color:Color(0xFF8D9498),size:18),const SizedBox(width:8),_dt('Реальные данные',size:12,color:const Color(0xFF8D9498)),const Spacer(),TextButton(onPressed:()=>Navigator.pop(context),child:const Text('К показателям  ›',style:TextStyle(color:_amber,fontSize:13)))])),
+      ])),
+    ]));
+  }
+
+  Widget _districtRows(List<ActivityEntry> entries,List<DateTime> days){
+    if(_trips){
+      if(entries.isEmpty)return Center(child:_dt('За этот месяц рейсов пока нет.',color:const Color(0xFFB3C6D0)));
+      return ListView(controller:_scroll,padding:const EdgeInsets.symmetric(horizontal:18),children:_separated([for(final e in entries)_DistrictRow(date:_detailDate(e.date),direction:e.direction.isEmpty?'Направление не указано':e.direction,value:'${_fmtInt(e.amount*1000)} кг',onTap:()=>_day(e.date))]));
+    }
+    final now=DateTime.now();final current=_month.year==now.year&&_month.month==now.month;
+    final last=current?now.day:DateTime(_month.year,_month.month+1,0).day;
+    final visible=_hideEmpty?days:[for(var i=last;i>=1;i--)DateTime(_month.year,_month.month,i)];
+    if(visible.isEmpty)return Center(child:_dt('За этот месяц перевозок пока нет.',color:const Color(0xFFB3C6D0)));
+    return ListView(controller:_scroll,padding:const EdgeInsets.symmetric(horizontal:18),children:_separated([for(final d in visible)
+      Builder(builder:(context){final rows=entries.where((e)=>ActivityBook.sameDay(e.date,d)).toList();final kg=rows.fold<double>(0,(s,e)=>s+e.amount)*1000;final dirs=rows.map((e)=>e.direction).where((x)=>x.isNotEmpty).toSet().join(', ');return _DistrictRow(date:_detailDate(d),direction:dirs.isEmpty?'Нет перевозок':dirs,value:rows.isEmpty?'—':'${_fmtInt(kg)} кг',weekend:d.weekday>=6,onTap:()=>_day(d));})]));
+  }
   List<Widget> _content(){
     final total=_total!;final entries=_entries;final metric=widget.metric;
     final value=switch(metric){'Город'=>'${_fmt1(total.city)} т','Район'=>'${_fmt1(total.region)} т','Газ'=>'${_fmt1(total.gas)} л',
@@ -142,6 +198,26 @@ class _MetricDetailsState extends State<_MetricDetails> {
     return rows.isEmpty?'—':'${_fmtInt(rows.fold<double>(0,(s,e)=>s+e.amount)*1000)} кг';}
   String _dailyText(DateTime d){final value=_dayValue(d,widget.metric=='Зарплата'?'salary':'mileage');
     return value==null?'—':'${_fmtInt(value)} ${widget.metric=='Зарплата'?'₸':'км'}';}
+}
+
+
+class _DistrictTotal extends StatelessWidget{
+  final String value;const _DistrictTotal({required this.value});
+  @override Widget build(BuildContext context)=>Container(padding:const EdgeInsets.fromLTRB(16,10,18,10),decoration:BoxDecoration(borderRadius:BorderRadius.circular(13),border:Border.all(color:const Color(0x55FFB24A)),gradient:const LinearGradient(colors:[Color(0xD8343535),Color(0xE91B1D1F)]),boxShadow:const[BoxShadow(color:Color(0x33000000),blurRadius:14,offset:Offset(0,5))]),child:Row(mainAxisSize:MainAxisSize.min,children:[const Icon(Icons.inventory_2_outlined,color:_amber,size:21),const SizedBox(width:10),Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_dt(value,size:24,weight:FontWeight.w500),_dt('За месяц',size:12,color:const Color(0xFFC1C1C1))]) ]));
+}
+class _DistrictTabs extends StatelessWidget{
+  final bool trips;final String? direction;final VoidCallback onDays,onTrips,onFilter;
+  const _DistrictTabs({required this.trips,required this.direction,required this.onDays,required this.onTrips,required this.onFilter});
+  @override Widget build(BuildContext context)=>Container(height:48,decoration:BoxDecoration(borderRadius:BorderRadius.circular(15),color:const Color(0xC61B1D1E),border:Border.all(color:const Color(0x556F7478))),child:Row(children:[
+    Expanded(child:_tab('По дням',!trips,onDays)),Expanded(child:_tab('По рейсам',trips,onTrips)),
+    Expanded(child:InkWell(onTap:onFilter,borderRadius:BorderRadius.circular(14),child:Padding(padding:const EdgeInsets.symmetric(horizontal:10),child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[Flexible(child:Text(direction??'Все направления',maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:_paper,fontSize:13))),const SizedBox(width:4),const Icon(Icons.keyboard_arrow_down_rounded,color:_paper,size:19)]))))
+  ]));
+  Widget _tab(String label,bool active,VoidCallback tap)=>InkWell(onTap:tap,borderRadius:BorderRadius.circular(14),child:Container(alignment:Alignment.center,decoration:active?BoxDecoration(borderRadius:BorderRadius.circular(14),border:Border.all(color:const Color(0xCCFFAA3B)),gradient:const LinearGradient(colors:[Color(0x55FF9D20),Color(0x161B1D1E)])):null,child:Text(label,style:TextStyle(color:active?_paper:const Color(0xFFB7B7B7),fontSize:13,fontWeight:active?FontWeight.w600:FontWeight.w400))));
+}
+class _DistrictRow extends StatelessWidget{
+  final String date,direction,value;final bool weekend;final VoidCallback onTap;
+  const _DistrictRow({required this.date,required this.direction,required this.value,required this.onTap,this.weekend=false});
+  @override Widget build(BuildContext context)=>InkWell(onTap:onTap,child:Padding(padding:const EdgeInsets.symmetric(vertical:13),child:Row(children:[const Icon(Icons.calendar_today_outlined,color:_paper,size:19),const SizedBox(width:14),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_dt(date,size:14,color:weekend?const Color(0xFFFFAA91):_paper),const SizedBox(height:3),_dt(direction,size:12,color:const Color(0xFFA8A8A8))])),_dt(value,size:15,weight:FontWeight.w500),const SizedBox(width:8),const Icon(Icons.chevron_right_rounded,color:_paper,size:20)])));
 }
 
 class _DayDetails extends StatefulWidget {
