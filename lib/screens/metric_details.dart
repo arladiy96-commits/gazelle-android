@@ -129,8 +129,8 @@ class _MetricDetailsState extends State<_MetricDetails> {
         Padding(padding:const EdgeInsets.fromLTRB(12,4,12,0),child:Row(children:[IconButton(onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.arrow_back_ios_new_rounded,color:_paper,size:22)),Expanded(child:Text('Пробег',textAlign:TextAlign.center,style:const TextStyle(color:_paper,fontSize:20,fontWeight:FontWeight.w600))),IconButton(onPressed:()=>Navigator.of(context).popUntil((r)=>r.isFirst),icon:const Icon(Icons.more_horiz,color:_paper,size:28))])),
         Container(margin:const EdgeInsets.only(top:6),padding:const EdgeInsets.symmetric(horizontal:8),decoration:BoxDecoration(borderRadius:BorderRadius.circular(24),color:const Color(0xB80B1115),border:Border.all(color:const Color(0x665E6B72))),child:Row(mainAxisSize:MainAxisSize.min,children:[IconButton(onPressed:()=>_monthTo(-1),icon:const Icon(Icons.chevron_left_rounded,color:_paper,size:25)),_dt('${_garageMonths[_month.month-1]} ${_month.year}',size:15),IconButton(onPressed:()=>_monthTo(1),icon:const Icon(Icons.chevron_right_rounded,color:_paper,size:25))])),
         Expanded(flex:9,child:Stack(children:[
-          if(ready)Positioned(right:28,bottom:48,child:_MileageMonthTotal(value:'${_fmtInt(_total!.mileage)} км')),
-          if(ready&&odo!=null)Positioned(left:0,right:0,bottom:24,child:IgnorePointer(child:Center(child:_MileageOdo(value:_fmtInt(odo))))),
+          if(ready)Positioned(right:22,top:178,child:_MileageMonthTotal(value:'${_fmtInt(_total!.mileage)} км')),
+          if(ready&&odo!=null)Positioned(left:0,right:0,top:306,child:IgnorePointer(child:Center(child:_MileageOdo(value:_fmtInt(odo))))),
           if(_error!=null)Center(child:Padding(padding:const EdgeInsets.all(24),child:_DetailGlass(child:Column(mainAxisSize:MainAxisSize.min,children:[_dt(_error!),const SizedBox(height:10),_detailButton('Повторить',_load)])))),
           if(_error==null&&!ready)const Center(child:CircularProgressIndicator(color:_amber)),
         ])),
