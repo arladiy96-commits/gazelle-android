@@ -128,7 +128,7 @@ class _MetricDetailsState extends State<_MetricDetails> {
           Padding(padding:const EdgeInsets.fromLTRB(18,16,8,8),child:Row(children:[Expanded(child:_dt(_trips?'Рейсы по району':'Перевозки по району',size:17,weight:FontWeight.w600)),IconButton(tooltip:_hideEmpty?'Показывать пустые дни':'Скрывать пустые дни',onPressed:()=>setState(()=>_hideEmpty=!_hideEmpty),icon:Icon(_hideEmpty?Icons.visibility_off_outlined:Icons.visibility_outlined,color:_amber,size:20))])),
           const Divider(height:1,indent:18,endIndent:18,color:Color(0x554F5C62)),
           Expanded(child:ready?_districtRows(entries,days):const SizedBox()),
-        ])))),
+        ]))))),
         Padding(padding:const EdgeInsets.fromLTRB(22,4,22,10),child:Row(children:[const Icon(Icons.info_outline,color:Color(0xFF8D9498),size:18),const SizedBox(width:8),_dt('Реальные данные',size:12,color:const Color(0xFF8D9498)),const Spacer(),TextButton(onPressed:()=>Navigator.pop(context),child:const Text('К показателям  ›',style:TextStyle(color:_amber,fontSize:13)))])),
       ])),
     ]));
