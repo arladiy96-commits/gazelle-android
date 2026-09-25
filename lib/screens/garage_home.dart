@@ -64,7 +64,7 @@ class _ReferenceHomeDashboard extends StatelessWidget {
         const SizedBox(height: 7), Container(width: 68, height: 2, color: _amber)])),
       place(611, 38, 125, 55, const Row(children: [
         _GarageIcon('sun', color: _amber, size: 43), SizedBox(width: 12),
-        Text('-12°', style: TextStyle(color: _paper, fontSize: 31, fontWeight: FontWeight.w600))])),
+        Text('-5°', style: TextStyle(color: _paper, fontSize: 31, fontWeight: FontWeight.w600))])),
       place(766, 25, 61, 73, _GarageTap(label: 'Уведомления', onTap: () =>
         _garageInfo(context, 'Уведомления', 'Сервис пока не подключён', 'Здесь будут уведомления приложения.'),
         child: const Center(child: _GarageIcon('bellOutline', size: 39)))),
