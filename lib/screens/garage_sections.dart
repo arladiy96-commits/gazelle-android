@@ -1,7 +1,7 @@
 part of 'app_shell.dart';
 
 void _openGarageSection(BuildContext context,String section,String login)=>Navigator.of(context).push<void>(
-  MaterialPageRoute(builder:(_)=>_GarageSection(section:section,login:login)));
+  _SceneRoute(builder:(_)=>_GarageSection(section:section,login:login)));
 
 class _GarageSection extends StatefulWidget {
   final String section,login;
@@ -24,7 +24,7 @@ class _GarageSectionState extends State<_GarageSection> {
     }catch(_){if(mounted&&id==_request)setState(()=>_error='Не удалось загрузить записи');}
   }
   void _move(int n){setState((){_month=DateTime(_month.year,_month.month+n);_book=null;});_load();}
-  void _day(DateTime d)=>Navigator.of(context).push<void>(MaterialPageRoute(builder:(_)=>_DayDetails(date:d)));
+  void _day(DateTime d)=>Navigator.of(context).push<void>(_SceneRoute(builder:(_)=>_DayDetails(date:d)));
   @override
   Widget build(BuildContext context)=>_DetailFrame(title:widget.section,children:[
     if(widget.section!='Документы')Row(mainAxisAlignment:MainAxisAlignment.center,children:[
@@ -62,6 +62,7 @@ class _GarageSectionState extends State<_GarageSection> {
       _detailRow('Пробег','${_fmtInt(t.mileage)} км',onTap:()=>_openMetricDetails(context,'Пробег',_month)),
       _detailRow('Газ','${_fmt1(t.gas)} л',onTap:()=>_openMetricDetails(context,'Газ',_month)),
       _detailRow('Бензин','${_fmt1(t.petrol)} л',onTap:()=>_openMetricDetails(context,'Бензин',_month))]))),
+    _TonnageChart(book:_book!,month:_month),
     _dt('Распределение тоннажа',size:16),const SizedBox(height:12),
     _DetailGlass(child:Column(children:[ClipRRect(borderRadius:BorderRadius.circular(4),child:Row(children:[
       if(t.city>0)Expanded(flex:math.max(1,(t.city*100).round()),child:Container(height:8,color:_amber)),
@@ -78,7 +79,7 @@ class _GarageSectionState extends State<_GarageSection> {
           subtitle:'Рейсов: ${rows.where((e)=>(e.direction.isEmpty?'Без направления':e.direction)==name).length}',onTap:()=>_direction(name,rows))])))];
   }
   void _direction(String name,List<ActivityEntry> rows){final selected=rows.where((e)=>(e.direction.isEmpty?'Без направления':e.direction)==name).toList()..sort((a,b)=>b.date.compareTo(a.date));
-    Navigator.of(context).push<void>(MaterialPageRoute(builder:(_)=>_DetailFrame(title:name,children:[_DetailGlass(child:Column(children:_separated([
+    Navigator.of(context).push<void>(_SceneRoute(builder:(_)=>_DetailFrame(title:name,scene:_Scene.cargo,children:[_DetailGlass(child:Column(children:_separated([
       for(final e in selected)_detailRow(_detailDate(e.date),'${_fmt1(e.amount)} т',subtitle:'${e.type} · ${_detailTime(e.date)}',onTap:()=>_day(e.date))])))])));
   }
   String _docKey(String name)=>'garage_document_${widget.login}_$name';

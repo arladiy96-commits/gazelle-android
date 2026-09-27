@@ -7,17 +7,18 @@ Future<void> _testRun(BuildContext context,Future<void> Function() action) async
 Future<bool> _testConfirm(BuildContext context,String message) async=>await showModalBottomSheet<bool>(context:context,backgroundColor:Colors.transparent,
   builder:(c)=>_QuickEntryShell(title:'Подтверждение',icon:Icons.help_outline,child:Column(children:[_dt(message),const SizedBox(height:16),
     _detailButton('Подтвердить',()=>Navigator.pop(c,true)),_detailButton('Отмена',()=>Navigator.pop(c,false))])))??false;
-Future<void> _testEditor(BuildContext context,String kind,{Map<String,dynamic>? entry,String? shiftId}) async {
+Future<void> _testEditor(BuildContext context,String kind,{Map<String,dynamic>? entry,String? shiftId,String? initialType}) async {
   await _testRun(context,() async{final b=await TestStore.load();if(!context.mounted)return;
-    if(entry==null&&b.active==null){_testOpen(context);return;}
-    if(kind=='invoice'){await Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>_MiniInvoiceEditor(entry:entry)));return;}
-    await showModalBottomSheet<void>(context:context,isScrollControlled:true,backgroundColor:Colors.transparent,builder:(_)=>_TestRecordEditor(kind:kind,entry:entry,shiftId:shiftId));});
+    if(entry==null&&b.active==null){await _showShiftForm(context);if(!context.mounted||(await TestStore.load()).active==null)return;}
+    if(kind=='invoice'){await Navigator.push(context,_SceneRoute<void>(builder:(_)=>_MiniInvoiceEditor(entry:entry)));return;}
+    if(!context.mounted)return;
+    await Navigator.push(context,_SceneRoute<void>(builder:(_)=>_TestRecordEditor(kind:kind,entry:entry,shiftId:shiftId,initialType:initialType)));});
 }
-void _testOpen(BuildContext context,{String page='Смена',String? shiftId})=>Navigator.of(context).push<void>(MaterialPageRoute(builder:(_)=>_TestHub(page:page,shiftId:shiftId)));
+void _testOpen(BuildContext context,{String page='Смена',String? shiftId})=>Navigator.of(context).push<void>(_SceneRoute(builder:(_)=>_TestHub(page:page,shiftId:shiftId)));
 
 class _TestRecordEditor extends StatefulWidget {
-  final String kind;final Map<String,dynamic>? entry;final String? shiftId;
-  const _TestRecordEditor({required this.kind,this.entry,this.shiftId});
+  final String kind;final Map<String,dynamic>? entry;final String? shiftId,initialType;
+  const _TestRecordEditor({required this.kind,this.entry,this.shiftId,this.initialType});
   @override
   State<_TestRecordEditor> createState()=>_TestRecordEditorState();
 }
@@ -26,7 +27,7 @@ class _TestRecordEditorState extends State<_TestRecordEditor> {
   late String type;late DateTime date;late bool loaded;late bool paid;bool busy=false;String? error;
   @override
   void initState(){super.initState();final e=widget.entry??{};amount=TextEditingController(text:e['amount']?.toString()??'');direction=TextEditingController(text:e['direction'] as String? ?? '');
-    note=TextEditingController(text:e['note'] as String? ?? '');number=TextEditingController(text:e['number'] as String? ?? '');type=e['type'] as String? ?? (widget.kind=='fuel'?'Газ':'Город');date=DateTime.tryParse(e['date'] as String? ?? '')??DateTime.now();loaded=e['loaded']==true;paid=e['isPaid']==true;}
+    note=TextEditingController(text:e['note'] as String? ?? '');number=TextEditingController(text:e['number'] as String? ?? '');type=e['type'] as String? ?? widget.initialType ?? (widget.kind=='fuel'?'Газ':'Город');date=DateTime.tryParse(e['date'] as String? ?? '')??DateTime.now();loaded=e['loaded']==true;paid=e['isPaid']==true;}
   @override
   void dispose(){for(final c in [amount,direction,note,number]){c.dispose();}super.dispose();}
   Future<void> save() async {if(busy)return;setState((){busy=true;error=null;});
@@ -35,23 +36,25 @@ class _TestRecordEditorState extends State<_TestRecordEditor> {
       'note':note.text.trim(),'number':number.text.trim(),'loaded':loaded,'isPaid':paid,'date':date.toIso8601String()});if(mounted)Navigator.pop(context);}
     catch(e){if(mounted)setState((){error=_testError(e);busy=false;});}}
   @override
-  Widget build(BuildContext context){final kind=widget.kind;return _QuickEntryShell(title:'${widget.entry==null?'Добавить':'Изменить'} · ${_testKind(kind)}',icon:Icons.edit_outlined,
+  Widget build(BuildContext context){final kind=widget.kind;return _SceneForm(scene:kind=='trip'?_Scene.cargo:kind=='fuel'?(type=='Газ'?_Scene.gas:_Scene.petrol):_Scene.cab,child:_QuickEntryShell(title:'${widget.entry==null?'Добавить':'Изменить'} · ${_testKind(kind)}',icon:Icons.edit_outlined,
     child:Column(children:[if(['trip','fuel'].contains(kind))...[_QuickSegment(values:kind=='trip'?const ['Город','Район']:const ['Газ','Бензин'],selected:type,onChanged:(v)=>setState(()=>type=v)),const SizedBox(height:12)],
-      if(['trip','invoice'].contains(kind))_testField(direction,'Направление'),
-      if(kind=='trip')...[_detailButton('Выбрать направление',() async{final v=await _pickQuickValue(context,'Направление',type=='Город'?const ['Султан','Петрокондитер','Великанова','Визави','Казконд','Крылова']:const ['Саумалколь','Щучинск','Новоишимское','Бишкуль','Пресновка']);if(v!=null&&mounted)setState((){direction.text=v;paid=TestState.paidDirection(v);});}),SwitchListTile(value:paid,onChanged:(v)=>setState(()=>paid=v),title:_dt('Платное направление · +3 000 ₸'),activeThumbColor:_amber)],
+      if(['trip','invoice'].contains(kind))Row(crossAxisAlignment:CrossAxisAlignment.start,children:[Expanded(child:_testField(direction,'Направление')),
+        IconButton(tooltip:'Выбрать направление',icon:const Icon(Icons.expand_more,color:_amber),onPressed:() async{final v=await _pickQuickValue(context,'Направление',type=='Город'?const ['Султан','Петрокондитер','Великанова','Визави','Казконд','Крылова']:const ['Саумалколь','Щучинск','Новоишимское','Бишкуль','Пресновка']);if(v!=null&&mounted)setState((){direction.text=v;paid=TestState.paidDirection(v);});})]),
+      if(kind=='trip')SwitchListTile(dense:true,contentPadding:EdgeInsets.zero,value:paid,onChanged:(v)=>setState(()=>paid=v),title:_dt('Платный рейс · +3 000 ₸',size:13),activeThumbColor:_amber),
       if(kind=='invoice')_testField(number,'Номер накладной'),
       if(['trip','fuel','income'].contains(kind))_testField(amount,kind=='trip'?'Вес, кг':kind=='fuel'?'Литры':'Сумма, ₸',numeric:true),
-      _testField(note,kind=='invoice'?'Товары и количество (каждый с новой строки)':'Примечание',lines:3),
+      _detailRow('Примечание',note.text.isEmpty?'Добавить':'Изменить',subtitle:note.text.isEmpty?null:note.text,onTap:() async{await _editCompactNote(context,note);if(mounted)setState((){});}),
       if(kind=='invoice')SwitchListTile(value:loaded,onChanged:(v)=>setState(()=>loaded=v),title:_dt('Груз проверен / загружен'),activeThumbColor:_amber),
       _detailButton('${_detailDate(date)} ${date.year} · ${_detailTime(date)}',() async{final d=await _testDate(context,date);if(d!=null&&mounted)setState(()=>date=d);},icon:Icons.calendar_month),
       if(error!=null)_dt(error!,color:const Color(0xFFFFAA91)),
-      _detailButton(busy?'Сохранение…':'Сохранить',busy?(){}:save,icon:Icons.check)]));}
+      _detailButton(busy?'Сохранение…':'Сохранить',busy?(){}:save,icon:Icons.check),
+      if(widget.entry!=null)TextButton.icon(onPressed:busy?null:() async{if(await _testConfirm(context,'Удалить запись? Итоги пересчитаются.')&&mounted)await _testRun(context,() async{await TestStore.deleteRecord(widget.entry!['id'] as String);if(mounted)Navigator.pop(context);});},icon:const Icon(Icons.delete_outline,size:18,color:_amber),label:_dt('Удалить запись',size:13,color:_amber))])));}
 }
 String _testKind(String kind)=>switch(kind){'trip'=>'Рейс','fuel'=>'Топливо','invoice'=>'Накладная','income'=>'Начисление',_=>'Другое'};
 Widget _testField(TextEditingController c,String label,{bool numeric=false,bool integer=false,int lines=1})=>Padding(padding:const EdgeInsets.only(bottom:12),child:TextField(controller:c,
   keyboardType:numeric?TextInputType.numberWithOptions(decimal:!integer):TextInputType.multiline,
   inputFormatters:integer?[FilteringTextInputFormatter.digitsOnly]:null,maxLines:lines,style:const TextStyle(color:_paper,fontSize:15),
-  decoration:InputDecoration(labelText:label,labelStyle:const TextStyle(color:_ice,fontSize:13),filled:true,fillColor:const Color(0xA008151C),
+  decoration:InputDecoration(isDense:true,contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:14),labelText:label,labelStyle:const TextStyle(color:_ice,fontSize:13),filled:true,fillColor:const Color(0xA008151C),
     enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(14),borderSide:const BorderSide(color:Color(0x66768F98))),
     focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(14),borderSide:const BorderSide(color:_amber)))));
 Future<DateTime?> _testDate(BuildContext context,DateTime initial) async {
@@ -75,28 +78,21 @@ class _TestHubState extends State<_TestHub> {
   @override
   void dispose(){request++;timer?.cancel();TestStore.revision.removeListener(load);super.dispose();}
   Future<void> load() async{final r=++request;try{final b=await TestStore.load();if(mounted&&r==request)setState((){book=b;error=null;});}catch(e){if(mounted&&r==request)setState(()=>error=_testError(e));}}
-  Future<void> odometer({Map<String,dynamic>? shift,bool close=false}) async {
-    final c=TextEditingController(text:close&&shift!=null&&((shift['gpsKm'] as num?)?.toDouble()??0)>0?((shift['startKm'] as num).toInt()+((shift['gpsKm'] as num?)?.toDouble()??0).round()).toString():shift?['currentKm']?.toString()??'128540');
-    await showModalBottomSheet<void>(context:context,isScrollControlled:true,backgroundColor:Colors.transparent,builder:(context)=>_TestOdometer(controller:c,shift:shift,close:close));
-    // Controller disposal is deferred until the route animation has ended.
-    Future<void>.delayed(const Duration(seconds:1),c.dispose);
-  }
+  Future<void> odometer({Map<String,dynamic>? shift,bool close=false})=>_showShiftForm(context,shift:shift,close:close);
   @override
   Widget build(BuildContext context){final children=<Widget>[
     _DetailGlass(accent:true,child:_dt('ТЕСТОВЫЙ РЕЖИМ · только на этом устройстве',size:12,color:_amber)),
     if(error!=null)...[_dt(error!),_detailButton('Повторить',load)]
     else if(book==null)const Center(child:CircularProgressIndicator())
     else ...content()];
-    if(!widget.embedded)return _DetailFrame(title:widget.page,children:children);
-    return Stack(children:[Positioned.fill(child:Image.asset('assets/images/work_approved.png',fit:BoxFit.cover)),
-      ListView(padding:const EdgeInsets.all(16),children:[Center(child:_dt(widget.page,size:18)),const SizedBox(height:16),...children])]);}
+    return _DetailFrame(title:widget.page,embedded:widget.embedded,children:children);}
   List<Widget> content(){final b=book!;
     if(widget.page=='Накладные')return [_detailButton('Создать накладную',()=>_testEditor(context,'invoice'),icon:Icons.add),...records(b.records.where((e)=>e['kind']=='invoice').toList())];
     if(widget.page=='История смен')return [if(b.shifts.isEmpty)_dt('Смен пока нет'),for(final s in b.shifts.reversed)_DetailGlass(child:_detailRow(_detailDate(DateTime.parse(s['start'] as String)),s['end']==null?'Открыта':'Завершена',subtitle:'${_fmt1(b.mileage(s))} км · ${_fmt1(b.hours(s))} ч',onTap:()=>_testOpen(context,page:'Смена',shiftId:s['id'] as String)))];
     if(widget.page=='Тестовые данные')return [
       _dt('Основная база не подключена. Тестовые записи не отправляются на сервер.',size:14),const SizedBox(height:16),
       _detailButton('Текущая смена',()=>_testOpen(context)),_detailButton('История смен',()=>_testOpen(context,page:'История смен')),
-      _detailButton('Расчёт зарплаты',()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>_TestRates(book:b)))),
+      _detailButton('Расчёт зарплаты',()=>Navigator.push(context,_SceneRoute<void>(builder:(_)=>_TestRates(book:b)))),
       _detailButton('Заполнить примером',()=>_testRun(context,TestStore.seed)),
       _detailButton('Сбросить тестовые данные',() async{if(await _testConfirm(context,'Удалить все тестовые смены, рейсы, топливо, накладные, документы и ТО? Основные данные не затрагиваются.')&&mounted)await _testRun(context,TestStore.reset);},icon:Icons.delete_outline),
       _dt('Правила расчёта взяты из миниаппа. Данные и товары в этом режиме тестовые.',size:12)];
@@ -120,7 +116,7 @@ class _TestHubState extends State<_TestHub> {
         _detailButton('Добавить рейс',()=>_testEditor(context,'trip'),icon:Icons.add),_detailButton('Добавить топливо',()=>_testEditor(context,'fuel'),icon:Icons.add),
         _detailButton('Накладная',()=>_testEditor(context,'invoice')),_detailButton('Другое / заметка',()=>_testEditor(context,'other')),
         _detailButton('Завершить смену',()=>odometer(shift:s,close:true),icon:Icons.stop)],
-      _detailButton('Изменить время и пробег смены',()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>_TestShiftEditor(shift:s)))),
+      _detailButton('Изменить время и пробег смены',()=>Navigator.push(context,_SceneRoute<void>(builder:(_)=>_TestShiftEditor(shift:s)))),
       _dt('Записи смены · нажмите для изменения',size:14),const SizedBox(height:12),...records(rows),
       _detailButton('История смен',()=>_testOpen(context,page:'История смен')),
       _detailButton('Удалить смену и её записи',() async{if(await _testConfirm(context,'Удалить эту смену и все связанные записи?')&&mounted)await _testRun(context,()=>TestStore.deleteShift(s['id'] as String));},icon:Icons.delete_outline),
@@ -144,9 +140,13 @@ class _TestOdometerState extends State<_TestOdometer>{bool busy=false;String? er
   @override void dispose(){hours.dispose();super.dispose();}
   @override
   Widget build(BuildContext context)=>_QuickEntryShell(title:widget.shift==null?'Открыть смену':widget.close?'Завершить смену':'Одометр',icon:Icons.speed,child:Column(children:[
+    if(widget.close&&widget.shift!=null)_TestLive(builder:(b){final rows=b.forShift(widget.shift!['id'] as String);return _DetailGlass(child:Column(children:[
+      _detailRow('Рейсов','${rows.where((e)=>e['kind']=='trip').length}'),
+      _detailRow('Перевезено','${_fmt1(rows.where((e)=>e['kind']=='trip').fold<double>(0,(n,e)=>n+(e['amount'] as num).toDouble())/1000)} т'),
+      ValueListenableBuilder<TextEditingValue>(valueListenable:widget.controller,builder:(_,v,__)=>_detailRow('Пробег смены','${_fmtInt(math.max(0,(double.tryParse(v.text)??0)-(widget.shift!['startKm'] as num).toDouble()))} км'))]));}),
     _testField(widget.controller,'Показание одометра, км',numeric:true,integer:true),
     _testField(hours,'Отработано часов (вручную)',numeric:true),if(error!=null)_dt(error!,color:_amber),
-    _detailButton(busy?'Сохранение…':'Подтвердить',() async{if(busy)return;setState((){busy=true;error=null;});try{final km=int.tryParse(widget.controller.text);if(km==null)throw ArgumentError('Введите целый пробег');
+    _detailButton(busy?'Сохранение…':widget.shift==null?'Открыть смену':widget.close?'Завершить смену':'Сохранить показание',() async{if(busy)return;setState((){busy=true;error=null;});try{final km=int.tryParse(widget.controller.text);if(km==null)throw ArgumentError('Введите целый пробег');
       final h=hours.text.trim().isEmpty?null:double.tryParse(hours.text.replaceAll(',','.'))??double.nan;
       if(widget.shift==null){await TestStore.open(km,hours:h);}else{await TestStore.odometer(widget.shift!['id'] as String,km,close:widget.close,hours:h);}if(context.mounted)Navigator.pop(context);
     }catch(e){if(mounted)setState((){busy=false;error=_testError(e);});}})]));
@@ -157,7 +157,7 @@ class _TestRates extends StatelessWidget {
     _DetailGlass(child:Column(children:[_detailRow('Оклад, максимум','190 000 ₸'),_detailRow('Выходной / праздник','10 000 ₸'),
       _detailRow('Платный рейс','3 000 ₸'),_detailRow('Город','1 ₸ / кг'),_detailRow('Район','1,9 ₸ / кг')])),
     _dt('Часы вводятся вручную. Оклад зависит от нормы рабочих часов месяца и не растёт сверх 190 000 ₸. Календарь и группировка дней повторяют присланный миниапп.'),
-    const SizedBox(height:12),_detailButton('Товары для накладных',()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const _MiniCatalog())))]);
+    const SizedBox(height:12),_detailButton('Товары для накладных',()=>Navigator.push(context,_SceneRoute<void>(builder:(_)=>const _MiniCatalog())))]);
 }
 class _TestShiftEditor extends StatefulWidget {final Map<String,dynamic> shift;const _TestShiftEditor({required this.shift});@override State<_TestShiftEditor> createState()=>_TestShiftEditorState();}
 class _TestShiftEditorState extends State<_TestShiftEditor>{late DateTime start=DateTime.parse(widget.shift['start'] as String);late DateTime? end=DateTime.tryParse(widget.shift['end'] as String? ?? '');
@@ -174,11 +174,11 @@ class _TestLive extends StatefulWidget {
   const _TestLive({required this.builder});
   @override State<_TestLive> createState()=>_TestLiveState();
 }
-class _TestLiveState extends State<_TestLive>{TestState? b;Timer? timer;int request=0;
+class _TestLiveState extends State<_TestLive>{TestState? b;String? error;Timer? timer;int request=0;
   @override void initState(){super.initState();TestStore.revision.addListener(load);load();timer=Timer.periodic(const Duration(seconds:1),(_){if(mounted&&b?.active!=null)setState((){});});}
-  Future<void> load() async{final id=++request;try{final value=await TestStore.load();if(mounted&&id==request)setState(()=>b=value);}catch(_){}}
+  Future<void> load() async{final id=++request;try{final value=await TestStore.load();if(mounted&&id==request)setState((){b=value;error=null;});}catch(e){if(mounted&&id==request)setState(()=>error=_testError(e));}}
   @override void dispose(){request++;timer?.cancel();TestStore.revision.removeListener(load);super.dispose();}
-  @override Widget build(BuildContext context)=>b==null?const SizedBox.shrink():widget.builder(b!);
+  @override Widget build(BuildContext context)=>error!=null?_DetailGlass(child:Column(mainAxisSize:MainAxisSize.min,children:[_dt(error!),_detailButton('Повторить',load)])):b==null?const Center(child:CircularProgressIndicator(color:_amber)):widget.builder(b!);
 }
 class _TestHomeStatus extends StatelessWidget {
   const _TestHomeStatus();
@@ -241,7 +241,7 @@ class _MiniInvoiceEditorState extends State<_MiniInvoiceEditor> {
       Wrap(spacing:10,runSpacing:10,children:[for(final p in book!.products)SizedBox(width:(MediaQuery.sizeOf(context).width-42)/2,
         child:_DetailGlass(child:InkWell(onTap:()=>weight(p),child:Padding(padding:const EdgeInsets.symmetric(vertical:12),child:Column(children:[
           const Align(alignment:Alignment.topRight,child:Icon(Icons.inventory_2_outlined,color:_amber,size:22)),const SizedBox(height:8),_dt(p['name'] as String),const SizedBox(height:8),_dt('${_fmt1((p['packKg'] as num).toDouble())} кг / уп.',color:_ice)])))))]),
-      _detailButton('Справочник товаров / добавить свой',() async{await Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const _MiniCatalog()));if(mounted)await load();},icon:Icons.add)],
+      _detailButton('Справочник товаров / добавить свой',() async{await Navigator.push(context,_SceneRoute<void>(builder:(_)=>const _MiniCatalog()));if(mounted)await load();},icon:Icons.add)],
     for(var i=0;i<items.length;i++)_DetailGlass(child:Column(children:[
       _detailRow(items[i]['name'] as String,'${_fmt1((items[i]['totalKg'] as num).toDouble())} кг',
         subtitle:'${items[i]['quantity']} уп. × ${_fmt1((items[i]['packKg'] as num).toDouble())} кг',onTap:closed||step==1?null:()=>weight(items[i],index:i)),

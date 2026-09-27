@@ -19,6 +19,7 @@ part 'maintenance_dashboard.dart';
 part 'metric_details.dart';
 part 'garage_sections.dart';
 part 'test_mode.dart';
+part 'cinematic.dart';
 
 class AppShell extends StatefulWidget {
   final AppSession session;
@@ -141,7 +142,7 @@ class _AppShellState extends State<AppShell> {
             const _AppBackground(),
           SafeArea(
             bottom: false,
-            child: IndexedStack(
+            child: _SceneTabStage(
               index: _index,
               children: pages,
             ),
@@ -2187,7 +2188,7 @@ BoxDecoration _homePanelDecoration({
 }
 
 Future<void> _openHomeMenu(BuildContext context,AppSession session) async {
-  _testOpen(context,page:'Тестовые данные');
+  await Navigator.push(context,_SceneRoute<void>(builder:(_)=>_CinematicMore(session:session)));
 }
 
 
@@ -3023,82 +3024,24 @@ class _HomeSheetRow extends StatelessWidget {
 }
 
 
-Future<void> _showQuickAddMenu(
-  BuildContext context,
-  AppSession session,
-) async {
-  final rootContext = context;
-
-  await Navigator.of(context).push<void>(
-    PageRouteBuilder<void>(
-      opaque: false,
-      barrierColor: Colors.black.withValues(alpha: .88),
-      transitionDuration: const Duration(milliseconds: 280),
-      reverseTransitionDuration: const Duration(milliseconds: 220),
-      pageBuilder: (routeContext, animation, secondaryAnimation) {
-        return FadeTransition(
-          opacity: CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-            reverseCurve: Curves.easeInCubic,
-          ),
-          child: ScaleTransition(
-            scale: Tween<double>(begin: .982, end: 1).animate(
-              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-            ),
-            child: _QuickAddMenu(
-              onTrip: () {
-                Navigator.of(routeContext).pop();
-                Future<void>.delayed(
-                  const Duration(milliseconds: 80),
-                  () => _openTripEntry(rootContext),
-                );
-              },
-              onFuel: () {
-                Navigator.of(routeContext).pop();
-                Future<void>.delayed(
-                  const Duration(milliseconds: 80),
-                  () => _openFuelEntry(rootContext),
-                );
-              },
-              onInvoice: () {
-                Navigator.of(routeContext).pop();
-                Future<void>.delayed(
-                  const Duration(milliseconds: 80),
-                  () {
-                    Navigator.of(rootContext).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const _TestHub(page:'Накладные'),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        );
-      },
-    ),
-  );
+Future<void> _showQuickAddMenu(BuildContext context,AppSession session) async {
+  final choice=await Navigator.of(context).push<String>(_SceneRoute<String>(builder:(c)=>_QuickAddMenu(
+    onTrip:()=>Navigator.pop(c,'trip'),onFuel:()=>Navigator.pop(c,'fuel'),onInvoice:()=>Navigator.pop(c,'invoice'))));
+  if(choice!=null&&context.mounted)await _testEditor(context,choice);
 }
-
-
-
-
-
 
 class _QuickAddMenu extends StatelessWidget {
   final VoidCallback onTrip,onFuel,onInvoice;
   const _QuickAddMenu({required this.onTrip,required this.onFuel,required this.onInvoice});
   @override
   Widget build(BuildContext context)=>Material(color:const Color(0xFF030B10),child:Stack(children:[
-    Positioned.fill(child:Image.asset('assets/images/work_approved.png',fit:BoxFit.cover)),
+    Positioned.fill(child:_SceneBackdrop(dim:false)),
     const Positioned.fill(child:ColoredBox(color:Color(0x5900070D))),
     SafeArea(child:LayoutBuilder(builder:(context,box)=>SingleChildScrollView(child:ConstrainedBox(
       constraints:BoxConstraints(minHeight:box.maxHeight),child:Padding(padding:const EdgeInsets.fromLTRB(20,8,20,24),child:Column(children:[
         Row(children:[IconButton(tooltip:'Закрыть',onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close,color:_paper)),
           Expanded(child:_dt('Новое действие',size:18,weight:FontWeight.w500))]),
-        const SizedBox(height:20),_dt('Что добавить?',size:21,weight:FontWeight.w500),const SizedBox(height:6),
+        const SizedBox(height:20),_dt('Добавить',size:18,weight:FontWeight.w500),const SizedBox(height:6),
         _dt('Выберите действие',size:13,color:const Color(0xFFADC0CC)),const SizedBox(height:18),
         _QuickActionOrb(icon:Icons.local_shipping_outlined,title:'Рейс',subtitle:'Город или район',onTap:onTrip),const SizedBox(height:16),
         _QuickActionOrb(icon:Icons.local_gas_station_outlined,title:'Топливо',subtitle:'Газ или бензин',onTap:onFuel),const SizedBox(height:16),
@@ -3119,8 +3062,8 @@ class _QuickActionOrbState extends State<_QuickActionOrb> {
     onTapDown:(_)=>setState(()=>_pressed=true),onTapCancel:()=>setState(()=>_pressed=false),
     onTapUp:(_)=>setState(()=>_pressed=false),onTap:(){HapticFeedback.selectionClick();widget.onTap();},
     child:AnimatedScale(scale:_pressed ? 0.95 : 1.0,duration:const Duration(milliseconds:180),curve:Curves.easeOutCubic,
-      child:Container(width:164,height:164,decoration:BoxDecoration(shape:BoxShape.circle,
-        gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF90A8B1),Color(0xFF24343D),Color(0xFF070C10),Color(0xFFC78832)]),
+      child:Container(width:144,height:144,decoration:BoxDecoration(shape:BoxShape.circle,
+        gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF556168),Color(0xFF24343D),Color(0xFF070C10),Color(0xFFC78832)]),
         boxShadow:const [BoxShadow(color:Color(0xCC000000),blurRadius:16,offset:Offset(0,10)),BoxShadow(color:Color(0x44FFAD35),blurRadius:25,spreadRadius:1)]),
         padding:const EdgeInsets.all(4),child:Container(decoration:BoxDecoration(shape:BoxShape.circle,border:Border.all(color:const Color(0xD9FFBD5A)),
           gradient:const RadialGradient(center:Alignment(-.5,-.7),radius:1.2,colors:[Color(0xFF314752),Color(0xFF0D1D25),Color(0xFF02090E)])),
@@ -3473,18 +3416,14 @@ class _FuelEntrySheetState extends State<_FuelEntrySheet> {
 class _QuickEntryShell extends StatelessWidget {
   final String title;final IconData icon;final Widget child;
   const _QuickEntryShell({required this.title,required this.icon,required this.child});
-  @override
-  Widget build(BuildContext context)=>AnimatedPadding(duration:const Duration(milliseconds:220),curve:Curves.easeOutCubic,
-    padding:EdgeInsets.only(bottom:MediaQuery.viewInsetsOf(context).bottom),child:SafeArea(top:false,child:SingleChildScrollView(
-      padding:const EdgeInsets.fromLTRB(12,20,12,8),child:ClipRRect(borderRadius:BorderRadius.circular(22),
-        child:BackdropFilter(filter:ImageFilter.blur(sigmaX:12,sigmaY:12),child:Container(
-          padding:const EdgeInsets.fromLTRB(16,10,16,18),decoration:BoxDecoration(borderRadius:BorderRadius.circular(22),
-            border:Border.all(color:const Color(0x99E8AF57)),gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
-              colors:[Color(0xE01A303B),Color(0xF008141D)]),boxShadow:const [BoxShadow(color:Color(0x2200DDEE),blurRadius:20)]),
-          child:Column(mainAxisSize:MainAxisSize.min,children:[Container(width:34,height:3,decoration:BoxDecoration(color:const Color(0xFF637883),borderRadius:BorderRadius.circular(3))),
-            const SizedBox(height:10),Row(children:[Icon(icon,color:_amber,size:23),const SizedBox(width:12),Expanded(child:_dt(title,size:18,weight:FontWeight.w500)),
-              IconButton(tooltip:'Закрыть',onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close,color:_paper,size:21))]),
-            const SizedBox(height:12),child])))))));
+  @override Widget build(BuildContext context){final mq=MediaQuery.of(context);
+    return AnimatedPadding(duration:const Duration(milliseconds:220),curve:Curves.easeOutCubic,padding:EdgeInsets.only(bottom:mq.viewInsets.bottom),
+      child:ConstrainedBox(constraints:BoxConstraints(maxHeight:math.max(140,mq.size.height-mq.viewInsets.bottom-mq.padding.top-24)),
+        child:SingleChildScrollView(padding:const EdgeInsets.fromLTRB(12,8,12,12),child:_DetailGlass(accent:true,padding:const EdgeInsets.all(16),child:Column(mainAxisSize:MainAxisSize.min,children:[
+          Container(width:32,height:3,decoration:BoxDecoration(color:const Color(0xFF67747B),borderRadius:BorderRadius.circular(3))),const SizedBox(height:4),
+          Row(children:[Icon(icon,color:_amber,size:21),const SizedBox(width:10),Expanded(child:_dt(title,size:17,weight:FontWeight.w500)),
+            IconButton(tooltip:'Закрыть',onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close,color:_paper,size:21))]),const SizedBox(height:8),child])))));
+  }
 }
 
 class _QuickSegment extends StatelessWidget {
@@ -3611,57 +3550,10 @@ class _QuickSelectField extends StatelessWidget {
   }
 }
 
-Future<String?> _pickQuickValue(
-  BuildContext context,
-  String title,
-  List<String> values,
-) {
-  return showModalBottomSheet<String>(
-    context: context,
-    backgroundColor: const Color(0xFF0B1B24),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(28),
-      ),
-    ),
-    builder: (sheetContext) {
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: AppColors.text,
-                  fontSize: 17,
-                    fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 10),
-              ...values.map(
-                (value) => ListTile(
-                  title: Text(
-                    value,
-                    style: const TextStyle(
-                      color: AppColors.text,
-                    ),
-                  ),
-                  trailing: const Icon(
-                    Icons.chevron_right_rounded,
-                    color: _amber,
-                  ),
-                  onTap: () => Navigator.pop(sheetContext, value),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    },
-  );
-}
+Future<String?> _pickQuickValue(BuildContext context,String title,List<String> values)=>showModalBottomSheet<String>(
+  context:context,isScrollControlled:true,backgroundColor:Colors.transparent,
+  builder:(c)=>_QuickEntryShell(title:title,icon:Icons.list_alt,child:Column(mainAxisSize:MainAxisSize.min,children:[
+    for(final value in values)_detailRow(value,'',onTap:()=>Navigator.pop(c,value))])));
 
 class _QuickNumberField extends StatelessWidget {
   final TextEditingController controller;

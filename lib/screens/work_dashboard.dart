@@ -15,75 +15,7 @@ class WorkPage extends StatelessWidget {
   final VoidCallback? onQuickAdd;
   const WorkPage({super.key,required this.session,this.onNavigate,this.onQuickAdd});
 
-  @override
-  Widget build(BuildContext context) => _TestLive(builder:(book)=>LayoutBuilder(builder:(context,c){
-    final shift=book.active;final rows=shift==null?<Map<String,dynamic>>[]:book.forShift(shift['id'] as String);
-    double weight(String type)=>rows.where((e)=>e['kind']=='trip'&&e['type']==type).fold<double>(0,(v,e)=>v+(e['amount'] as num).toDouble())/1000;
-    final secs=shift==null?0:(book.elapsed(shift)*3600).round();
-    final data=_WorkViewData(open:shift!=null,paused:shift?['gpsStatus']=='paused',mileage:shift==null?0:book.mileage(shift).round(),
-      startOdometer:(shift?['startKm'] as num?)?.toInt()??0,currentOdometer:(shift?['currentKm'] as num?)?.toInt()??0,
-      trips:rows.where((e)=>e['kind']=='trip').length,cityTonnage:weight('Город'),regionTonnage:weight('Район'),
-      elapsed:'${secs~/3600}:${((secs~/60)%60).toString().padLeft(2,'0')}:${(secs%60).toString().padLeft(2,'0')}',
-      started:shift==null?'—':_detailTime(DateTime.parse(shift['start'] as String)));
-
-    final bottom=MediaQuery.paddingOf(context).bottom;
-    final scale=c.maxWidth/840;
-    final h=math.max(1500.0,(c.maxHeight-bottom)/scale);
-    final sy=h/1870;
-    void navigate(int index){onNavigate?.call(index);}
-    void quickAdd(){if(onQuickAdd!=null){onQuickAdd!();}else{_showQuickAddMenu(context,session);}}
-    void later(String title){_testOpen(context);}
-    Widget p(double x,double y,double w,double height,Widget child)=>Positioned(
-      left:x,top:y*sy,width:w,height:height*sy,
-      child:FittedBox(fit:BoxFit.contain,child:SizedBox(width:w,height:height,child:child)));
-    final canvas=SizedBox(width:840,height:h,child:Stack(children:[
-      Positioned.fill(child:Image.asset('assets/images/work_approved.png',fit:BoxFit.fill,filterQuality:FilterQuality.high)),
-      const Positioned.fill(child:IgnorePointer(child:DecoratedBox(decoration:BoxDecoration(
-        gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,
-          colors:[Color(0x22020B12),Color(0x44020B12),Color(0x55020B12)]))))),
-      p(25,13,70,80,_GarageTap(label:'Вернуться на главную',onTap:()=>navigate(0),
-        child:const Icon(Icons.arrow_back_ios_new_rounded,color:_paper,size:43))),
-      p(220,15,400,78,Column(children:[_garageText('Работа',38,weight:FontWeight.w600),
-        const SizedBox(height:5),_garageText('Тестовая смена',25,color:const Color(0xFFB7CBD6))])),
-      p(751,13,68,80,_GarageTap(label:'Уведомления',onTap:()=>later('Уведомления'),
-        child:const Center(child:_GarageIcon('bellOutline',size:40)))),
-      p(42,110,757,70,_WorkStatus(data:data,onPause:(){if(shift==null){_testOpen(context);}else{_testRun(context,()=>TestStore.gps(shift['id'] as String,paused:!data.paused));}})),
-      p(58,238,334,168,Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        _garageText('Пробег за смену',29),const SizedBox(height:12),
-        Expanded(child:FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,
-          child:_garageText('${data.mileage} км',106,color:_amber,weight:FontWeight.w600)))])),
-      p(418,239,3,156,Container(color:_ice)),
-      p(532,237,271,170,Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        _garageText('Начало смены',24),const SizedBox(height:7),
-        _garageText('${_fmtInt(data.startOdometer.toDouble())} км',32,weight:FontWeight.w600),
-        const SizedBox(height:24),_garageText('Текущий одометр',24),const SizedBox(height:7),
-        _garageText('${_fmtInt(data.currentOdometer.toDouble())} км',32,weight:FontWeight.w600)])),
-      p(37,474,242,109,_WorkMetric(kind:'city',title:'Город',value:'${_fmt1(data.cityTonnage)} т',color:_amber)),
-      p(296,474,262,109,_WorkMetric(kind:'district',title:'Район',value:'${_fmt1(data.regionTonnage)} т',color:const Color(0xFFD58BE8))),
-      p(575,474,232,109,_WorkMetric(kind:'truck',title:'Рейсы',value:'${data.trips}',color:_ice)),
-      p(210,593,420,41,Row(mainAxisAlignment:MainAxisAlignment.center,children:[
-        _garageText('Всего перевезено',23),const SizedBox(width:18),
-        _garageText('${(data.cityTonnage+data.regionTonnage).toStringAsFixed(1).replaceAll('.',',')} т',31,color:_amber,weight:FontWeight.w600)])),
-      p(28,646,786,428,_WorkMap(onNavigate:()=>later('Навигация'))),
-      p(29,1090,785,228,_WorkFuel(rows:rows,onAdd:()=>_openFuelEntry(context))),
-      p(29,1331,785,213,_WorkEvents(rows:rows,onOpen:()=>_testOpen(context))),
-      p(49,1588,301,85,_GarageTap(label:'Добавить рейс',onTap:()=>_openTripEntry(context),
-        child:Container(decoration:BoxDecoration(color:const Color(0xD8061016),
-          borderRadius:BorderRadius.circular(22),border:Border.all(color:_amber,width:1.6)),
-          child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
-            const _GarageIcon('truck',color:_amber,size:47),const SizedBox(width:18),
-            _garageText('Добавить рейс',23,color:_amber)])))),
-      p(584,1490,215,208,_GarageTap(label:'Завершить смену',onTap:()=>later('Завершение смены'),
-        child:const _TestHomeShiftButton())),
-      p(0,1697,840,151,_WorkNavigation(onHome:()=>navigate(0),onAdd:quickAdd,
-        onInvoices:()=>navigate(3),onMore:()=>_openHomeMenu(context,session))),
-    ]));
-    return ColoredBox(color:const Color(0xFF02090E),child:SingleChildScrollView(
-      physics:const ClampingScrollPhysics(),child:Padding(padding:EdgeInsets.only(bottom:bottom),
-        child:SizedBox(width:c.maxWidth,height:h*scale,child:FittedBox(fit:BoxFit.fill,
-          alignment:Alignment.topCenter,child:MediaQuery.withClampedTextScaling(
-            minScaleFactor:1,maxScaleFactor:1,child:canvas))))));
-  }));
+  @override Widget build(BuildContext context)=>_CinematicWork(session:session,onNavigate:onNavigate,onQuickAdd:onQuickAdd);
 }
 
 class _WorkPanel extends StatelessWidget {
