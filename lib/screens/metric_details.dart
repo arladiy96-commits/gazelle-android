@@ -56,7 +56,7 @@ class _MetricDetailsState extends State<_MetricDetails> {
   late DateTime _month;
   _HomeMonthData? _total;ActivityBook? _book;TestPreferences? _prefs;
   final _scroll=ScrollController();
-  String? _error,_direction;bool _trips=false,_hideEmpty=true;int _loadId=0;
+  String? _error,_direction;bool _trips=false,_hideEmpty=true,_salaryDaysExpanded=false;int _loadId=0;
   bool get _weight=>['Город','Район'].contains(widget.metric);
   bool get _fuel=>['Газ','Бензин'].contains(widget.metric);
   @override
@@ -69,7 +69,7 @@ class _MetricDetailsState extends State<_MetricDetails> {
       if(mounted&&id==_loadId)setState((){_total=total;_book=book;_prefs=prefs;_error=null;});
     }catch(_){if(mounted&&id==_loadId)setState(()=>_error='Не удалось прочитать данные. Повторите попытку.');}
   }
-  void _monthTo(int delta){setState((){_month=DateTime(_month.year,_month.month+delta);_book=null;_total=null;_direction=null;});if(_scroll.hasClients)_scroll.jumpTo(0);_load();}
+  void _monthTo(int delta){setState((){_month=DateTime(_month.year,_month.month+delta);_book=null;_total=null;_direction=null;_salaryDaysExpanded=false;});if(_scroll.hasClients)_scroll.jumpTo(0);_load();}
   Future<void> _pickDay() async {
     final now=DateTime.now();final first=DateTime(_month.year,_month.month);final last=DateTime(_month.year,_month.month+1,0);
     final d=await showDatePicker(context:context,initialDate:ActivityBook.sameDay(first,now)?now:first,firstDate:first,lastDate:last);
@@ -85,14 +85,290 @@ class _MetricDetailsState extends State<_MetricDetails> {
     if(selected!=null&&mounted)setState(()=>_direction=selected=='Все направления'?null:selected);
   }
   @override
-  Widget build(BuildContext context)=>_DetailFrame(title:widget.metric,controller:_scroll,showHero:false,children:[
-    Row(mainAxisAlignment:MainAxisAlignment.center,children:[IconButton(tooltip:'Предыдущий месяц',onPressed:()=>_monthTo(-1),icon:const Icon(Icons.chevron_left,color:_amber)),
-      Flexible(child:_dt('${_garageMonths[_month.month-1]} ${_month.year}',size:15)),
-      IconButton(tooltip:'Следующий месяц',onPressed:()=>_monthTo(1),icon:const Icon(Icons.chevron_right,color:_amber))]),const SizedBox(height:12),
-    if(_error!=null)...[_DetailGlass(child:_dt(_error!)),_detailButton('Повторить',_load)]
-    else if(_total==null||_book==null)const Center(child:CircularProgressIndicator(color:_amber))
-    else ..._content(),
+  Widget build(BuildContext context)=>widget.metric=='Зарплата'
+      ? _salaryScreen()
+      : _DetailFrame(title:widget.metric,controller:_scroll,showHero:false,children:[
+          Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+            IconButton(tooltip:'Предыдущий месяц',onPressed:()=>_monthTo(-1),icon:const Icon(Icons.chevron_left,color:_amber)),
+            Flexible(child:_dt('${_garageMonths[_month.month-1]} ${_month.year}',size:15)),
+            IconButton(tooltip:'Следующий месяц',onPressed:()=>_monthTo(1),icon:const Icon(Icons.chevron_right,color:_amber)),
+          ]),const SizedBox(height:12),
+          if(_error!=null)...[_DetailGlass(child:_dt(_error!)),_detailButton('Повторить',_load)]
+          else if(_total==null||_book==null)const Center(child:CircularProgressIndicator(color:_amber))
+          else ..._content(),
+        ]);
+
+  // Salary uses its own image and overlay; every other metric keeps the
+  // existing backdrop and its original navigation.
+  Widget _salaryScreen()=>Scaffold(
+    backgroundColor:const Color(0xFF0A0E10),
+    body:LayoutBuilder(builder:(context,box){
+      // These are coordinates in the 747x1536 salary backdrop.
+      // Match BoxFit.cover, including the horizontal crop on narrower phones.
+      final scale=math.max(box.maxWidth/747.0,box.maxHeight/1536.0);
+      final offsetX=(747*scale-box.maxWidth)/2;
+      final safe=MediaQuery.paddingOf(context);
+      final availableHeight=math.max(0.0,box.maxHeight-safe.top-safe.bottom);
+      return Stack(children:[
+        const Positioned.fill(child:Image(
+          image:AssetImage('assets/images/salary_cab.png'),
+          fit:BoxFit.cover,alignment:Alignment.topCenter,
+        )),
+        const Positioned.fill(child:IgnorePointer(child:DecoratedBox(
+          decoration:BoxDecoration(gradient:LinearGradient(
+            begin:Alignment.topCenter,end:Alignment.bottomCenter,
+            stops:[0,.12,.33,.53,1],
+            colors:[Color(0x6504080A),Color(0x0804080A),
+              Color(0x0004080A),Color(0x0504080A),Color(0x3504080A)],
+          )),
+        ))),
+        SafeArea(child:SingleChildScrollView(
+          key:const PageStorageKey('salary-screen'),
+          controller:_scroll,
+          child:ConstrainedBox(
+            constraints:BoxConstraints(minHeight:availableHeight),
+            child:IntrinsicHeight(child:Column(children:[
+              _salaryHeader(),
+              const SizedBox(height:63),
+              const Expanded(child:SizedBox(height:165)),
+              if(_error!=null)
+                Padding(padding:const EdgeInsets.all(16),child:Column(children:[
+                  _DetailGlass(child:_dt(_error!)),
+                  _detailButton('Повторить',_load),
+                ]))
+              else if(_total==null||_book==null)
+                const Padding(padding:EdgeInsets.all(40),
+                  child:CircularProgressIndicator(color:_amber))
+              else
+                _salaryPanel(),
+            ])),
+          ),
+        )),
+        // The photographic month selector remains crisp; this foreground
+        // supplies the current month and hit targets for the photo chevrons.
+        Positioned(
+          left:230*scale-offsetX,top:126*scale,
+          width:294*scale,height:57*scale,
+          child:_salaryMonthOverlay(),
+        ),
+        // Only the number is live: the payslip frame and headings are artwork.
+        Positioned(
+          left:545*scale-offsetX,top:346*scale,
+          width:141*scale,height:43*scale,
+          child:IgnorePointer(child:Align(
+            alignment:Alignment.centerLeft,
+            child:FittedBox(
+              fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,
+              child:Text(_total==null?'—':'${_fmtInt(_total!.salary)} ₸',
+                maxLines:1,style:TextStyle(
+                  color:const Color(0xFFF6B34A),
+                  fontSize:25*scale,fontWeight:FontWeight.w600,
+                  shadows:const [Shadow(color:Color(0x88000000),blurRadius:3)],
+                )),
+            ),
+          )),
+        ),
+      ]);
+    }),
+  );
+
+  Widget _salaryHeader()=>Padding(
+    padding:const EdgeInsets.fromLTRB(9,4,9,0),
+    child:Row(children:[
+      SizedBox(width:48,child:IconButton(
+        tooltip:'Назад',onPressed:()=>Navigator.maybePop(context),
+        icon:const Icon(Icons.arrow_back_ios_new,color:_paper,size:20))),
+      const Expanded(child:Text('Зарплата',textAlign:TextAlign.center,
+        style:TextStyle(color:_paper,fontSize:16,fontWeight:FontWeight.w500))),
+      SizedBox(width:48,child:PopupMenuButton<String>(
+        tooltip:'Дополнительные действия',
+        color:const Color(0xFF1C2226),
+        icon:const Icon(Icons.more_horiz,color:_paper,size:21),
+        onSelected:(value){
+          if(value=='day')_pickDay();
+          if(value=='stats')_salaryStatistics();
+          if(value=='home')Navigator.of(context).popUntil((route)=>route.isFirst);
+        },
+        itemBuilder:(context)=>const [
+          PopupMenuItem(value:'day',child:Text('Выбрать дату',style:TextStyle(color:_paper))),
+          PopupMenuItem(value:'stats',child:Text('Показатели',style:TextStyle(color:_paper))),
+          PopupMenuItem(value:'home',child:Text('На главную',style:TextStyle(color:_paper))),
+        ],
+      )),
+    ]),
+  );
+
+  Widget _salaryMonthOverlay()=>Row(children:[
+    Expanded(child:Semantics(
+      button:true,label:'Предыдущий месяц',
+      child:GestureDetector(behavior:HitTestBehavior.opaque,
+        onTap:()=>_monthTo(-1),child:const SizedBox.expand()),
+    )),
+    Expanded(flex:4,child:Container(
+      alignment:Alignment.center,
+      // This hides the placeholder text printed in the reference image.
+      decoration:BoxDecoration(
+        color:const Color(0xFF1C1D1E),
+        borderRadius:BorderRadius.circular(3),
+      ),
+      child:Text('${_garageMonths[_month.month-1]} ${_month.year}',
+        maxLines:1,overflow:TextOverflow.ellipsis,
+        textAlign:TextAlign.center,
+        style:TextStyle(color:_paper,fontSize:25*math.min(
+          MediaQuery.sizeOf(context).width/747.0,
+          MediaQuery.sizeOf(context).height/1536.0,
+        ),fontWeight:FontWeight.w400)),
+    )),
+    Expanded(child:Semantics(
+      button:true,label:'Следующий месяц',
+      child:GestureDetector(behavior:HitTestBehavior.opaque,
+        onTap:()=>_monthTo(1),child:const SizedBox.expand()),
+    )),
   ]);
+
+  Widget _salaryPanel(){
+    const line=Color(0x554F5557);
+    const gold=Color(0xFFBA873C);
+    final parts=const <(String,String)>[
+      ('base_salary','Основной оклад'),
+      ('weekend_pay','Выходные'),
+      ('holiday_pay','Праздники'),
+      ('paid_routes_pay','Платные рейсы'),
+      ('city_pay','Городской вес'),
+      ('region_pay','Районный вес'),
+    ];
+    final now=DateTime.now();
+    final last=DateTime(_month.year,_month.month+1,0).day;
+    final count=_month.year==now.year&&_month.month==now.month?now.day:last;
+    final dates=[for(var day=count;day>=1;day--)
+      DateTime(_month.year,_month.month,day)]
+      .where((date)=>!_hideEmpty||_dayValue(date,'salary')!=null).toList();
+    return Container(
+      width:double.infinity,
+      margin:const EdgeInsets.fromLTRB(8,0,8,4),
+      padding:const EdgeInsets.fromLTRB(16,19,16,14),
+      decoration:BoxDecoration(
+        color:const Color(0xF21B1E20),
+        border:Border.all(color:gold,width:1),
+        borderRadius:BorderRadius.circular(16),
+        boxShadow:const [BoxShadow(color:Color(0x70000000),blurRadius:26,offset:Offset(0,9))],
+      ),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        const Text('Состав зарплаты',style:TextStyle(
+          color:_paper,fontSize:16,fontWeight:FontWeight.w500)),
+        const SizedBox(height:9),
+        for(final part in parts)...[
+          Padding(padding:const EdgeInsets.symmetric(vertical:4),child:Row(children:[
+            Expanded(child:Text(part.$2,style:const TextStyle(color:_paper,fontSize:12))),
+            const SizedBox(width:12),
+            Text(_salaryPart(part.$1),textAlign:TextAlign.right,
+              style:const TextStyle(color:_paper,fontSize:12,fontWeight:FontWeight.w500)),
+          ])),
+          Divider(height:1,thickness:.6,color:part.$1=='region_pay'?gold:line),
+        ],
+        const SizedBox(height:14),
+        IntrinsicHeight(child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            const Text('Отработано',style:TextStyle(fontSize:11,color:Color(0xFFB4B6B8))),
+            const SizedBox(height:4),
+            Text(_salaryPart('hours',unit:'ч'),
+              style:const TextStyle(color:_paper,fontSize:18)),
+          ])),
+          const VerticalDivider(thickness:1,color:Color(0x776B512F),width:26),
+          Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            const Text('Норма',style:TextStyle(fontSize:11,color:Color(0xFFB4B6B8))),
+            const SizedBox(height:4),
+            Text(_salaryPart('norm_hours',unit:'ч'),
+              style:const TextStyle(color:_paper,fontSize:18)),
+          ])),
+        ])),
+        const SizedBox(height:20),
+        Material(color:Colors.transparent,child:InkWell(
+          key:const ValueKey('salary-show-days'),
+          onTap:()=>setState(()=>_salaryDaysExpanded=!_salaryDaysExpanded),
+          borderRadius:BorderRadius.circular(10),
+          child:Ink(
+            decoration:BoxDecoration(
+              color:const Color(0x52101619),
+              border:Border.all(color:gold),
+              borderRadius:BorderRadius.circular(10)),
+            child:Padding(padding:const EdgeInsets.symmetric(horizontal:13,vertical:12),
+              child:Row(children:[
+                Expanded(child:Text(_salaryDaysExpanded?'Скрыть дни':'Посмотреть по дням',
+                  style:const TextStyle(color:_paper,fontSize:12))),
+                Icon(_salaryDaysExpanded?Icons.keyboard_arrow_up:Icons.chevron_right,
+                  color:_paper,size:19),
+              ])),
+          ),
+        )),
+        if(_salaryDaysExpanded)...[
+          const SizedBox(height:16),
+          Row(children:[
+            const Expanded(child:Text('По дням',style:TextStyle(color:_paper,fontSize:16))),
+            IconButton(tooltip:'Выбрать дату',onPressed:_pickDay,
+              icon:const Icon(Icons.calendar_month_outlined,color:_amber)),
+          ]),
+          if(dates.isEmpty)
+            const Padding(padding:EdgeInsets.symmetric(vertical:12),
+              child:Text('За этот месяц записей пока нет.',
+                style:TextStyle(color:Color(0xFFAFB8BE),fontSize:13)))
+          else for(final date in dates)...[
+            const Divider(height:1,thickness:.6,color:line),
+            InkWell(onTap:()=>_day(date),child:Padding(
+              padding:const EdgeInsets.symmetric(vertical:14),
+              child:Row(children:[
+                Expanded(child:Text(_detailDate(date),
+                  style:TextStyle(fontSize:14,
+                    color:date.weekday>=6?const Color(0xFFFFAA91):_paper))),
+                Text(_dailyText(date),style:const TextStyle(color:_paper,fontSize:14)),
+                const SizedBox(width:4),
+                const Icon(Icons.chevron_right,color:_paper,size:19),
+              ]),
+            )),
+          ],
+        ],
+        const SizedBox(height:10),
+        Row(children:[
+          Expanded(child:TextButton.icon(
+            onPressed:_salaryExplain,
+            style:TextButton.styleFrom(
+              padding:EdgeInsets.zero,alignment:Alignment.centerLeft,
+              foregroundColor:const Color(0xFFB7B9BC)),
+            icon:const Icon(Icons.info_outline,size:19),
+            label:const Text('Пример расчёта',style:TextStyle(fontSize:11)),
+          )),
+          TextButton(
+            onPressed:_salaryStatistics,
+            style:TextButton.styleFrom(
+              foregroundColor:_amber,padding:EdgeInsets.zero),
+            child:const Row(mainAxisSize:MainAxisSize.min,children:[
+              Text('К показателям',style:TextStyle(fontSize:11)),
+              SizedBox(width:3),Icon(Icons.chevron_right,size:20),
+            ]),
+          ),
+        ]),
+      ]),
+    );
+  }
+
+  void _salaryStatistics()=>_openGarageSection(context,'Статистика','');
+
+  void _salaryExplain()=>showDialog<void>(
+    context:context,
+    builder:(dialogContext)=>AlertDialog(
+      backgroundColor:const Color(0xFF1C2226),
+      title:const Text('О расчёте',style:TextStyle(color:_paper)),
+      content:const Text(
+        'Сумма складывается из основного оклада, выплат за выходные и праздники, '
+        'платных рейсов и начислений за городской и районный вес. '
+        'На экране показаны данные выбранного месяца.',
+        style:TextStyle(color:_paper)),
+      actions:[TextButton(
+        onPressed:()=>Navigator.pop(dialogContext),
+        child:const Text('Понятно',style:TextStyle(color:_amber)))],
+    ),
+  );
+
   List<Widget> _content(){
     final total=_total!;final entries=_entries;final metric=widget.metric;
     final value=switch(metric){'Город'=>'${_fmt1(total.city)} т','Район'=>'${_fmt1(total.region)} т','Газ'=>'${_fmt1(total.gas)} л',
@@ -104,16 +380,6 @@ class _MetricDetailsState extends State<_MetricDetails> {
     return [
       _SceneSpace(scene:_sceneFor(metric),controlsHeight:120),
       _SceneSummary(value:value,label:_fuel?'Получено за месяц':_weight?'Перевезено за месяц':metric=='Пробег'?'За выбранный месяц':'Начислено за месяц'),
-      if(metric=='Зарплата')...[
-        _DetailGlass(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_dt('Состав зарплаты',size:16,weight:FontWeight.w500),const SizedBox(height:8),
-          ..._separated([for(final row in const {'base_salary':'Основной оклад','weekend_pay':'Выходные','holiday_pay':'Праздники',
-            'paid_routes_pay':'Платные рейсы','city_pay':'Городской вес','region_pay':'Районный вес'}.entries)
-            _detailRow(row.value,_salaryPart(row.key))]),
-          const SizedBox(height:4)])),
-        _DetailGlass(child:Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_dt('Отработано',size:14),
-          const SizedBox(height:8),_dt(_salaryPart('hours',unit:'ч'),size:20)])),
-          Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_dt('Норма',size:14),const SizedBox(height:8),_dt(_salaryPart('norm_hours',unit:'ч'),size:20)]))])),
-      ],
       if(_weight)...[
         _QuickSegment(values:const ['По дням','По рейсам'],selected:_trips?'По рейсам':'По дням',onChanged:(v)=>setState(()=>_trips=v=='По рейсам')),
         Row(children:[Expanded(child:TextButton.icon(onPressed:_filter,icon:const Icon(Icons.filter_alt_outlined,size:17,color:_amber),
