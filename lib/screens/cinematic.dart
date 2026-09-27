@@ -34,52 +34,65 @@ class _SceneReveal extends StatelessWidget {
     return FadeTransition(opacity:curve,child:SlideTransition(position:Tween<Offset>(begin:const Offset(0,.035),end:Offset.zero).animate(curve),child:child));
   }
 }
+// Exactly one full-screen image per scene. Data is painted over that same image.
 class _SceneBackdrop extends StatelessWidget {
-  final _Scene scene;final bool dim;
-  const _SceneBackdrop({this.scene=_Scene.cab,this.dim=true});
+  final _Scene scene;final bool dim;final TextEditingController? odometerController;
+  const _SceneBackdrop({this.scene=_Scene.cab,this.dim=true,this.odometerController});
   @override Widget build(BuildContext context)=>Stack(fit:StackFit.expand,children:[
-    Image.asset(_sceneAsset(scene),fit:BoxFit.cover,alignment:Alignment.topCenter,filterQuality:FilterQuality.medium),
+    LayoutBuilder(builder:(context,c)=>Image.asset(_sceneAsset(scene),fit:BoxFit.cover,
+      alignment:scene==_Scene.instruments&&c.maxWidth>c.maxHeight?Alignment.center:Alignment.topCenter,filterQuality:FilterQuality.medium)),
     DecoratedBox(decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,
-      colors:dim?const[Color(0x88030A0F),Color(0xA6030A0F),Color(0xF0030A0F)]:const[Color(0x20030A0F),Color(0x44030A0F),Color(0xD9030A0F)])))
+      stops:const [0,.18,.52,1],colors:dim?const [Color(0x30030A0F),Color(0x08030A0F),Color(0x20030A0F),Color(0x80030A0F)]:const [Color(0x20030A0F),Colors.transparent,Color(0x10030A0F),Color(0x65030A0F)]))),
+    if(scene==_Scene.instruments)IgnorePointer(child:odometerController==null
+      ?_TestLive(builder:(b)=>_SceneOdometer(value:_actualOdometer(b)))
+      :ValueListenableBuilder<TextEditingValue>(valueListenable:odometerController!,builder:(_,v,__)=>_SceneOdometer(value:double.tryParse(v.text)))),
   ]);
 }
-class _SceneHero extends StatelessWidget {
-  final _Scene scene;final String? value,label;final double? odometer;final double height;
-  const _SceneHero({required this.scene,this.value,this.label,this.odometer,this.height=230});
-  @override Widget build(BuildContext context){
-    if(scene==_Scene.instruments)return Column(children:[_InstrumentPanel(odometer:odometer),if(value!=null)_hud()]);
-    return Padding(padding:const EdgeInsets.only(bottom:12),child:ClipRRect(borderRadius:BorderRadius.circular(18),child:SizedBox(height:height,child:Stack(fit:StackFit.expand,children:[
-      Image.asset(_sceneAsset(scene),fit:BoxFit.cover,alignment:scene==_Scene.cab?const Alignment(0,-.28):const Alignment(0,-.12)),
-      const DecoratedBox(decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[Colors.transparent,Color(0x15020A0E),Color(0xB3020A0E)]))),
-      if(value!=null)Positioned(right:12,bottom:0,left:scene==_Scene.cab?null:120,child:_hud()),
-    ]))));
-  }
-  Widget _hud()=>_DetailGlass(accent:true,padding:const EdgeInsets.symmetric(horizontal:14,vertical:10),child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisSize:MainAxisSize.min,children:[
-    _dt(value??'',size:23,weight:FontWeight.w500),if(label!=null)...[const SizedBox(height:3),_dt(label!,size:12,color:const Color(0xFFB6C6CD))]]));
+class _SceneOdometer extends StatelessWidget {
+  final double? value;const _SceneOdometer({this.value});
+  @override Widget build(BuildContext context)=>LayoutBuilder(builder:(context,c){
+    const imageSize=Size(887,1774);
+    final viewport=Size(c.maxWidth,c.maxHeight);
+    final fitted=applyBoxFit(BoxFit.cover,imageSize,viewport);
+    final alignment=c.maxWidth>c.maxHeight?Alignment.center:Alignment.topCenter;
+    final source=alignment.inscribe(fitted.sourceSize,Offset.zero & imageSize);
+    final destination=alignment.inscribe(fitted.destinationSize,Offset.zero & viewport);
+    final scale=destination.width/source.width;
+    final lcd=Rect.fromLTWH(destination.left+(887*.386-source.left)*scale,
+      destination.top+(1774*.398-source.top)*scale,887*.224*scale,1774*.050*scale);
+    return Stack(children:[Positioned.fromRect(rect:lcd,child:Semantics(label:value==null?'Одометр не указан':'Одометр ${value!.round()} километров',
+      child:Container(color:const Color(0xFF020808),padding:EdgeInsets.symmetric(horizontal:lcd.width*.04,vertical:lcd.height*.08),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+        Flexible(child:FittedBox(fit:BoxFit.scaleDown,child:Text(value==null?'— — — — — —':_fmtInt(value!),style:const TextStyle(color:_amber,fontFamily:'monospace',fontSize:30,letterSpacing:1.2)))),
+        const SizedBox(height:2),Text('ОДОМЕТР · КМ',style:TextStyle(color:_amber,fontSize:math.min(9.0,lcd.height*.15)))]))))]);
+  });
 }
-class _InstrumentPanel extends StatelessWidget {
-  final double? odometer;const _InstrumentPanel({this.odometer});
-  @override Widget build(BuildContext context)=>Semantics(label:odometer==null?'Одометр не указан':'Одометр ${odometer!.round()} километров',child:AspectRatio(aspectRatio:1.5,child:LayoutBuilder(builder:(context,c)=>Stack(children:[
-    Positioned.fill(child:Image.asset(_sceneAsset(_Scene.instruments),fit:BoxFit.fill)),
-    // Calibrated to the blank LCD in the original 1536 × 1024 artwork.
-    Positioned(left:c.maxWidth*.388,top:c.maxHeight*.425,width:c.maxWidth*.229,height:c.maxHeight*.143,
-      child:Container(color:const Color(0xFF020808),padding:EdgeInsets.symmetric(horizontal:c.maxWidth*.008),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-        FittedBox(fit:BoxFit.scaleDown,child:Text(odometer==null?'— — — — — —':_fmtInt(odometer!),style:TextStyle(color:_amber,fontFamily:'monospace',fontSize:c.maxWidth*.041,letterSpacing:1.2,shadows:const[Shadow(color:Color(0x77FFB84D),blurRadius:5)]))),
-        Text('ОДОМЕТР · КМ',style:TextStyle(color:_amber.withValues(alpha:.65),fontSize:c.maxWidth*.014))]))),
-  ]))));
+// Transparent space exposes the scene, never inserts a second photograph.
+class _SceneSpace extends StatelessWidget {
+  final _Scene scene;final double controlsHeight;
+  const _SceneSpace({required this.scene,this.controlsHeight=48});
+  @override Widget build(BuildContext context){final mq=MediaQuery.of(context);
+    final imageBottom=mq.size.height*(scene==_Scene.instruments ? .56 : .53);
+    final space=(imageBottom-mq.padding.top-controlsHeight).clamp(90.0,520.0).toDouble();
+    return SizedBox(height:space);
+  }
+}
+class _SceneSummary extends StatelessWidget {
+  final String value,label;const _SceneSummary({required this.value,required this.label});
+  @override Widget build(BuildContext context)=>_DetailGlass(accent:true,child:Row(children:[
+    Expanded(child:_dt(label,size:13,color:const Color(0xFFB6C6CD))),const SizedBox(width:12),
+    Flexible(child:Text(value,textAlign:TextAlign.right,style:const TextStyle(color:_amber,fontSize:22,fontWeight:FontWeight.w500))),
+  ]));
 }
 double? _actualOdometer(TestState b){
   final shifts=[...b.shifts]..sort((a,z)=>(z['start'] as String).compareTo(a['start'] as String));
   return shifts.isEmpty?null:(shifts.first['currentKm'] as num).toDouble();
 }
-Widget _liveInstruments()=>_TestLive(builder:(b)=>_InstrumentPanel(odometer:_actualOdometer(b)));
 
 class _SceneForm extends StatelessWidget {
-  final _Scene scene;final Widget child;final Widget? hero;
-  const _SceneForm({required this.scene,required this.child,this.hero});
+  final _Scene scene;final Widget child;final TextEditingController? odometerController;
+  const _SceneForm({required this.scene,required this.child,this.odometerController});
   @override Widget build(BuildContext context)=>Scaffold(resizeToAvoidBottomInset:false,backgroundColor:const Color(0xFF030A0F),body:Stack(children:[
-    Positioned.fill(child:_SceneBackdrop(scene:scene,dim:false)),
-    if(hero!=null)SafeArea(child:Align(alignment:Alignment.topCenter,child:Padding(padding:const EdgeInsets.only(top:12),child:hero))),
+    Positioned.fill(child:_SceneBackdrop(scene:scene,dim:false,odometerController:odometerController)),
     SafeArea(child:Align(alignment:Alignment.bottomCenter,child:_SceneReveal(child:child)))
   ]));
 }
@@ -89,7 +102,7 @@ Future<void> _showShiftForm(BuildContext context,{Map<String,dynamic>? shift,boo
   final initial=shift==null?_actualOdometer(b)?.round():close&&gps>0?(shift['startKm'] as num).toInt()+gps.round():(shift['currentKm'] as num).toInt();
   final controller=TextEditingController(text:initial?.toString()??'');
   final route=_SceneRoute<void>(builder:(_)=>_SceneForm(scene:_Scene.instruments,
-    hero:ValueListenableBuilder<TextEditingValue>(valueListenable:controller,builder:(_,v,__)=>_InstrumentPanel(odometer:double.tryParse(v.text))),
+    odometerController:controller,
     child:_TestOdometer(controller:controller,shift:shift,close:close)));
   await Navigator.of(context).push<void>(route);await route.completed;controller.dispose();
 }
@@ -113,10 +126,9 @@ class _CinematicWork extends StatelessWidget {
     double total(String kind,[String? type])=>rows.where((e)=>e['kind']==kind&&(type==null||e['type']==type)).fold<double>(0,(n,e)=>n+(e['amount'] as num? ?? 0).toDouble());
     final seconds=s==null?0:(b.elapsed(s)*3600).round();
     final elapsed='${(seconds~/3600).toString().padLeft(2,'0')}:${((seconds~/60)%60).toString().padLeft(2,'0')}:${(seconds%60).toString().padLeft(2,'0')}';
-    return Column(children:[Expanded(child:_DetailFrame(title:'Работа',embedded:true,showHero:false,scene:_Scene.cab,children:[
+    return Column(children:[Expanded(child:_DetailFrame(title:'Работа',embedded:true,scene:_Scene.instruments,children:[
       _DetailGlass(padding:const EdgeInsets.symmetric(horizontal:14,vertical:9),child:Row(children:[Icon(Icons.schedule,size:18,color:_ice),const SizedBox(width:8),Expanded(child:_dt(s==null?'Смена закрыта':'Смена открыта · $elapsed',color:_ice,size:13)),
         if(s!=null)IconButton(tooltip:'Управление сменой',onPressed:()=>_testOpen(context),icon:const Icon(Icons.more_horiz,color:_paper))])),
-      _InstrumentPanel(odometer:_actualOdometer(b)),
       _DetailGlass(accent:true,child:Row(children:[Expanded(child:_workNumber('За смену',s==null?'0 км':'${_fmtInt(b.mileage(s))} км')),
         Expanded(child:_workNumber('Город','${_fmt1(total('trip','Город')/1000)} т')),
         Expanded(child:_workNumber('Район','${_fmt1(total('trip','Район')/1000)} т')),

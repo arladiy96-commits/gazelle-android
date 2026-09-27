@@ -26,12 +26,12 @@ class _GarageSectionState extends State<_GarageSection> {
   void _move(int n){setState((){_month=DateTime(_month.year,_month.month+n);_book=null;});_load();}
   void _day(DateTime d)=>Navigator.of(context).push<void>(_SceneRoute(builder:(_)=>_DayDetails(date:d)));
   @override
-  Widget build(BuildContext context)=>_DetailFrame(title:widget.section,children:[
+  Widget build(BuildContext context)=>_DetailFrame(title:widget.section,showHero:false,children:[
     if(widget.section!='Документы')Row(mainAxisAlignment:MainAxisAlignment.center,children:[
       IconButton(onPressed:()=>_move(-1),tooltip:'Предыдущий месяц',icon:const Icon(Icons.chevron_left,color:_amber)),
       _dt('${_garageMonths[_month.month-1]} ${_month.year}',size:15),
       IconButton(onPressed:()=>_move(1),tooltip:'Следующий месяц',icon:const Icon(Icons.chevron_right,color:_amber))]),
-    const SizedBox(height:12),
+    _SceneSpace(scene:_sceneFor(widget.section),controlsHeight:widget.section=='Документы'?48:108),
     if(_error!=null)...[_DetailGlass(child:_dt(_error!)),_detailButton('Повторить',_load)]
     else if(_book==null)const Center(child:CircularProgressIndicator(color:_amber))
     else if(widget.section=='Документы')..._documents()

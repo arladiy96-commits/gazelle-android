@@ -3419,9 +3419,9 @@ class _QuickEntryShell extends StatelessWidget {
   @override Widget build(BuildContext context){final mq=MediaQuery.of(context);
     return AnimatedPadding(duration:const Duration(milliseconds:220),curve:Curves.easeOutCubic,padding:EdgeInsets.only(bottom:mq.viewInsets.bottom),
       child:ConstrainedBox(constraints:BoxConstraints(maxHeight:math.max(140,mq.size.height-mq.viewInsets.bottom-mq.padding.top-24)),
-        child:SingleChildScrollView(padding:const EdgeInsets.fromLTRB(12,8,12,12),child:_DetailGlass(accent:true,padding:const EdgeInsets.all(16),child:Column(mainAxisSize:MainAxisSize.min,children:[
+        child:SingleChildScrollView(padding:const EdgeInsets.fromLTRB(12,8,12,12),child:_DetailGlass(accent:true,padding:const EdgeInsets.all(14),child:Column(mainAxisSize:MainAxisSize.min,children:[
           Container(width:32,height:3,decoration:BoxDecoration(color:const Color(0xFF67747B),borderRadius:BorderRadius.circular(3))),const SizedBox(height:4),
-          Row(children:[Icon(icon,color:_amber,size:21),const SizedBox(width:10),Expanded(child:_dt(title,size:17,weight:FontWeight.w500)),
+          Row(children:[Icon(icon,color:_amber,size:21),const SizedBox(width:10),Expanded(child:_dt(title,size:16,weight:FontWeight.w500)),
             IconButton(tooltip:'Закрыть',onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close,color:_paper,size:21))]),const SizedBox(height:8),child])))));
   }
 }

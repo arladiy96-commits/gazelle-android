@@ -5,44 +5,44 @@ Future<void> _openMetricDetails(BuildContext context,String metric,DateTime mont
 }
 String _detailDate(DateTime d)=>'${d.day} ${const ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'][d.month-1]}';
 String _detailTime(DateTime d)=>'${d.hour.toString().padLeft(2,'0')}:${d.minute.toString().padLeft(2,'0')}';
-Text _dt(String s,{double size=14,Color color=_paper,FontWeight weight=FontWeight.w400})=>Text(s,
+Text _dt(String s,{double size=13,Color color=_paper,FontWeight weight=FontWeight.w400})=>Text(s,
   style:TextStyle(fontSize:size,color:color,fontWeight:weight,height:1.25));
 class _DetailGlass extends StatelessWidget {
   final Widget child;final bool accent;final EdgeInsets padding;
-  const _DetailGlass({required this.child,this.accent=false,this.padding=const EdgeInsets.all(14)});
+  const _DetailGlass({required this.child,this.accent=false,this.padding=const EdgeInsets.symmetric(horizontal:14,vertical:10)});
   @override
-  Widget build(BuildContext context)=>Container(margin:const EdgeInsets.only(bottom:12),
-    decoration:BoxDecoration(borderRadius:BorderRadius.circular(16),border:Border.all(color:accent?const Color(0xBFFFBE5C):const Color(0x66768F98)),
-      gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xC0182329),Color(0xD0061016)]),
+  Widget build(BuildContext context)=>Container(margin:const EdgeInsets.only(bottom:10),
+    decoration:BoxDecoration(borderRadius:BorderRadius.circular(16),border:Border.all(color:accent?const Color(0xBFFFBE5C):const Color(0xB57899A9)),
+      gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xB316252D),Color(0xC7071219)]),
       boxShadow:accent?const[BoxShadow(color:Color(0x14FFB23C),blurRadius:10)]:null),
     child:ClipRRect(borderRadius:BorderRadius.circular(16),child:BackdropFilter(filter:ImageFilter.blur(sigmaX:2,sigmaY:2),
       child:Padding(padding:padding,child:child))));
 }
 class _DetailFrame extends StatelessWidget {
   final String title;final List<Widget> children;final ScrollController? controller;
-  final _Scene? scene;final bool embedded,showHero;final Widget? hero;final Widget? action;
-  const _DetailFrame({required this.title,required this.children,this.controller,this.scene,this.embedded=false,this.showHero=true,this.hero,this.action});
+  final _Scene? scene;final bool embedded,showHero;final Widget? action;
+  const _DetailFrame({required this.title,required this.children,this.controller,this.scene,this.embedded=false,this.showHero=true,this.action});
   @override Widget build(BuildContext context){final resolved=scene??_sceneFor(title);
     final body=Stack(children:[Positioned.fill(child:_SceneBackdrop(scene:resolved)),
       SafeArea(top:!embedded,bottom:!embedded,child:Column(children:[
         Padding(padding:const EdgeInsets.symmetric(horizontal:8),child:Row(children:[
           SizedBox(width:48,child:embedded?null:IconButton(tooltip:'Назад',onPressed:()=>Navigator.maybePop(context),icon:const Icon(Icons.chevron_left,color:_amber))),
-          Expanded(child:Text(title,textAlign:TextAlign.center,style:const TextStyle(color:_paper,fontSize:17,fontWeight:FontWeight.w500))),
+          Expanded(child:Text(title,textAlign:TextAlign.center,style:const TextStyle(color:_paper,fontSize:16,fontWeight:FontWeight.w400))),
           SizedBox(width:48,child:action??(embedded?null:IconButton(tooltip:'На главную',onPressed:()=>Navigator.of(context).popUntil((r)=>r.isFirst),icon:const Icon(Icons.close,color:_paper,size:21))))])),
         Expanded(child:_SceneReveal(child:ListView(key:PageStorageKey('scene-$title'),controller:controller,
           keyboardDismissBehavior:ScrollViewKeyboardDismissBehavior.onDrag,padding:const EdgeInsets.fromLTRB(16,4,16,24),children:[
-            if(showHero)hero??_SceneHero(scene:resolved,height:190),...children])))]))]);
+            if(showHero)_SceneSpace(scene:resolved),...children])))]))]);
     return embedded?body:Scaffold(backgroundColor:const Color(0xFF030B10),body:body);
   }
 }
 Widget _detailButton(String label,VoidCallback action,{IconData icon=Icons.chevron_right})=>Padding(padding:const EdgeInsets.only(bottom:12),
-  child:OutlinedButton.icon(onPressed:action,icon:Icon(icon,size:18),label:Text(label,style:const TextStyle(fontSize:14,fontWeight:FontWeight.w500)),
+  child:OutlinedButton.icon(onPressed:action,icon:Icon(icon,size:18),label:Text(label,style:const TextStyle(fontSize:13,fontWeight:FontWeight.w500)),
     style:OutlinedButton.styleFrom(foregroundColor:_amber,backgroundColor:const Color(0xC0081319),
-      side:const BorderSide(color:Color(0xBFFFBE5C)),minimumSize:const Size.fromHeight(46),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)))));
+      side:const BorderSide(color:Color(0xBFFFBE5C)),minimumSize:const Size.fromHeight(44),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)))));
 Widget _detailRow(String label,String value,{VoidCallback? onTap,String? subtitle,Color? color})=>InkWell(onTap:onTap,
-  borderRadius:BorderRadius.circular(12),child:Container(constraints:const BoxConstraints(minHeight:48),padding:const EdgeInsets.symmetric(vertical:11,horizontal:2),child:Row(children:[
+  borderRadius:BorderRadius.circular(12),child:Container(constraints:const BoxConstraints(minHeight:44),padding:const EdgeInsets.symmetric(vertical:9,horizontal:2),child:Row(children:[
     Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_dt(label,color:color??_paper),
-      if(subtitle!=null)...[const SizedBox(height:4),_dt(subtitle,size:13,color:const Color(0xFFADC0CC))]])),
+      if(subtitle!=null)...[const SizedBox(height:4),_dt(subtitle,size:12,color:const Color(0xFFADC0CC))]])),
     const SizedBox(width:12),_dt(value,weight:FontWeight.w500),if(onTap!=null)...[const SizedBox(width:8),const Icon(Icons.chevron_right,color:_paper,size:18)]])));
 List<Widget> _separated(List<Widget> rows)=>[for(var i=0;i<rows.length;i++)...[if(i>0)const Divider(height:1,color:Color(0x803E505B)),rows[i]]];
 
@@ -102,11 +102,8 @@ class _MetricDetailsState extends State<_MetricDetails> {
     final count=isCurrent?now.day:days;
     final dates=[for(var i=count;i>=1;i--)DateTime(_month.year,_month.month,i)];
     return [
-      if(metric=='Пробег')_liveInstruments(),
-      if(metric!='Пробег')_SceneHero(scene:_sceneFor(metric),
-        height:240,value:value,
-        label:_fuel?'Получено за месяц':_weight?'Перевезено за месяц':'Начислено за месяц'),
-      if(metric=='Пробег')_DetailGlass(accent:true,child:_detailRow('За выбранный месяц',value)),
+      _SceneSpace(scene:_sceneFor(metric),controlsHeight:120),
+      _SceneSummary(value:value,label:_fuel?'Получено за месяц':_weight?'Перевезено за месяц':metric=='Пробег'?'За выбранный месяц':'Начислено за месяц'),
       if(metric=='Зарплата')...[
         _DetailGlass(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_dt('Состав зарплаты',size:16,weight:FontWeight.w500),const SizedBox(height:8),
           ..._separated([for(final row in const {'base_salary':'Основной оклад','weekend_pay':'Выходные','holiday_pay':'Праздники',
@@ -134,8 +131,7 @@ class _MetricDetailsState extends State<_MetricDetails> {
             _detailRow(_detailDate(d),_weight?_weightDay(entries,d):_dailyText(d),onTap:()=>_day(d),
               color:d.weekday>=6?const Color(0xFFFFAA91):null)]))),
       ],
-      _dt('Нажмите дату, чтобы открыть бортовой журнал.',size:12,color:const Color(0xFFBAC8D1)),
-      const SizedBox(height:18),
+      const SizedBox(height:8),
       if(_fuel)_detailButton('Добавить заправку',()=>_testEditor(context,'fuel',initialType:metric),icon:Icons.add),
     ];
   }
