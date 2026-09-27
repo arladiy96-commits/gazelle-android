@@ -55,8 +55,8 @@ class _SceneOdometer extends StatelessWidget {
     final viewport=Size(c.maxWidth,c.maxHeight);
     final fitted=applyBoxFit(BoxFit.cover,imageSize,viewport);
     final alignment=c.maxWidth>c.maxHeight?Alignment.center:Alignment.topCenter;
-    final source=alignment.inscribe(fitted.sourceSize,Offset.zero & imageSize);
-    final destination=alignment.inscribe(fitted.destinationSize,Offset.zero & viewport);
+    final source=alignment.inscribe(fitted.source,Offset.zero & imageSize);
+    final destination=alignment.inscribe(fitted.destination,Offset.zero & viewport);
     final scale=destination.width/source.width;
     final lcd=Rect.fromLTWH(destination.left+(887*.386-source.left)*scale,
       destination.top+(1774*.398-source.top)*scale,887*.224*scale,1774*.050*scale);
