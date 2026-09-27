@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -38,10 +38,18 @@ jobs:
       - name: Build release APK
         run: flutter build apk --release
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: gazelle-android-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: error
-          retention-days: 14
+      - name: Publish APK to GitHub Releases
+        if: ${{ success() && github.event_name != 'pull_request' && github.event_name != 'pull_request_target' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk_path="build/app/outputs/flutter-apk/app-release.apk"
+          test -s "$apk_path"
+          release_tag="apk-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          gh release create "$release_tag" "$apk_path" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Мельница — сборка ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" \
+            --notes "APK из сборки ${GITHUB_RUN_NUMBER}, попытка ${GITHUB_RUN_ATTEMPT}. Коммит: ${GITHUB_SHA}."
