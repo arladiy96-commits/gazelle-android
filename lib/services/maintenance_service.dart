@@ -75,7 +75,7 @@ class MaintenanceRepository {
   Future<MaintenanceBook> load() async {
     final prefs=await TestPreferences.getInstance();
     final raw=prefs.getString(key);
-    if(raw==null){final b=await TestStore.load();return MaintenanceBook(odometer:(b.active?['currentKm'] as num?)?.toInt()??128540);}
+    if(raw==null){final b=await TestStore.load();final shifts=[...b.shifts]..sort((a,z)=>(z['start'] as String).compareTo(a['start'] as String));return MaintenanceBook(odometer:shifts.isEmpty?0:(shifts.first['currentKm'] as num).toInt());}
     // Do not silently replace a damaged/unknown file with demo data.
     final json=jsonDecode(raw) as Map<String,dynamic>;
     if(json['version']!=1)throw const FormatException('Неизвестная версия данных ТО');
