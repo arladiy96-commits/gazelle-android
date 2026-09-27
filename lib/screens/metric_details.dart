@@ -150,18 +150,18 @@ class _MetricDetailsState extends State<_MetricDetails> {
           left:230*scale-offsetX,top:126*scale,
           width:294*scale,height:57*scale,
           child:_salaryMonthOverlay(),
-        ),        // The tablet UI is baked into the background image. Only the dynamic
-        // amount is drawn here so it feels like part of the photographed screen.
+        ),
+        // The tablet is already in the photo: draw only its current amount.
         Positioned(
-          left:536*scale-offsetX,top:338*scale,
-          width:122*scale,height:28*scale,
+          left:545*scale-offsetX,top:349*scale,
+          width:141*scale,height:39*scale,
           child:IgnorePointer(
             child:Transform(
               alignment:Alignment.centerLeft,
               transform:Matrix4.identity()
                 ..setEntry(3,2,0.001)
                 ..rotateZ(0.02)
-                ..rotateY(-0.08),
+                ..rotateY(-0.09),
               child:Align(
                 alignment:Alignment.centerLeft,
                 child:FittedBox(
@@ -169,11 +169,12 @@ class _MetricDetailsState extends State<_MetricDetails> {
                   child:Text(_total==null?'—':'${_fmtInt(_total!.salary)} ₸',
                     maxLines:1,
                     style:TextStyle(
-                      color:const Color(0xFFF4B34F),
-                      fontSize:18.5*scale,fontWeight:FontWeight.w600,
-                      letterSpacing:.2,
+                      color:const Color(0xF0D4A35D),
+                      fontSize:20*scale,fontWeight:FontWeight.w500,
+                      letterSpacing:0.1,
                       shadows:const [
-                        Shadow(color:Color(0x7A000000),blurRadius:4,offset:Offset(0,1))
+                        Shadow(color:Color(0x70000000),blurRadius:2,
+                          offset:Offset(0,1)),
                       ],
                     )),
                 ),
@@ -238,8 +239,6 @@ class _MetricDetailsState extends State<_MetricDetails> {
         onTap:()=>_monthTo(1),child:const SizedBox.expand()),
     )),
   ]);
-
-
 
   Widget _salaryPanel(){
     const line=Color(0x554F5557);
