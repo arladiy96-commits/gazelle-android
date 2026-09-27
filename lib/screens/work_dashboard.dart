@@ -13,9 +13,13 @@ class WorkPage extends StatelessWidget {
   final AppSession session;
   final ValueChanged<int>? onNavigate;
   final VoidCallback? onQuickAdd;
-  const WorkPage({super.key,required this.session,this.onNavigate,this.onQuickAdd});
+  final bool showNavigation;
+  const WorkPage({super.key,required this.session,this.onNavigate,this.onQuickAdd,
+    this.showNavigation=true});
 
-  @override Widget build(BuildContext context)=>_CinematicWork(session:session,onNavigate:onNavigate,onQuickAdd:onQuickAdd);
+  @override Widget build(BuildContext context)=>_CinematicWork(
+    session:session,onNavigate:onNavigate,onQuickAdd:onQuickAdd,
+    showNavigation:showNavigation);
 }
 
 class _WorkPanel extends StatelessWidget {

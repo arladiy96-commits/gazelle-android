@@ -16,9 +16,10 @@ class _ReferenceHomeDashboard extends StatelessWidget {
   final Size size;
   final ValueChanged<int> onNavigate;
   final VoidCallback onQuickAdd;
+  final bool showNavigation;
   const _ReferenceHomeDashboard({required this.session, required this.data,
     required this.month, required this.onMonthChanged, required this.size,
-    required this.onNavigate, required this.onQuickAdd});
+    required this.onNavigate, required this.onQuickAdd, this.showNavigation = true});
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +27,11 @@ class _ReferenceHomeDashboard extends StatelessWidget {
     final scale = size.width / 840;
     // Short devices still fit the whole composition; only very short landscape
     // windows scroll, so controls are never clipped or made microscopically small.
-    final height = math.max(1450.0, (size.height - bottom) / scale);
+    // Compensate for the shared bar taking space below this page: the photo
+    // and cards retain the same vertical scale as before the refactor.
+    final height = math.max(1450.0,
+      (size.height - bottom +
+        (showNavigation ? 0.0 : 68.0 + bottom)) / scale);
     final sy = height / 1870;
     Widget place(double x, double y, double w, double h, Widget child) => Positioned(
       left: x, top: y * sy, width: w, height: h * sy,
@@ -108,8 +113,9 @@ class _ReferenceHomeDashboard extends StatelessWidget {
         onTap: () => _openShiftAction(context), child: const _TestHomeShiftButton())),
       place(533, 1175, 287, 223, const _GarageQuote()),
       place(21, 1420, 798, 153, _TestHomeTrip(onTap: () => onNavigate(1))),
-      place(0, 1626, 840, 150, _GarageNavigation(onWork: () => onNavigate(1),
-        onAdd: onQuickAdd, onInvoices: () => onNavigate(3), onMore: menu)),
+      if (showNavigation)
+        place(0, 1626, 840, 150, _GarageNavigation(onWork: () => onNavigate(1),
+          onAdd: onQuickAdd, onInvoices: () => onNavigate(3), onMore: menu)),
     ]));
     return ColoredBox(color: const Color(0xFF02070A), child: SingleChildScrollView(
       physics: const ClampingScrollPhysics(), child: Padding(padding: EdgeInsets.only(bottom: bottom),

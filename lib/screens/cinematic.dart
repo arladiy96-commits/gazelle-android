@@ -120,7 +120,9 @@ Future<void> _editCompactNote(BuildContext context,TextEditingController target)
 
 class _CinematicWork extends StatelessWidget {
   final AppSession session;final ValueChanged<int>? onNavigate;final VoidCallback? onQuickAdd;
-  const _CinematicWork({required this.session,this.onNavigate,this.onQuickAdd});
+  final bool showNavigation;
+  const _CinematicWork({required this.session,this.onNavigate,this.onQuickAdd,
+    this.showNavigation=true});
   @override Widget build(BuildContext context)=>_TestLive(builder:(b){
     final s=b.active;final rows=s==null?<Map<String,dynamic>>[]:b.forShift(s['id'] as String);
     double total(String kind,[String? type])=>rows.where((e)=>e['kind']==kind&&(type==null||e['type']==type)).fold<double>(0,(n,e)=>n+(e['amount'] as num? ?? 0).toDouble());
@@ -143,7 +145,7 @@ class _CinematicWork extends StatelessWidget {
           ['trip','fuel'].contains(e['kind'])?'${_fmt1((e['amount'] as num).toDouble())} ${e['kind']=='trip'?'кг':'л'}':'',
           subtitle:_detailTime(DateTime.parse(e['date'] as String)),onTap:()=>_testEditor(context,e['kind'] as String,entry:e))])])),
       _detailButton(s==null?'Открыть смену':'Завершить смену',()=>_openShiftAction(context),icon:s==null?Icons.play_arrow:Icons.stop_rounded),
-    ])),_workNavigation(context)]);
+    ])),if(showNavigation)_workNavigation(context)]);
   });
   Widget _workNumber(String label,String value)=>Column(mainAxisSize:MainAxisSize.min,children:[_dt(label,size:11,color:const Color(0xFFB6C6CD)),const SizedBox(height:5),FittedBox(child:_dt(value,size:17,weight:FontWeight.w500))]);
   Widget _workNavigation(BuildContext context)=>SafeArea(top:false,child:Container(height:64,decoration:const BoxDecoration(color:Color(0xF0081117),border:Border(top:BorderSide(color:Color(0x444A6875)))),child:Row(children:[
