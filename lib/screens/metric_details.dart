@@ -151,22 +151,12 @@ class _MetricDetailsState extends State<_MetricDetails> {
           width:294*scale,height:57*scale,
           child:_salaryMonthOverlay(),
         ),
-        // Only the number is live: the payslip frame and headings are artwork.
+        // Render a full tablet screen with a slight perspective so the
+        // amount feels like it lives inside the display.
         Positioned(
-          left:545*scale-offsetX,top:346*scale,
-          width:141*scale,height:43*scale,
-          child:IgnorePointer(child:Align(
-            alignment:Alignment.centerLeft,
-            child:FittedBox(
-              fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,
-              child:Text(_total==null?'—':'${_fmtInt(_total!.salary)} ₸',
-                maxLines:1,style:TextStyle(
-                  color:const Color(0xFFF6B34A),
-                  fontSize:25*scale,fontWeight:FontWeight.w600,
-                  shadows:const [Shadow(color:Color(0x88000000),blurRadius:3)],
-                )),
-            ),
-          )),
+          left:472*scale-offsetX,top:257*scale,
+          width:254*scale,height:144*scale,
+          child:IgnorePointer(child:_salaryTabletScreen(scale)),
         ),
       ]);
     }),
@@ -225,6 +215,128 @@ class _MetricDetailsState extends State<_MetricDetails> {
         onTap:()=>_monthTo(1),child:const SizedBox.expand()),
     )),
   ]);
+
+  Widget _salaryTabletScreen(double scale){
+    final amount=_total==null?'—':'${_fmtInt(_total!.salary)} ₸';
+    final radius=12*scale;
+    final faint=Color.lerp(const Color(0xFF9EA9B0),const Color(0xFF7B858B),.5)!;
+    return Transform(
+      alignment:Alignment.center,
+      transform:Matrix4.identity()
+        ..setEntry(3,2,0.0012)
+        ..rotateZ(-0.035)
+        ..rotateY(-0.14)
+        ..rotateX(0.015),
+      child:ClipRRect(
+        borderRadius:BorderRadius.circular(radius),
+        child:Container(
+          decoration:BoxDecoration(
+            gradient:const LinearGradient(
+              begin:Alignment.topLeft,end:Alignment.bottomRight,
+              colors:[Color(0xFF1B2127),Color(0xFF0A0F14)],
+            ),
+            border:Border.all(color:const Color(0xFF2F3940),width:1.1*scale),
+            boxShadow:[BoxShadow(
+              color:const Color(0x9A000000),blurRadius:12*scale,offset:Offset(0,6*scale))],
+          ),
+          child:Stack(children:[
+            Positioned.fill(child:DecoratedBox(
+              decoration:BoxDecoration(gradient:LinearGradient(
+                begin:Alignment.topCenter,end:Alignment.bottomCenter,
+                colors:[const Color(0x22FFFFFF),const Color(0x00FFFFFF),const Color(0x05000000)],
+                stops:const [0,.2,1],
+              )),
+            )),
+            Positioned.fill(child:CustomPaint(painter:_TabletScanPainter())),
+            Padding(
+              padding:EdgeInsets.fromLTRB(12*scale,10*scale,14*scale,11*scale),
+              child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                SizedBox(
+                  width:35*scale,
+                  child:Column(
+                    crossAxisAlignment:CrossAxisAlignment.start,
+                    children:[
+                      Icon(Icons.description_outlined,
+                        size:22*scale,color:const Color(0xFF5D6870)),
+                      SizedBox(height:8*scale),
+                      Container(height:1*scale,color:const Color(0xFF49535A)),
+                      SizedBox(height:6*scale),
+                      Container(height:1*scale,color:const Color(0xFF49535A)),
+                      SizedBox(height:6*scale),
+                      Container(height:1*scale,color:const Color(0xFF49535A)),
+                    ],
+                  ),
+                ),
+                SizedBox(width:11*scale),
+                Expanded(
+                  child:Column(
+                    crossAxisAlignment:CrossAxisAlignment.start,
+                    mainAxisAlignment:MainAxisAlignment.center,
+                    children:[
+                      Text('Расчётный лист',
+                        maxLines:1,overflow:TextOverflow.ellipsis,
+                        style:TextStyle(
+                          color:const Color(0xFFF3F4F5),
+                          fontSize:8.8*scale,fontWeight:FontWeight.w500)),
+                      SizedBox(height:10*scale),
+                      Text('Начислено за месяц',
+                        style:TextStyle(
+                          color:faint,
+                          fontSize:5.7*scale,fontWeight:FontWeight.w400)),
+                      SizedBox(height:5*scale),
+                      FittedBox(
+                        fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,
+                        child:Text(amount,
+                          maxLines:1,
+                          style:TextStyle(
+                            color:const Color(0xFFF4B34F),
+                            fontSize:16.6*scale,fontWeight:FontWeight.w600,
+                            shadows:const [
+                              Shadow(color:Color(0x7A000000),blurRadius:4,offset:Offset(0,1))
+                            ],
+                          )),
+                      ),
+                    ],
+                  ),
+                ),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+
+class _TabletScanPainter extends CustomPainter{
+  @override
+  void paint(Canvas canvas,Size size){
+    final linePaint=Paint()
+      ..style=PaintingStyle.stroke
+      ..strokeWidth=size.height*0.012
+      ..color=const Color(0x1028A8FF);
+    final glow=Paint()
+      ..style=PaintingStyle.stroke
+      ..strokeWidth=size.height*0.03
+      ..maskFilter=const MaskFilter.blur(BlurStyle.normal,4)
+      ..color=const Color(0x0818A8FF);
+    final gap=size.height*0.17;
+    for(double y=size.height*0.16;y<size.height;y+=gap){
+      canvas.drawLine(Offset(0,y),Offset(size.width,y),glow);
+      canvas.drawLine(Offset(0,y),Offset(size.width,y),linePaint);
+    }
+    final sheen=Paint()
+      ..shader=const LinearGradient(
+        begin:Alignment.topLeft,end:Alignment.bottomRight,
+        colors:[Color(0x1CFFFFFF),Color(0x00FFFFFF),Color(0x06FFFFFF)],
+        stops:[0,.35,1],
+      ).createShader(Offset.zero&size);
+    canvas.drawRect(Offset.zero&size,sheen);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate)=>false;
+}
 
   Widget _salaryPanel(){
     const line=Color(0x554F5557);
