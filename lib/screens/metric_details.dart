@@ -46,6 +46,36 @@ Widget _detailRow(String label,String value,{VoidCallback? onTap,String? subtitl
     const SizedBox(width:12),_dt(value,weight:FontWeight.w500),if(onTap!=null)...[const SizedBox(width:8),const Icon(Icons.chevron_right,color:_paper,size:18)]])));
 List<Widget> _separated(List<Widget> rows)=>[for(var i=0;i<rows.length;i++)...[if(i>0)const Divider(height:1,color:Color(0x803E505B)),rows[i]]];
 
+class _TabletScanPainter extends CustomPainter{
+  @override
+  void paint(Canvas canvas,Size size){
+    final linePaint=Paint()
+      ..style=PaintingStyle.stroke
+      ..strokeWidth=size.height*0.012
+      ..color=const Color(0x1028A8FF);
+    final glow=Paint()
+      ..style=PaintingStyle.stroke
+      ..strokeWidth=size.height*0.03
+      ..maskFilter=const MaskFilter.blur(BlurStyle.normal,4)
+      ..color=const Color(0x0818A8FF);
+    final gap=size.height*0.17;
+    for(double y=size.height*0.16;y<size.height;y+=gap){
+      canvas.drawLine(Offset(0,y),Offset(size.width,y),glow);
+      canvas.drawLine(Offset(0,y),Offset(size.width,y),linePaint);
+    }
+    final sheen=Paint()
+      ..shader=const LinearGradient(
+        begin:Alignment.topLeft,end:Alignment.bottomRight,
+        colors:[Color(0x1CFFFFFF),Color(0x00FFFFFF),Color(0x06FFFFFF)],
+        stops:[0,.35,1],
+      ).createShader(Offset.zero&size);
+    canvas.drawRect(Offset.zero&size,sheen);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate)=>false;
+}
+
 class _MetricDetails extends StatefulWidget {
   final String metric;final DateTime month;
   const _MetricDetails({required this.metric,required this.month});
@@ -307,36 +337,6 @@ class _MetricDetailsState extends State<_MetricDetails> {
     );
   }
 
-
-class _TabletScanPainter extends CustomPainter{
-  @override
-  void paint(Canvas canvas,Size size){
-    final linePaint=Paint()
-      ..style=PaintingStyle.stroke
-      ..strokeWidth=size.height*0.012
-      ..color=const Color(0x1028A8FF);
-    final glow=Paint()
-      ..style=PaintingStyle.stroke
-      ..strokeWidth=size.height*0.03
-      ..maskFilter=const MaskFilter.blur(BlurStyle.normal,4)
-      ..color=const Color(0x0818A8FF);
-    final gap=size.height*0.17;
-    for(double y=size.height*0.16;y<size.height;y+=gap){
-      canvas.drawLine(Offset(0,y),Offset(size.width,y),glow);
-      canvas.drawLine(Offset(0,y),Offset(size.width,y),linePaint);
-    }
-    final sheen=Paint()
-      ..shader=const LinearGradient(
-        begin:Alignment.topLeft,end:Alignment.bottomRight,
-        colors:[Color(0x1CFFFFFF),Color(0x00FFFFFF),Color(0x06FFFFFF)],
-        stops:[0,.35,1],
-      ).createShader(Offset.zero&size);
-    canvas.drawRect(Offset.zero&size,sheen);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate)=>false;
-}
 
   Widget _salaryPanel(){
     const line=Color(0x554F5557);
