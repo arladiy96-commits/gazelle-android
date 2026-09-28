@@ -118,41 +118,536 @@ Future<void> _editCompactNote(BuildContext context,TextEditingController target)
   Future<void>.delayed(const Duration(seconds:1),copy.dispose);
 }
 
+
+// A live Work page built against the approved warehouse photo in AppShell.
+// The reference image is a layout guide, not a screenshot used as the UI.
 class _CinematicWork extends StatelessWidget {
-  final AppSession session;final ValueChanged<int>? onNavigate;final VoidCallback? onQuickAdd;
+  final AppSession session;
+  final ValueChanged<int>? onNavigate;
+  final VoidCallback? onQuickAdd;
   final bool showNavigation;
-  const _CinematicWork({required this.session,this.onNavigate,this.onQuickAdd,
-    this.showNavigation=true});
-  @override Widget build(BuildContext context)=>_TestLive(builder:(b){
-    final s=b.active;final rows=s==null?<Map<String,dynamic>>[]:b.forShift(s['id'] as String);
-    double total(String kind,[String? type])=>rows.where((e)=>e['kind']==kind&&(type==null||e['type']==type)).fold<double>(0,(n,e)=>n+(e['amount'] as num? ?? 0).toDouble());
-    final seconds=s==null?0:(b.elapsed(s)*3600).round();
-    final elapsed='${(seconds~/3600).toString().padLeft(2,'0')}:${((seconds~/60)%60).toString().padLeft(2,'0')}:${(seconds%60).toString().padLeft(2,'0')}';
-    return Column(children:[Expanded(child:_DetailFrame(title:'Работа',embedded:true,scene:_Scene.instruments,children:[
-      _DetailGlass(padding:const EdgeInsets.symmetric(horizontal:14,vertical:9),child:Row(children:[Icon(Icons.schedule,size:18,color:_ice),const SizedBox(width:8),Expanded(child:_dt(s==null?'Смена закрыта':'Смена открыта · $elapsed',color:_ice,size:13)),
-        if(s!=null)IconButton(tooltip:'Управление сменой',onPressed:()=>_testOpen(context),icon:const Icon(Icons.more_horiz,color:_paper))])),
-      _DetailGlass(accent:true,child:Row(children:[Expanded(child:_workNumber('За смену',s==null?'0 км':'${_fmtInt(b.mileage(s))} км')),
-        Expanded(child:_workNumber('Город','${_fmt1(total('trip','Город')/1000)} т')),
-        Expanded(child:_workNumber('Район','${_fmt1(total('trip','Район')/1000)} т')),
-        Expanded(child:_workNumber('Рейсы','${rows.where((e)=>e['kind']=='trip').length}'))])),
-      _DetailGlass(child:Column(children:[_detailRow('Маршрут смены',s==null?'—':'${_fmt1((s['gpsKm'] as num?)?.toDouble()??0)} км',subtitle:'GPS · демонстрационный режим',onTap:()=>_testOpen(context)),
-        const SizedBox(height:100,child:CustomPaint(painter:_SceneMapPainter(),child:SizedBox.expand())),
-        if(s!=null)Row(children:[Expanded(child:TextButton(onPressed:()=>_testRun(context,()=>TestStore.gps(s['id'] as String,paused:s['gpsStatus']!='paused')),child:_dt(s['gpsStatus']=='paused'?'Продолжить':'Пауза',color:_ice,size:13))),
-          Expanded(child:TextButton(onPressed:()=>_testRun(context,()=>TestStore.gps(s['id'] as String,addKm:10)),child:_dt('+10 км · демо',color:_amber,size:13)))])])),
-      _DetailGlass(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_dt('Последние действия',size:15),const SizedBox(height:6),
-        if(rows.isEmpty)_detailRow('Записей пока нет','',subtitle:'Добавьте рейс или топливо через «+»'),
-        ..._separated([for(final e in rows.reversed.take(3))_detailRow(e['kind']=='trip'?'${e['direction']}':_testKind(e['kind'] as String),
-          ['trip','fuel'].contains(e['kind'])?'${_fmt1((e['amount'] as num).toDouble())} ${e['kind']=='trip'?'кг':'л'}':'',
-          subtitle:_detailTime(DateTime.parse(e['date'] as String)),onTap:()=>_testEditor(context,e['kind'] as String,entry:e))])])),
-      _detailButton(s==null?'Открыть смену':'Завершить смену',()=>_openShiftAction(context),icon:s==null?Icons.play_arrow:Icons.stop_rounded),
-    ])),if(showNavigation)_workNavigation(context)]);
+
+  const _CinematicWork({
+    required this.session,
+    this.onNavigate,
+    this.onQuickAdd,
+    this.showNavigation=true,
   });
-  Widget _workNumber(String label,String value)=>Column(mainAxisSize:MainAxisSize.min,children:[_dt(label,size:11,color:const Color(0xFFB6C6CD)),const SizedBox(height:5),FittedBox(child:_dt(value,size:17,weight:FontWeight.w500))]);
-  Widget _workNavigation(BuildContext context)=>SafeArea(top:false,child:Container(height:64,decoration:const BoxDecoration(color:Color(0xF0081117),border:Border(top:BorderSide(color:Color(0x444A6875)))),child:Row(children:[
-    for(final item in [(Icons.home_outlined,'Главная',0),(Icons.local_shipping_outlined,'Работа',1),(Icons.add,'Добавить',2),(Icons.receipt_long_outlined,'Накладные',3),(Icons.more_horiz,'Ещё',4)])
-      Expanded(child:InkWell(onTap:(){if(item.$3==2){onQuickAdd?.call();}else if(item.$3==4){_openHomeMenu(context,session);}else{onNavigate?.call(item.$3);}},child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Icon(item.$1,color:item.$3==1||item.$3==2?_amber:_paper,size:item.$3==2?30:22),const SizedBox(height:4),_dt(item.$2,size:10,color:item.$3==1?_amber:_paper)])))
-  ])));
+
+  static const _gold=Color(0xFFFFCB78);
+  static const _cyan=Color(0xFF4BDDED);
+  static const _muted=Color(0xFFD0D6DC);
+  static const _outline=Color(0x88738B97);
+  static const _purple=Color(0xFFDF8DFF);
+
+  Text _t(String text,double px,double unit,{
+    Color color=Colors.white,
+    FontWeight weight=FontWeight.w400,
+    int maxLines=1,
+    TextAlign? align,
+  })=>Text(text,maxLines:maxLines,overflow:TextOverflow.ellipsis,
+    textAlign:align,style:TextStyle(fontSize:px*unit,color:color,fontWeight:weight,height:1.17));
+
+  Widget _panel(Widget child,double unit,{
+    Color border=const Color(0x88738B97),double radius=19,
+    EdgeInsetsGeometry? padding,
+  })=>Container(
+    decoration:BoxDecoration(
+      gradient:const LinearGradient(
+        begin:Alignment.topLeft,end:Alignment.bottomRight,
+        colors:[Color(0xE615242C),Color(0xDC071219)]),
+      borderRadius:BorderRadius.circular(radius*unit),
+      border:Border.all(color:border,width:1.1*unit),
+      boxShadow:const [BoxShadow(color:Color(0x45000000),blurRadius:10)]),
+    padding:padding,child:child);
+
+  @override
+  Widget build(BuildContext context)=>_TestLive(builder:(book){
+    final shift=book.active;
+    final rows=shift==null?<Map<String,dynamic>>[]:
+      book.forShift(shift['id'] as String);
+    final records=[...rows]..sort((a,b)=>
+      (b['date'] as String).compareTo(a['date'] as String));
+    double sum(String kind,[String? type])=>rows
+      .where((r)=>r['kind']==kind&&(type==null||r['type']==type))
+      .fold<double>(0,(total,r)=>
+        total+((r['amount'] as num?)?.toDouble()??0));
+    final city=sum('trip','Город')/1000;
+    final district=sum('trip','Район')/1000;
+    final tripCount=rows.where((r)=>r['kind']=='trip').length;
+    final mileage=shift==null?0:math.max(0,book.mileage(shift)).round();
+    final initial=(shift?['startKm'] as num?)?.toInt();
+    final current=(shift?['currentKm'] as num?)?.toInt();
+    final seconds=shift==null?0:
+      math.max(0,(book.elapsed(shift)*3600).round());
+    final elapsed='${(seconds~/3600).toString().padLeft(2,'0')}:'
+      '${((seconds~/60)%60).toString().padLeft(2,'0')}:'
+      '${(seconds%60).toString().padLeft(2,'0')}';
+    final started=shift==null?'—':
+      _detailTime(DateTime.parse(shift['start'] as String));
+    final paused=shift?['gpsStatus']=='paused';
+    final gpsKm=(shift?['gpsKm'] as num?)?.toDouble()??0;
+    final lastTrip=records.where((e)=>e['kind']=='trip').firstOrNull;
+    final lastDestination=lastTrip?['direction']?.toString().trim()??'';
+
+    return Column(children:[
+      Expanded(child:LayoutBuilder(builder:(context,constraints){
+        // The supplied reference is 691 pixels wide. Converting its visual
+        // measurements through this scale keeps all widgets responsive.
+        final u=(constraints.maxWidth/691).clamp(.43,1.2).toDouble();
+        return Stack(children:[
+          const Positioned.fill(child:IgnorePointer(child:DecoratedBox(
+            decoration:BoxDecoration(gradient:LinearGradient(
+              begin:Alignment.topCenter,end:Alignment.bottomCenter,
+              stops:[0,.18,.57,1],
+              colors:[Color(0x7503070A),Color(0x1803070A),
+                Color(0x3A03070A),Color(0x7803070A)]))))),
+          ListView(
+            key:const PageStorageKey('reference-work-live'),
+            padding:EdgeInsets.fromLTRB(22*u,0,22*u,29*u),
+            children:[
+              _header(context,u),
+              SizedBox(height:9*u),
+              _status(context,shift,elapsed,started,paused,u),
+              SizedBox(height:30*u),
+              _distance(mileage,initial,current,u),
+              SizedBox(height:31*u),
+              _metrics(city,district,tripCount,u),
+              SizedBox(height:12*u),
+              Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+                _t('Всего перевезено',18,u,color:_muted),
+                SizedBox(width:13*u),
+                _t('${_fmt1(city+district)} т',23,u,color:_gold,
+                  weight:FontWeight.w700),
+              ]),
+              SizedBox(height:16*u),
+              _map(context,gpsKm,paused,lastDestination,u),
+              SizedBox(height:14*u),
+              _fuel(context,records,shift!=null,u),
+              SizedBox(height:14*u),
+              _events(context,records,u),
+              SizedBox(height:18*u),
+              _actions(context,shift!=null,u),
+            ],
+          ),
+        ]);
+      })),
+      if(showNavigation)_workNavigation(context),
+    ]);
+  });
+
+  Widget _header(BuildContext context,double u)=>SizedBox(
+    height:73*u,
+    child:Row(children:[
+      InkWell(
+        borderRadius:BorderRadius.circular(28*u),
+        onTap:(){
+          if(onNavigate!=null){onNavigate!(0);}
+          else{Navigator.maybePop(context);}
+        },
+        child:SizedBox(width:46*u,height:58*u,
+          child:Icon(Icons.arrow_back_ios_new_rounded,
+            size:30*u,color:Colors.white))),
+      Expanded(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+        _t('Работа',31,u,weight:FontWeight.w600),
+        SizedBox(height:4*u),
+        _t('Текущая смена',18,u,color:_muted),
+      ])),
+      InkWell(
+        borderRadius:BorderRadius.circular(28*u),
+        onTap:()=>_showFeatureStub(context,'Уведомления',
+          'Здесь будут события смены, документы, ТО и системные предупреждения.'),
+        child:SizedBox(width:46*u,height:58*u,
+          child:Icon(Icons.notifications_none_rounded,
+            size:34*u,color:Colors.white))),
+    ]));
+
+  Widget _status(BuildContext context,Map<String,dynamic>? shift,
+      String elapsed,String started,bool paused,double u){
+    final active=shift!=null;
+    return _panel(
+      SizedBox(height:60*u,child:Row(children:[
+        SizedBox(width:15*u),
+        Container(width:14*u,height:14*u,decoration:BoxDecoration(
+          color:active?const Color(0xFF00E596):_gold,
+          shape:BoxShape.circle,
+          boxShadow:[BoxShadow(color:active?
+            const Color(0x8800E596):const Color(0x88FFCB78),blurRadius:8*u)])),
+        SizedBox(width:16*u),
+        Expanded(flex:5,child:_t(active?
+          (paused?'GPS на паузе':'Смена открыта'):'Смена закрыта',
+          19,u,color:_cyan,weight:FontWeight.w600)),
+        Container(height:26*u,width:1*u,color:const Color(0x8854CBD5)),
+        Expanded(flex:4,child:Center(child:_t(elapsed,21,u,
+          color:_cyan,weight:FontWeight.w600))),
+        Container(height:26*u,width:1*u,color:const Color(0x8854CBD5)),
+        SizedBox(width:13*u),
+        Expanded(flex:4,child:_t('Начало $started',16,u,
+          color:const Color(0xFFACD9E5))),
+        InkWell(
+          onTap:active
+            ?()=>_testRun(context,()=>TestStore.gps(
+                shift!['id'] as String,paused:!paused))
+            :()=>_openShiftAction(context),
+          borderRadius:BorderRadius.circular(40*u),
+          child:Container(width:58*u,height:58*u,
+            decoration:BoxDecoration(
+              color:const Color(0xFF071B24),shape:BoxShape.circle,
+              border:Border.all(color:_cyan,width:2*u),
+              boxShadow:[BoxShadow(color:const Color(0x554DDDEB),
+                blurRadius:14*u)]),
+            child:Icon(!active||paused?Icons.play_arrow_rounded:
+              Icons.pause_rounded,color:_cyan,size:34*u)),
+        ),
+      ])),u,border:_cyan,radius:36);
+  }
+
+  Widget _distance(int mileage,int? initial,int? current,double u){
+    Widget value(String caption,String digits)=>Column(
+      crossAxisAlignment:CrossAxisAlignment.start,children:[
+        _t(caption,18,u,color:_muted),
+        SizedBox(height:6*u),
+        FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,
+          child:Row(mainAxisSize:MainAxisSize.min,children:[
+            _t(digits,29,u,weight:FontWeight.w600),
+            if(digits!='—')...[
+              SizedBox(width:5*u),
+              _t('км',29,u,weight:FontWeight.w600),
+            ],
+          ])),
+      ]);
+    return SizedBox(height:173*u,child:Row(children:[
+      Expanded(flex:11,child:Column(
+        crossAxisAlignment:CrossAxisAlignment.start,
+        mainAxisAlignment:MainAxisAlignment.center,children:[
+          _t('Пробег за смену',23,u),
+          SizedBox(height:8*u),
+          FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,
+            child:_t('${_fmtInt(mileage.toDouble())} км',84,u,
+              color:_gold,weight:FontWeight.w700)),
+        ])),
+      Container(width:1.5*u,height:126*u,color:_cyan),
+      SizedBox(width:35*u),
+      Expanded(flex:8,child:Column(
+        mainAxisAlignment:MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment:CrossAxisAlignment.start,
+        children:[
+          value('Начало смены',
+            initial==null?'—':_fmtInt(initial.toDouble())),
+          value('Текущий одометр',
+            current==null?'—':_fmtInt(current.toDouble())),
+        ])),
+    ]));
+  }
+
+  Widget _metrics(double city,double district,int trips,double u){
+    Widget metric(String label,String value,IconData icon,Color color)=>
+      Expanded(child:_panel(
+        SizedBox(height:88*u,child:Row(children:[
+          Container(width:63*u,height:63*u,
+            decoration:BoxDecoration(
+              color:const Color(0x8C061218),shape:BoxShape.circle,
+              border:Border.all(color:color.withValues(alpha:.32))),
+            child:Icon(icon,color:color,size:35*u)),
+          SizedBox(width:8*u),
+          Expanded(child:Column(
+            mainAxisAlignment:MainAxisAlignment.center,
+            crossAxisAlignment:CrossAxisAlignment.start,children:[
+              _t(label,17,u,color:_muted),
+              SizedBox(height:5*u),
+              FittedBox(fit:BoxFit.scaleDown,
+                alignment:Alignment.centerLeft,
+                child:_t(value,26,u,weight:FontWeight.w600)),
+            ])),
+        ])),u,
+        padding:EdgeInsets.symmetric(horizontal:10*u),radius:15));
+    return Row(children:[
+      metric('Город','${_fmt1(city)} т',Icons.bar_chart_rounded,_gold),
+      SizedBox(width:13*u),
+      metric('Район','${_fmt1(district)} т',
+        Icons.terrain_rounded,_purple),
+      SizedBox(width:13*u),
+      metric('Рейсы','$trips',Icons.local_shipping_outlined,_cyan),
+    ]);
+  }
+
+  Widget _map(BuildContext context,double gpsKm,bool paused,
+      String destination,double u){
+    return _panel(
+      SizedBox(height:346*u,child:Column(children:[
+        Padding(
+          padding:EdgeInsets.fromLTRB(14*u,12*u,14*u,10*u),
+          child:Row(children:[
+            Expanded(child:_t('Маршрут смены',20,u,
+              weight:FontWeight.w600)),
+            Container(width:12*u,height:12*u,
+              decoration:BoxDecoration(
+                shape:BoxShape.circle,
+                color:paused?_gold:_cyan,
+                border:Border.all(color:Colors.white,width:1*u))),
+            SizedBox(width:7*u),
+            _t(paused?'GPS · пауза':'GPS · демо',16,u,
+              color:paused?_gold:_cyan),
+          ])),
+        Expanded(child:ClipRRect(
+          borderRadius:BorderRadius.circular(14*u),
+          child:Stack(children:[
+            // Only a schematic map is currently possible. The journal stores
+            // simulated mileage, not coordinates or GPS track geometry.
+            const Positioned.fill(child:CustomPaint(
+              painter:_WorkMapPainter())),
+            Positioned.fill(child:DecoratedBox(
+              decoration:BoxDecoration(gradient:LinearGradient(
+                begin:Alignment.topCenter,end:Alignment.bottomCenter,
+                colors:[const Color(0x2206121B),
+                  Colors.transparent,const Color(0x97040F17)],
+                stops:const [0,.5,1])))),
+            Positioned(left:11*u,right:11*u,bottom:10*u,
+              child:Container(
+                padding:EdgeInsets.symmetric(horizontal:15*u,
+                  vertical:10*u),
+                decoration:BoxDecoration(
+                  color:const Color(0xEB071A23),
+                  borderRadius:BorderRadius.circular(16*u),
+                  border:Border.all(color:const Color(0x88627D87))),
+                child:Row(children:[
+                  Expanded(child:Column(
+                    crossAxisAlignment:CrossAxisAlignment.start,children:[
+                      _t(destination.isEmpty?'Маршрут · демонстрация':
+                        'Последний рейс · $destination',
+                        19,u,weight:FontWeight.w600),
+                      SizedBox(height:7*u),
+                      _t('GPS: ${_fmt1(gpsKm)} км · схема, не трек',
+                        15,u,color:_muted),
+                    ])),
+                  InkWell(
+                    onTap:()=>_testOpen(context,page:'Смена'),
+                    borderRadius:BorderRadius.circular(34*u),
+                    child:Container(width:53*u,height:53*u,
+                      decoration:BoxDecoration(shape:BoxShape.circle,
+                        color:const Color(0xF706161D),
+                        border:Border.all(color:_gold),
+                        boxShadow:[BoxShadow(
+                          color:const Color(0xAAFF9F28),
+                          blurRadius:14*u)]),
+                      child:Icon(Icons.navigation_outlined,color:_gold,
+                        size:32*u)),
+                  ),
+                ])),
+            ),
+          ])),
+        ),
+      ])),u,radius:18);
+  }
+
+  Widget _fuel(BuildContext context,
+      List<Map<String,dynamic>> records,bool active,double u){
+    final fuels=records.where((r)=>r['kind']=='fuel').toList();
+    double litres(String fuel)=>fuels.where((r)=>r['type']==fuel)
+      .fold<double>(0,(s,r)=>s+((r['amount'] as num?)?.toDouble()??0));
+    Map<String,dynamic>? last(String fuel){
+      for(final r in fuels){if(r['type']==fuel)return r;}
+      return null;
+    }
+    Widget fuelRow(String name,IconData icon,Color color){
+      final entry=last(name);
+      return InkWell(
+        onTap:entry==null?null:()=>_testEditor(context,'fuel',entry:entry),
+        borderRadius:BorderRadius.circular(14*u),
+        child:Container(
+          padding:EdgeInsets.symmetric(horizontal:12*u,vertical:10*u),
+          decoration:BoxDecoration(
+            color:const Color(0xA408171F),
+            borderRadius:BorderRadius.circular(14*u),
+            border:Border.all(color:const Color(0x66587480))),
+          child:Row(children:[
+            Container(width:40*u,height:40*u,
+              decoration:BoxDecoration(shape:BoxShape.circle,
+                color:color.withValues(alpha:.10)),
+              child:Icon(icon,size:30*u,color:color)),
+            SizedBox(width:13*u),
+            Expanded(child:_t(name,17,u,color:_muted)),
+            _t('+${_fmt1(litres(name))} л',20,u,
+              weight:FontWeight.w600),
+            SizedBox(width:25*u),
+            _t(entry==null?'—':
+              _detailTime(DateTime.parse(entry['date'] as String)),
+              15,u,color:_muted),
+          ])),
+        );
+    }
+    return _panel(
+      Padding(padding:EdgeInsets.fromLTRB(12*u,12*u,12*u,13*u),
+        child:Column(children:[
+          Row(children:[
+            Expanded(child:_t('Заправки за смену',21,u,
+              weight:FontWeight.w600)),
+            InkWell(
+              onTap:active
+                ?()=>_testEditor(context,'fuel')
+                :()=>_openShiftAction(context),
+              borderRadius:BorderRadius.circular(8*u),
+              child:Row(children:[
+                Icon(Icons.add_circle_outline,color:_cyan,size:27*u),
+                SizedBox(width:8*u),
+                _t('Добавить',17,u,color:_cyan),
+              ])),
+          ]),
+          SizedBox(height:12*u),
+          fuelRow('Газ',Icons.local_fire_department_outlined,_cyan),
+          SizedBox(height:4*u),
+          fuelRow('Бензин',Icons.local_gas_station_outlined,
+            const Color(0xFFFF715D)),
+          SizedBox(height:9*u),
+          Row(mainAxisAlignment:MainAxisAlignment.end,children:[
+            _t('Всего',16,u,color:_muted),
+            SizedBox(width:9*u),
+            _t('${_fmt1(litres('Газ')+litres('Бензин'))} л',
+              20,u,color:_gold,weight:FontWeight.w600),
+          ]),
+        ])),u,radius:17);
+  }
+
+  Widget _events(BuildContext context,
+      List<Map<String,dynamic>> records,double u){
+    IconData eventIcon(String kind)=>switch(kind){
+      'trip'=>Icons.flag_outlined,
+      'fuel'=>Icons.local_gas_station_outlined,
+      'invoice'=>Icons.receipt_long_outlined,
+      _=>Icons.notes_rounded,
+    };
+    Color eventColor(String kind)=>switch(kind){
+      'trip'=>_muted,
+      'fuel'=>_cyan,
+      'invoice'=>_gold,
+      _=>_purple,
+    };
+    String caption(Map<String,dynamic> r){
+      final kind=r['kind'] as String? ?? '';
+      final type=r['type']?.toString()??'';
+      final number=r['number']?.toString()??'';
+      final amount=(r['amount'] as num?)?.toDouble()??0;
+      return switch(kind){
+        'trip'=>'Рейс · $type · ${_fmt1(amount/1000)} т'
+          '${(r['direction'] as String? ?? '').trim().isEmpty?'':' · ${r['direction']}'}',
+        'fuel'=>'Заправка · $type +${_fmt1(amount)} л',
+        'invoice'=>number.isEmpty?'Накладная':'Накладная №$number',
+        _=>(r['note']?.toString().trim().isNotEmpty??false)
+          ?r['note'].toString():'Заметка',
+      };
+    }
+    return _panel(
+      Padding(padding:EdgeInsets.fromLTRB(14*u,12*u,14*u,13*u),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          _t('События смены',20,u,weight:FontWeight.w600),
+          SizedBox(height:12*u),
+          if(records.isEmpty)
+            Padding(padding:EdgeInsets.symmetric(vertical:12*u),
+              child:_t('Записей пока нет · добавьте рейс или топливо',
+                17,u,color:_muted,maxLines:2))
+          else for(final r in records.take(3))
+            InkWell(
+              onTap:()=>_testEditor(context,
+                r['kind'] as String,entry:r),
+              child:Padding(
+                padding:EdgeInsets.symmetric(vertical:8*u),
+                child:Row(children:[
+                  Icon(eventIcon(r['kind'] as String),
+                    color:eventColor(r['kind'] as String),size:25*u),
+                  SizedBox(width:12*u),
+                  _t(_detailTime(DateTime.parse(r['date'] as String)),
+                    15,u,color:_muted),
+                  SizedBox(width:12*u),
+                  Container(width:1*u,height:21*u,color:_cyan),
+                  SizedBox(width:13*u),
+                  Expanded(child:_t(caption(r),17,u,maxLines:2)),
+                ]),
+              )),
+        ])),u,radius:17);
+  }
+
+  Widget _actions(BuildContext context,bool active,double u)=>
+    SizedBox(height:151*u,child:Row(
+      mainAxisAlignment:MainAxisAlignment.spaceBetween,
+      children:[
+        Expanded(child:Align(
+          alignment:Alignment.topLeft,
+          child:OutlinedButton.icon(
+            onPressed:active
+              ?()=>_testEditor(context,'trip')
+              :()=>_openShiftAction(context),
+            style:OutlinedButton.styleFrom(
+              foregroundColor:_gold,
+              backgroundColor:const Color(0xBB0B151B),
+              padding:EdgeInsets.symmetric(horizontal:15*u,vertical:13*u),
+              side:BorderSide(color:_gold,width:1.3*u),
+              shape:RoundedRectangleBorder(
+                borderRadius:BorderRadius.circular(17*u))),
+            icon:Icon(active?Icons.add_circle_outline:
+              Icons.play_arrow_rounded,size:26*u),
+            label:_t(active?'Добавить рейс':'Открыть смену',18,u,
+              color:_gold),
+          ),
+        )),
+        SizedBox(width:10*u),
+        InkWell(
+          onTap:()=>_openShiftAction(context),
+          borderRadius:BorderRadius.circular(86*u),
+          child:Container(
+            width:140*u,height:140*u,
+            decoration:BoxDecoration(
+              color:const Color(0xE9161513),shape:BoxShape.circle,
+              border:Border.all(color:_gold,width:1.8*u),
+              boxShadow:[BoxShadow(color:const Color(0x88FF8A16),
+                blurRadius:24*u,spreadRadius:2*u)]),
+            child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+              Icon(active?Icons.stop_rounded:
+                Icons.play_arrow_rounded,
+                size:34*u,color:_gold),
+              SizedBox(height:5*u),
+              if(active)
+                _t('Завершить смену',15,u,
+                  align:TextAlign.center,maxLines:2)
+              else ...[
+                _t('ОТКРЫТЬ',15,u,align:TextAlign.center),
+                _t('СМЕНУ',15,u,align:TextAlign.center),
+              ],
+            ]),
+          ),
+        ),
+      ]));
+
+  // Used only when WorkPage is opened outside AppShell's shared navigation.
+  Widget _workNavigation(BuildContext context)=>SafeArea(top:false,
+    child:Container(height:64,
+      decoration:const BoxDecoration(
+        color:Color(0xF0081117),
+        border:Border(top:BorderSide(color:Color(0x444A6875)))),
+      child:Row(children:[
+        for(final item in [
+          (Icons.home_outlined,'Главная',0),
+          (Icons.local_shipping_outlined,'Работа',1),
+          (Icons.add,'Добавить',2),
+          (Icons.receipt_long_outlined,'Накладные',3),
+          (Icons.more_horiz,'Ещё',4),
+        ])Expanded(child:InkWell(
+          onTap:(){
+            if(item.$3==2){onQuickAdd?.call();}
+            else if(item.$3==4){_openHomeMenu(context,session);}
+            else{onNavigate?.call(item.$3);}
+          },
+          child:Column(mainAxisAlignment:MainAxisAlignment.center,
+            children:[
+              Icon(item.$1,color:item.$3==1||item.$3==2?
+                _gold:Colors.white,size:item.$3==2?30:22),
+              const SizedBox(height:4),
+              Text(item.$2,style:TextStyle(
+                color:item.$3==1?_gold:Colors.white,fontSize:10)),
+            ]),
+        )),
+      ])));
 }
+
 class _SceneMapPainter extends CustomPainter {
   const _SceneMapPainter();
   @override void paint(Canvas canvas,Size s){final grid=Paint()..color=const Color(0x304B7480)..strokeWidth=1;
