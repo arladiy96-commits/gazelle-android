@@ -47,15 +47,42 @@ Widget _detailRow(String label,String value,{VoidCallback? onTap,String? subtitl
 List<Widget> _separated(List<Widget> rows)=>[for(var i=0;i<rows.length;i++)...[if(i>0)const Divider(height:1,color:Color(0x803E505B)),rows[i]]];
 
 
-// The photographic mileage background already contains both bezels.
-// These painters only add the dynamic light/LEDs inside those bezels;
-// no independent rectangular cards are placed over the photograph.
+// Project each live value onto the four corners of its photographic display.
+// A 3D rotation cannot reproduce this trapezoid: it needs a homography.
+Matrix4 _mileagePhotoPlane(
+  double flatWidth,double flatHeight,
+  Offset topLeft,Offset topRight,Offset bottomRight,Offset bottomLeft,
+){
+  final dx1=topRight.dx-bottomRight.dx;
+  final dx2=bottomLeft.dx-bottomRight.dx;
+  final dx3=topLeft.dx-topRight.dx+bottomRight.dx-bottomLeft.dx;
+  final dy1=topRight.dy-bottomRight.dy;
+  final dy2=bottomLeft.dy-bottomRight.dy;
+  final dy3=topLeft.dy-topRight.dy+bottomRight.dy-bottomLeft.dy;
+  final determinant=dx1*dy2-dx2*dy1;
+  if(determinant.abs()<0.000001)return Matrix4.identity();
+  final g=(dx3*dy2-dx2*dy3)/determinant;
+  final h=(dx1*dy3-dx3*dy1)/determinant;
+  final a=topRight.dx-topLeft.dx+g*topRight.dx;
+  final b=bottomLeft.dx-topLeft.dx+h*bottomLeft.dx;
+  final d=topRight.dy-topLeft.dy+g*topRight.dy;
+  final e=bottomLeft.dy-topLeft.dy+h*bottomLeft.dy;
+  return Matrix4.identity()
+    ..setEntry(0,0,a/flatWidth)
+    ..setEntry(0,1,b/flatHeight)
+    ..setEntry(0,3,topLeft.dx)
+    ..setEntry(1,0,d/flatWidth)
+    ..setEntry(1,1,e/flatHeight)
+    ..setEntry(1,3,topLeft.dy)
+    ..setEntry(3,0,g/flatWidth)
+    ..setEntry(3,1,h/flatHeight);
+}
 
 class _MileageGlassReadoutPainter extends CustomPainter {
   final String value;
   const _MileageGlassReadoutPainter({required this.value});
 
-  TextPainter _text(String text, TextStyle style) => TextPainter(
+  TextPainter _text(String text,TextStyle style)=>TextPainter(
     text:TextSpan(text:text,style:style),
     textDirection:TextDirection.ltr,
     maxLines:1,
@@ -64,74 +91,60 @@ class _MileageGlassReadoutPainter extends CustomPainter {
   @override
   void paint(Canvas canvas,Size size){
     canvas.save();
+    // These measurements refer to the clean photograph's 711x1536 pixels,
+    // with this painter placed at image (430,452), size 230x140.
     canvas.scale(size.width/115.0,size.height/70.0);
+    canvas.transform(_mileagePhotoPlane(
+      100,34,
+      const Offset(19.5,21.0),
+      const Offset(98.0,28.0),
+      const Offset(96.5,48.0),
+      const Offset(19.5,41.5),
+    ).storage);
 
-    // The photo already contains the glass tile. We only lay the live value
-    // onto the photographed plane so it feels built in.
-    canvas.save();
-    canvas.translate(0.0,0.0);
-    canvas.rotate(.064);
-
-    const displayLeft=31.0;
-    const displayTop=25.0;
-    const displayWidth=72.0;
-
-    final numberStyle=TextStyle(
-      fontSize:24.0,
+    // The bezel/glass are part of the photograph. Draw no added tile,
+    // border or background: only softly illuminated live glyphs.
+    const fontSize=23.0;
+    final number=_text(value,TextStyle(
+      fontSize:fontSize,
       fontWeight:FontWeight.w600,
-      letterSpacing:-.4,
-      foreground:Paint()
-        ..shader=const LinearGradient(
-          begin:Alignment.topCenter,end:Alignment.bottomCenter,
-          stops:[0,.38,.82,1],
-          colors:[
-            Color(0xFFFAF8F0),
-            Color(0xFFEDE7D8),
-            Color(0xFFD7CAB2),
-            Color(0xFFA58D67),
-          ],
-        ).createShader(const Rect.fromLTWH(0,0,120,30)),
-    );
-    final unitStyle=TextStyle(
-      color:const Color(0xFFA4D3DE),
+      letterSpacing:-.40,
+      foreground:Paint()..shader=const LinearGradient(
+        begin:Alignment.topCenter,end:Alignment.bottomCenter,
+        colors:[
+          Color(0xF2EAE7DB),
+          Color(0xE9E8DCCA),
+          Color(0xD1BAAA91),
+        ],
+      ).createShader(const Rect.fromLTWH(0,0,110,30)),
+    ));
+    final unit=_text(' км',const TextStyle(
+      color:Color(0xD6A5C7D1),
       fontSize:11.0,
       fontWeight:FontWeight.w500,
-    );
-
-    final number=_text(value,numberStyle);
-    final unit=_text(' км',unitStyle);
-    final totalWidth=number.width+unit.width;
-    final fit=math.min(1.0,displayWidth/totalWidth);
-    final drawWidth=totalWidth*fit;
-    final startX=displayLeft+(displayWidth-drawWidth)/2;
-
-    canvas.translate(startX,displayTop);
+    ));
+    final combined=number.width+unit.width+0.7;
+    final fit=math.min(1.0,94.0/math.max(1.0,combined));
+    final start=(100.0-combined*fit)/2.0;
+    canvas.translate(start,(34-fontSize*fit)/2.0);
     canvas.scale(fit);
 
+    // Local shadow/glow use the same perspective as the characters.
     final shadow=_text(value,const TextStyle(
-      color:Color(0xA8000000),
-      fontSize:24.0,fontWeight:FontWeight.w600,letterSpacing:-.4,
+      color:Color(0x78000000),
+      fontSize:fontSize,fontWeight:FontWeight.w600,letterSpacing:-.40,
     ));
-    shadow.paint(canvas,const Offset(0.9,1.2));
-
-    final bloom=_text(value,const TextStyle(
-      color:Color(0x22FFF2CE),
-      fontSize:24.0,fontWeight:FontWeight.w600,letterSpacing:-.4,
+    shadow.paint(canvas,const Offset(.45,.8));
+    final warmGlow=_text(value,const TextStyle(
+      color:Color(0x1CFFE3AF),
+      fontSize:fontSize,fontWeight:FontWeight.w600,letterSpacing:-.40,
     ));
-    canvas.saveLayer(const Rect.fromLTWH(-12,-10,140,50),
-      Paint()..maskFilter=const MaskFilter.blur(BlurStyle.normal,2.5));
-    bloom.paint(canvas,Offset.zero);
+    canvas.saveLayer(const Rect.fromLTWH(-5,-5,135,45),
+      Paint()..maskFilter=const MaskFilter.blur(BlurStyle.normal,1.7));
+    warmGlow.paint(canvas,Offset.zero);
     canvas.restore();
-
     number.paint(canvas,Offset.zero);
-
-    final unitShadow=_text(' км',const TextStyle(
-      color:Color(0x7A000000),fontSize:11.0,fontWeight:FontWeight.w500,
-    ));
-    unitShadow.paint(canvas,Offset(number.width+1.2,10.5));
-    unit.paint(canvas,Offset(number.width+.6,9.9));
-
-    canvas.restore();
+    unit.paint(canvas,Offset(number.width+.7,9.5));
     canvas.restore();
   }
 
@@ -140,18 +153,16 @@ class _MileageGlassReadoutPainter extends CustomPainter {
     oldDelegate.value!=value;
 }
 
-
-
 class _MileageOdometerPainter extends CustomPainter {
   final String reading;
   const _MileageOdometerPainter({required this.reading});
 
   static const _patterns=<String,List<int>>{
     '0':[0,1,2,4,5,6], '1':[2,5], '2':[0,2,3,4,6],
-    '3':[0,2,3,5,6], '4':[1,2,3,5], '5':[0,1,3,5,6],
-    '6':[0,1,3,4,5,6], '7':[0,2,5],
-    '8':[0,1,2,3,4,5,6], '9':[0,1,2,3,5,6],
-    '-':[3],
+    '3':[0,2,3,5,6], '4':[1,2,3,5],
+    '5':[0,1,3,5,6], '6':[0,1,3,4,5,6],
+    '7':[0,2,5], '8':[0,1,2,3,4,5,6],
+    '9':[0,1,2,3,5,6], '-':[3],
   };
 
   Path _horizontal(double x,double y,double w,double t){
@@ -167,88 +178,76 @@ class _MileageOdometerPainter extends CustomPainter {
   }
 
   Path _vertical(double x,double y,double h,double t){
-    final bevel=t*.56;
+    final bevel=t*.53;
     return Path()
-      ..moveTo(x,y+bevel)
-      ..lineTo(x+t/2,y)
+      ..moveTo(x+t/2,y)
       ..lineTo(x+t,y+bevel)
       ..lineTo(x+t,y+h-bevel)
       ..lineTo(x+t/2,y+h)
       ..lineTo(x,y+h-bevel)
+      ..lineTo(x,y+bevel)
       ..close();
   }
 
-  void _digit(Canvas canvas,double left,double top,double w,double h,String digit){
-    final t=w*.16;
+  void _digit(Canvas canvas,String digit,double x,double y,double w,double h){
+    final t=math.max(.90,w*.16);
+    final half=h/2;
+    final verticalLength=half-t*1.50;
     final paths=<Path>[
-      _horizontal(left+t*.9,top,w-t*1.8,t),
-      _vertical(left,top+t*.55,h/2-t*.7,t),
-      _vertical(left+w-t,top+t*.55,h/2-t*.7,t),
-      _horizontal(left+t*.9,top+h/2-t/2,w-t*1.8,t),
-      _vertical(left,top+h/2+t*.2,h/2-t*.75,t),
-      _vertical(left+w-t,top+h/2+t*.2,h/2-t*.75,t),
-      _horizontal(left+t*.9,top+h-t,w-t*1.8,t),
+      _horizontal(x+t*.65,y,w-t*1.30,t),
+      _vertical(x,y+t*.85,verticalLength,t),
+      _vertical(x+w-t,y+t*.85,verticalLength,t),
+      _horizontal(x+t*.65,y+half-t/2,w-t*1.30,t),
+      _vertical(x,y+half+t*.35,verticalLength,t),
+      _vertical(x+w-t,y+half+t*.35,verticalLength,t),
+      _horizontal(x+t*.65,y+h-t,w-t*1.30,t),
     ];
     final active=_patterns[digit]??const <int>[];
     for(var i=0;i<7;i++){
-      final path=paths[i];
       if(!active.contains(i)){
-        canvas.drawPath(path,Paint()..color=const Color(0x163E2612));
+        canvas.drawPath(paths[i],Paint()..color=const Color(0x183E291A));
         continue;
       }
-      canvas.drawPath(path,Paint()
-        ..color=const Color(0x72F3A24C)
-        ..maskFilter=const MaskFilter.blur(BlurStyle.normal,1.4));
-      canvas.drawPath(path,Paint()
-        ..shader=const LinearGradient(
-          begin:Alignment.topCenter,end:Alignment.bottomCenter,
-          colors:[Color(0xFFFFD48A),Color(0xFFFFAA43),Color(0xFFBC6325)],
-        ).createShader(Rect.fromLTWH(left,top,w,h)));
-      canvas.drawPath(path,Paint()
-        ..style=PaintingStyle.stroke
-        ..strokeWidth=.12
-        ..color=const Color(0x8DFFE2A5));
+      canvas.drawPath(paths[i],Paint()
+        ..color=const Color(0x48EF9D46)
+        ..maskFilter=const MaskFilter.blur(BlurStyle.normal,1.30));
+      canvas.drawPath(paths[i],Paint()..shader=const LinearGradient(
+        begin:Alignment.topCenter,end:Alignment.bottomCenter,
+        colors:[
+          Color(0xF4FFE0A0),Color(0xE3F5B65C),Color(0xBFC76D29),
+        ],
+      ).createShader(Rect.fromLTWH(x,y,w,h)));
     }
   }
 
   @override
   void paint(Canvas canvas,Size size){
     canvas.save();
+    // Photograph origin (214,592), bounds 124x50; corners follow the LCD
+    // window, not a separate rectangle laid on top of the dashboard.
     canvas.scale(size.width/62.0,size.height/25.0);
+    canvas.transform(_mileagePhotoPlane(
+      100,24,
+      const Offset(4.0,6.5),
+      const Offset(57.5,7.5),
+      const Offset(57.5,22.0),
+      const Offset(3.0,20.5),
+    ).storage);
 
-    final justDigits=reading.replaceAll(RegExp(r'[^0-9]'),'');
-    final shown=justDigits.isEmpty?'------':justDigits.padLeft(6,'0');
+    final onlyDigits=reading.replaceAll(RegExp(r'[^0-9]'),'');
+    final shown=onlyDigits.isEmpty?'------':onlyDigits.padLeft(6,'0');
     final n=shown.length;
-    final groupGap=n>=5?1.45:0.0;
-    const gap=.78;
-    final glyphW=(52.0-gap*(n-1)-groupGap)/n;
-    final full=glyphW*n+gap*(n-1)+groupGap;
-    var x=(62-full)/2;
-    const top=2.6;
-    const height=19.4;
-
-    // Very soft darkening inside the photographed odometer window only.
-    final glaze=RRect.fromRectAndRadius(const Rect.fromLTWH(2,1.6,58,21),const Radius.circular(2.2));
-    canvas.drawRRect(glaze,Paint()
-      ..shader=const LinearGradient(
-        begin:Alignment.topCenter,end:Alignment.bottomCenter,
-        colors:[Color(0x12000000),Color(0x00000000),Color(0x15000000)],
-      ).createShader(const Rect.fromLTWH(2,1.6,58,21)));
-
+    const leftMargin=3.0;
+    const spacing=1.0;
+    final groupGap=n>=5?2.0:0.0;
+    final digitWidth=(94.0-spacing*(n-1)-groupGap)/n;
+    var x=leftMargin;
     for(var i=0;i<n;i++){
-      if(i==3&&n>=5)x+=groupGap;
-      _digit(canvas,x,top,glyphW,height,shown[i]);
-      x+=glyphW+gap;
+      if(i==n-3&&groupGap>0)x+=groupGap;
+      _digit(canvas,shown[i],x,2.2,digitWidth,19.5);
+      x+=digitWidth+spacing;
     }
-
-    // Tiny warm reflection to blend with the photographed display lens.
-    canvas.drawRRect(glaze,Paint()
-      ..style=PaintingStyle.stroke
-      ..strokeWidth=.2
-      ..shader=const LinearGradient(
-        begin:Alignment.topLeft,end:Alignment.bottomRight,
-        colors:[Color(0x24FFE7B2),Color(0x00000000),Color(0x12000000)],
-      ).createShader(const Rect.fromLTWH(0,0,62,25)));
+    // The original background supplies the smoked LCD, bezel and highlights.
     canvas.restore();
   }
 
@@ -256,7 +255,6 @@ class _MileageOdometerPainter extends CustomPainter {
   bool shouldRepaint(covariant _MileageOdometerPainter oldDelegate)=>
     oldDelegate.reading!=reading;
 }
-
 
 class _MetricDetails extends StatefulWidget {
   final String metric;final DateTime month;
@@ -408,6 +406,8 @@ class _MetricDetailsState extends State<_MetricDetails> {
       // Layout follows the supplied 709px-wide mockup at a 2x density.
       // One clean photo is used: the mileage-specific source artwork.
       final u=box.maxWidth/354.5;
+      final photoScale=math.max(box.maxWidth/711.0,box.maxHeight/1536.0);
+      final photoCropX=(711*photoScale-box.maxWidth)/2.0;
       final safe=MediaQuery.paddingOf(context);
       final available=math.max(0.0,box.maxHeight-safe.top-safe.bottom);
       final heroSpace=math.max(200*u,390*u-safe.top-86*u);
@@ -434,10 +434,12 @@ class _MetricDetailsState extends State<_MetricDetails> {
             ),
           ),
         ))),
-        // Both readings are painted into the original photographic instruments.
-        // The background stays untouched; only live values are rendered.
+        // Match BoxFit.cover's photograph coordinates, including side crop.
+        // Painting by screen-width alone makes the digits slip on tall devices.
         Positioned(
-          left:216*u,top:227*u,width:113*u,height:68*u,
+          left:430*photoScale-photoCropX,
+          top:452*photoScale,
+          width:230*photoScale,height:140*photoScale,
           child:IgnorePointer(child:CustomPaint(
             painter:_MileageGlassReadoutPainter(
               value:_total==null?'—':_fmtInt(_total!.mileage),
@@ -445,17 +447,12 @@ class _MetricDetailsState extends State<_MetricDetails> {
           )),
         ),
         Positioned(
-          left:107*u,top:296*u,width:64*u,height:26*u,
-          child:IgnorePointer(child:Transform(
-            alignment:Alignment.center,
-            transform:Matrix4.identity()
-              ..setEntry(3,2,0.001)
-              ..rotateZ(.035)
-              ..rotateY(-.11),
-            child:CustomPaint(
-              painter:_MileageOdometerPainter(
-                reading:_mileageOdometer==null?'':_mileageOdometer!.round().toString(),
-              ),
+          left:214*photoScale-photoCropX,
+          top:592*photoScale,
+          width:124*photoScale,height:50*photoScale,
+          child:IgnorePointer(child:CustomPaint(
+            painter:_MileageOdometerPainter(
+              reading:_mileageOdometer==null?'':_mileageOdometer!.round().toString(),
             ),
           )),
         ),
