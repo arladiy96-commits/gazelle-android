@@ -104,9 +104,11 @@ class _MileageGlassReadoutPainter extends CustomPainter {
         colors:[Color(0x19FFFFFF),Color(0x00FFFFFF)],
       ).createShader(const Rect.fromLTWH(0,4,100,23)));
 
-    // The characters share the photographed plane of the dashboard glass.
-    canvas.translate(38,15);
-    canvas.rotate(.042);
+    // The value sits more centrally inside the right-hand glass tile and
+    // follows its perspective a little more closely.
+    const displayLeft=30.0;
+    const displayWidth=74.0;
+    canvas.rotate(.062);
 
     final numberStyle=TextStyle(
       fontSize:24.5,
@@ -130,7 +132,10 @@ class _MileageGlassReadoutPainter extends CustomPainter {
       fontWeight:FontWeight.w500,
     ));
     final totalWidth=number.width+unit.width;
-    final fit=math.min(1.0,72.0/totalWidth);
+    final fit=math.min(1.0,displayWidth/totalWidth);
+    final drawWidth=totalWidth*fit;
+    final startX=displayLeft+(displayWidth-drawWidth)/2;
+    canvas.translate(startX,19.5);
     canvas.scale(fit);
 
     // A recessed display catches the glow and leaves a dark depth shadow.
@@ -151,22 +156,6 @@ class _MileageGlassReadoutPainter extends CustomPainter {
     number.paint(canvas,Offset.zero);
     unit.paint(canvas,Offset(number.width+1,10.2));
     canvas.restore(); // rotation/translation (and glass clip)
-
-    // The subtitle is also laid into the glass, not a separate Flutter label.
-    canvas.save();
-    canvas.translate(43,43);
-    canvas.rotate(.042);
-    final subtitle=_text('За месяц',const TextStyle(
-      color:Color(0xFFAAB8B8),fontSize:10.5,
-      fontWeight:FontWeight.w400,
-    ));
-    final subtitleShadow=_text('За месяц',const TextStyle(
-      color:Color(0xBA000000),fontSize:10.5,
-      fontWeight:FontWeight.w400,
-    ));
-    subtitleShadow.paint(canvas,const Offset(.5,1.0));
-    subtitle.paint(canvas,Offset.zero);
-    canvas.restore();
 
     // Hairline reflections on the actual bezel, kept very faint.
     canvas.drawPath(pane,Paint()
@@ -507,10 +496,17 @@ class _MetricDetailsState extends State<_MetricDetails> {
           )),
         ),
         Positioned(
-          left:108*u,top:297*u,width:62*u,height:25*u,
-          child:IgnorePointer(child:CustomPaint(
-            painter:_MileageOdometerPainter(
-              reading:_mileageOdometer==null?'':_mileageOdometer!.round().toString(),
+          left:106*u,top:295*u,width:66*u,height:27*u,
+          child:IgnorePointer(child:Transform(
+            alignment:Alignment.center,
+            transform:Matrix4.identity()
+              ..setEntry(3,2,0.001)
+              ..rotateZ(.035)
+              ..rotateY(-.11),
+            child:CustomPaint(
+              painter:_MileageOdometerPainter(
+                reading:_mileageOdometer==null?'':_mileageOdometer!.round().toString(),
+              ),
             ),
           )),
         ),
