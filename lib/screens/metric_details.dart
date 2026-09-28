@@ -47,218 +47,168 @@ Widget _detailRow(String label,String value,{VoidCallback? onTap,String? subtitl
 List<Widget> _separated(List<Widget> rows)=>[for(var i=0;i<rows.length;i++)...[if(i>0)const Divider(height:1,color:Color(0x803E505B)),rows[i]]];
 
 
-// Project each live value onto the four corners of its photographic display.
-// A 3D rotation cannot reproduce this trapezoid: it needs a homography.
-Matrix4 _mileagePhotoPlane(
-  double flatWidth,double flatHeight,
-  Offset topLeft,Offset topRight,Offset bottomRight,Offset bottomLeft,
-){
-  final dx1=topRight.dx-bottomRight.dx;
-  final dx2=bottomLeft.dx-bottomRight.dx;
-  final dx3=topLeft.dx-topRight.dx+bottomRight.dx-bottomLeft.dx;
-  final dy1=topRight.dy-bottomRight.dy;
-  final dy2=bottomLeft.dy-bottomRight.dy;
-  final dy3=topLeft.dy-topRight.dy+bottomRight.dy-bottomLeft.dy;
-  final determinant=dx1*dy2-dx2*dy1;
-  if(determinant.abs()<0.000001)return Matrix4.identity();
-  final g=(dx3*dy2-dx2*dy3)/determinant;
-  final h=(dx1*dy3-dx3*dy1)/determinant;
-  final a=topRight.dx-topLeft.dx+g*topRight.dx;
-  final b=bottomLeft.dx-topLeft.dx+h*bottomLeft.dx;
-  final d=topRight.dy-topLeft.dy+g*topRight.dy;
-  final e=bottomLeft.dy-topLeft.dy+h*bottomLeft.dy;
-  return Matrix4.identity()
-    ..setEntry(0,0,a/flatWidth)
-    ..setEntry(0,1,b/flatHeight)
-    ..setEntry(0,3,topLeft.dx)
-    ..setEntry(1,0,d/flatWidth)
-    ..setEntry(1,1,e/flatHeight)
-    ..setEntry(1,3,topLeft.dy)
-    ..setEntry(3,0,g/flatWidth)
-    ..setEntry(3,1,h/flatHeight);
-}
 
-class _MileageGlassReadoutPainter extends CustomPainter {
-  final String value;
-  const _MileageGlassReadoutPainter({required this.value});
-
-  TextPainter _text(String text,TextStyle style)=>TextPainter(
-    text:TextSpan(text:text,style:style),
-    textDirection:TextDirection.ltr,
-    maxLines:1,
-  )..layout();
-
-  @override
-  void paint(Canvas canvas,Size size){
-    canvas.save();
-    // These measurements refer to the clean photograph's 711x1536 pixels,
-    // with this painter placed at image (430,452), size 230x140.
-    canvas.scale(size.width/115.0,size.height/70.0);
-    canvas.transform(_mileagePhotoPlane(
-      100,34,
-      const Offset(19.5,21.0),
-      const Offset(98.0,28.0),
-      const Offset(96.5,48.0),
-      const Offset(19.5,41.5),
-    ).storage);
-
-    // The bezel/glass are part of the photograph. Draw no added tile,
-    // border or background: only softly illuminated live glyphs.
-    const fontSize=23.0;
-    final number=_text(value,TextStyle(
-      fontSize:fontSize,
-      fontWeight:FontWeight.w600,
-      letterSpacing:-.40,
-      foreground:Paint()..shader=const LinearGradient(
-        begin:Alignment.topCenter,end:Alignment.bottomCenter,
-        colors:[
-          Color(0xF2EAE7DB),
-          Color(0xE9E8DCCA),
-          Color(0xD1BAAA91),
-        ],
-      ).createShader(const Rect.fromLTWH(0,0,110,30)),
-    ));
-    final unit=_text(' км',const TextStyle(
-      color:Color(0xD6A5C7D1),
-      fontSize:11.0,
-      fontWeight:FontWeight.w500,
-    ));
-    final combined=number.width+unit.width+0.7;
-    final fit=math.min(1.0,94.0/math.max(1.0,combined));
-    final start=(100.0-combined*fit)/2.0;
-    canvas.translate(start,(34-fontSize*fit)/2.0);
-    canvas.scale(fit);
-
-    // Local shadow/glow use the same perspective as the characters.
-    final shadow=_text(value,const TextStyle(
-      color:Color(0x78000000),
-      fontSize:fontSize,fontWeight:FontWeight.w600,letterSpacing:-.40,
-    ));
-    shadow.paint(canvas,const Offset(.45,.8));
-    final warmGlow=_text(value,const TextStyle(
-      color:Color(0x1CFFE3AF),
-      fontSize:fontSize,fontWeight:FontWeight.w600,letterSpacing:-.40,
-    ));
-    canvas.saveLayer(const Rect.fromLTWH(-5,-5,135,45),
-      Paint()..maskFilter=const MaskFilter.blur(BlurStyle.normal,1.7));
-    warmGlow.paint(canvas,Offset.zero);
-    canvas.restore();
-    number.paint(canvas,Offset.zero);
-    unit.paint(canvas,Offset(number.width+.7,9.5));
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _MileageGlassReadoutPainter oldDelegate)=>
-    oldDelegate.value!=value;
-}
-
-class _MileageOdometerPainter extends CustomPainter {
+// Барабанный механический одометр. Фото даёт металлическую окантовку,
+// Painter рисует только сменяющиеся колёса внутри окна.
+class _MileageDrumPainter extends CustomPainter {
   final String reading;
-  const _MileageOdometerPainter({required this.reading});
-
-  static const _patterns=<String,List<int>>{
-    '0':[0,1,2,4,5,6], '1':[2,5], '2':[0,2,3,4,6],
-    '3':[0,2,3,5,6], '4':[1,2,3,5],
-    '5':[0,1,3,5,6], '6':[0,1,3,4,5,6],
-    '7':[0,2,5], '8':[0,1,2,3,4,5,6],
-    '9':[0,1,2,3,5,6], '-':[3],
-  };
-
-  Path _horizontal(double x,double y,double w,double t){
-    final bevel=t*.56;
-    return Path()
-      ..moveTo(x+bevel,y)
-      ..lineTo(x+w-bevel,y)
-      ..lineTo(x+w,y+t/2)
-      ..lineTo(x+w-bevel,y+t)
-      ..lineTo(x+bevel,y+t)
-      ..lineTo(x,y+t/2)
-      ..close();
-  }
-
-  Path _vertical(double x,double y,double h,double t){
-    final bevel=t*.53;
-    return Path()
-      ..moveTo(x+t/2,y)
-      ..lineTo(x+t,y+bevel)
-      ..lineTo(x+t,y+h-bevel)
-      ..lineTo(x+t/2,y+h)
-      ..lineTo(x,y+h-bevel)
-      ..lineTo(x,y+bevel)
-      ..close();
-  }
-
-  void _digit(Canvas canvas,String digit,double x,double y,double w,double h){
-    final t=math.max(.90,w*.16);
-    final half=h/2;
-    final verticalLength=half-t*1.50;
-    final paths=<Path>[
-      _horizontal(x+t*.65,y,w-t*1.30,t),
-      _vertical(x,y+t*.85,verticalLength,t),
-      _vertical(x+w-t,y+t*.85,verticalLength,t),
-      _horizontal(x+t*.65,y+half-t/2,w-t*1.30,t),
-      _vertical(x,y+half+t*.35,verticalLength,t),
-      _vertical(x+w-t,y+half+t*.35,verticalLength,t),
-      _horizontal(x+t*.65,y+h-t,w-t*1.30,t),
-    ];
-    final active=_patterns[digit]??const <int>[];
-    for(var i=0;i<7;i++){
-      if(!active.contains(i)){
-        canvas.drawPath(paths[i],Paint()..color=const Color(0x183E291A));
-        continue;
-      }
-      canvas.drawPath(paths[i],Paint()
-        ..color=const Color(0x48EF9D46)
-        ..maskFilter=const MaskFilter.blur(BlurStyle.normal,1.30));
-      canvas.drawPath(paths[i],Paint()..shader=const LinearGradient(
-        begin:Alignment.topCenter,end:Alignment.bottomCenter,
-        colors:[
-          Color(0xF4FFE0A0),Color(0xE3F5B65C),Color(0xBFC76D29),
-        ],
-      ).createShader(Rect.fromLTWH(x,y,w,h)));
-    }
-  }
+  const _MileageDrumPainter(this.reading);
+  TextPainter _glyph(String text, double size, Color color, {bool bold = true}) =>
+      TextPainter(
+        text: TextSpan(
+          text: text,
+          style: TextStyle(
+            fontFamily: 'monospace',
+            fontSize: size,
+            fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+            color: color,
+            shadows: const [Shadow(color: Color(0xAF000000), blurRadius: 2)],
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
 
   @override
-  void paint(Canvas canvas,Size size){
+  void paint(Canvas canvas, Size size) {
     canvas.save();
-    // Photograph origin (214,592), bounds 124x50; corners follow the LCD
-    // window, not a separate rectangle laid on top of the dashboard.
-    canvas.scale(size.width/62.0,size.height/25.0);
-    // Fine-tuned to the photographed odometer window so the digits follow
-    // the plane of the LCD more naturally.
-    canvas.transform(_mileagePhotoPlane(
-      100,24,
-      // Softer, more natural odometer plane: the photographed window is only
-      // slightly slanted, not heavily falling to the right.
-      const Offset(4.6,9.4),
-      const Offset(57.2,10.4),
-      const Offset(56.4,22.2),
-      const Offset(3.8,21.2),
-    ).storage);
+    canvas.scale(size.width / 190, size.height / 74);
+    final window = RRect.fromRectAndRadius(
+      const Rect.fromLTWH(1, 3, 188, 68), const Radius.circular(8));
+    canvas.drawRRect(window, Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFF060403), Color(0xFF3A1B0C), Color(0xFF170A05)],
+      ).createShader(const Rect.fromLTWH(0, 0, 190, 74)));
+    canvas.save();
+    canvas.clipRRect(window);
 
-    final onlyDigits=reading.replaceAll(RegExp(r'[^0-9]'),'');
-    final shown=onlyDigits.isEmpty?'------':onlyDigits.padLeft(6,'0');
-    final n=shown.length;
-    const leftMargin=3.0;
-    const spacing=1.0;
-    final groupGap=n>=5?2.0:0.0;
-    final digitWidth=(94.0-spacing*(n-1)-groupGap)/n;
-    var x=leftMargin;
-    for(var i=0;i<n;i++){
-      if(i==n-3&&groupGap>0)x+=groupGap;
-      _digit(canvas,shown[i],x,2.2,digitWidth,19.5);
-      x+=digitWidth+spacing;
+    final clean = reading.replaceAll(RegExp(r'[^0-9]'), '');
+    final digits = clean.isEmpty ? '------' :
+        (clean.length > 6 ? clean.substring(clean.length - 6) : clean.padLeft(6, '0'));
+
+    const left = 7.0;
+    const slotWidth = 29.4;
+    for (var i = 0; i < 6; i++) {
+      final x = left + i * slotWidth;
+      final isLast = i == 5;
+      canvas.drawRect(Rect.fromLTWH(x, 4, slotWidth - 1.2, 66), Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter, end: Alignment.bottomCenter,
+          colors: isLast
+              ? const [Color(0xFF4B1606), Color(0xFF7C3010), Color(0xFF240A04)]
+              : const [Color(0xFF201009), Color(0xFF663414), Color(0xFF281105)],
+        ).createShader(Rect.fromLTWH(x, 0, slotWidth, 74)));
+      canvas.drawLine(Offset(x + slotWidth - 1.4, 5),
+          Offset(x + slotWidth - 1.4, 69),
+          Paint()..color = const Color(0xAF050402)..strokeWidth = 1.7);
+      final current = digits[i];
+      if (current == '-') {
+        final dash = _glyph('–', 32, const Color(0xFFFFC97B));
+        dash.paint(canvas, Offset(x + (slotWidth - dash.width)/2, 17));
+      } else {
+        final n = int.parse(current);
+        for (final pair in [
+          (((n + 9) % 10).toString(), -25.0, const Color(0x668C683E)),
+          (current, 13.0, const Color(0xFFFFD79A)),
+          (((n + 1) % 10).toString(), 52.0, const Color(0x886C4622)),
+        ]) {
+          final glyph = _glyph(pair.$1, 38, pair.$3);
+          glyph.paint(canvas, Offset(x + (slotWidth - glyph.width)/2, pair.$2));
+        }
+      }
     }
-    // The original background supplies the smoked LCD, bezel and highlights.
+
+    canvas.drawRect(const Rect.fromLTWH(0, 0, 190, 74), Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter, end: Alignment.bottomCenter,
+        stops: [0, .16, .35, .73, .95, 1],
+        colors: [
+          Color(0xE5000000), Color(0x44000000), Color(0x00000000),
+          Color(0x00000000), Color(0x66000000), Color(0xD9000000),
+        ],
+      ).createShader(const Rect.fromLTWH(0, 0, 190, 74)));
+    canvas.drawLine(const Offset(4, 11), const Offset(185, 11),
+        Paint()..color=const Color(0x55FFD18C)..strokeWidth=1.1);
+    canvas.restore();
+    canvas.drawRRect(window, Paint()
+      ..style=PaintingStyle.stroke..strokeWidth=2
+      ..color=const Color(0xAA49290E));
     canvas.restore();
   }
 
   @override
-  bool shouldRepaint(covariant _MileageOdometerPainter oldDelegate)=>
-    oldDelegate.reading!=reading;
+  bool shouldRepaint(covariant _MileageDrumPainter old) => old.reading != reading;
 }
+
+// Геометрия строится только из сохранённых координат. Фоновая сетка
+// декоративная, она НЕ является картой дорог или навигацией.
+class _MileageRecordedTrackPainter extends CustomPainter {
+  final List<Map<String, dynamic>> points;
+  const _MileageRecordedTrackPainter(this.points);
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final grid = Paint()
+      ..color = const Color(0x2D63808B)..strokeWidth = .7;
+    for (var x = 0.0; x < s.width; x += 18) {
+      canvas.drawLine(Offset(x, 0), Offset(x, s.height), grid);
+    }
+    for (var y = 0.0; y < s.height; y += 18) {
+      canvas.drawLine(Offset(0, y), Offset(s.width, y), grid);
+    }
+    final rows = points.where((p)=>p['lat'] is num && p['lng'] is num).toList();
+    if (rows.isEmpty) return;
+    final cosLat = math.max(.05, math.cos((rows.first['lat'] as num).toDouble() *
+        math.pi / 180));
+    final xs = [for (final p in rows) (p['lng'] as num).toDouble() * cosLat];
+    final ys = [for (final p in rows) (p['lat'] as num).toDouble()];
+    final minX=xs.reduce(math.min), maxX=xs.reduce(math.max);
+    final minY=ys.reduce(math.min), maxY=ys.reduce(math.max);
+    final dx=math.max(maxX-minX, .00012);
+    final dy=math.max(maxY-minY, .00012);
+    final scale=math.min((s.width-55)/dx,(s.height-48)/dy);
+    Offset at(int i)=>Offset(
+      s.width/2+((xs[i]-minX)-(maxX-minX)/2)*scale,
+      s.height/2-((ys[i]-minY)-(maxY-minY)/2)*scale,
+    );
+    Path? path;
+    final segments=<Path>[];
+    for (var i=0; i<rows.length; i++) {
+      if (path==null || rows[i]['segmentStart']==true) {
+        if (path!=null) segments.add(path);
+        path=Path()..moveTo(at(i).dx, at(i).dy);
+      } else {
+        path.lineTo(at(i).dx, at(i).dy);
+      }
+    }
+    if (path!=null) segments.add(path);
+    for (final p in segments) {
+      canvas.drawPath(p, Paint()
+        ..color=const Color(0x80FF8E25)
+        ..style=PaintingStyle.stroke..strokeWidth=11
+        ..strokeCap=StrokeCap.round
+        ..maskFilter=const MaskFilter.blur(BlurStyle.normal,8));
+      canvas.drawPath(p, Paint()
+        ..color=const Color(0xFFFFAA49)
+        ..style=PaintingStyle.stroke..strokeWidth=2.7
+        ..strokeCap=StrokeCap.round..strokeJoin=StrokeJoin.round);
+    }
+    final origin=at(0), end=at(rows.length-1);
+    canvas.drawCircle(origin,7,Paint()..color=const Color(0xFF65D7F5));
+    canvas.drawCircle(origin,3,Paint()..color=Colors.white);
+    canvas.drawCircle(end,10,Paint()
+      ..color=const Color(0x66FF9B21)
+      ..maskFilter=const MaskFilter.blur(BlurStyle.normal,6));
+    canvas.drawCircle(end,5,Paint()..color=const Color(0xFFFFBA60));
+    canvas.drawCircle(end,2,Paint()..color=Colors.white);
+  }
+
+  @override
+  bool shouldRepaint(covariant _MileageRecordedTrackPainter old) =>
+      old.points != points;
+}
+
 
 class _MetricDetails extends StatefulWidget {
   final String metric;final DateTime month;
@@ -269,6 +219,7 @@ class _MetricDetails extends StatefulWidget {
 class _MetricDetailsState extends State<_MetricDetails> {
   late DateTime _month;
   _HomeMonthData? _total;ActivityBook? _book;TestPreferences? _prefs;double? _mileageOdometer;
+  List<Map<String,dynamic>> _gpsRoutes = <Map<String,dynamic>>[];
   final _scroll=ScrollController();
   String? _error,_direction;bool _trips=false,_hideEmpty=true,_salaryDaysExpanded=false;int _loadId=0;
   bool get _weight=>['Город','Район'].contains(widget.metric);
@@ -280,11 +231,37 @@ class _MetricDetailsState extends State<_MetricDetails> {
   Future<void> _load() async {
     final id=++_loadId;
     try {final total=await _HomeMonthData.load(_month);final book=await ActivityRepository.load(_month);final prefs=await TestPreferences.getInstance();
-      final odometer=widget.metric=='Пробег'?_mileageMonthOdometer(await TestStore.load(),_month):null;
-      if(mounted&&id==_loadId)setState((){_total=total;_book=book;_prefs=prefs;_mileageOdometer=odometer;_error=null;});
+      final routes = <Map<String,dynamic>>[];
+      double? odometer;
+      if (widget.metric == 'Пробег') {
+        final journal = await TestStore.load();
+        odometer = _mileageMonthOdometer(journal, _month);
+        for (final shift in journal.shifts) {
+          final started = DateTime.tryParse(shift['start']?.toString() ?? '');
+          if (started == null || started.year != _month.year ||
+              started.month != _month.month) continue;
+          final shiftId = shift['id']?.toString();
+          if (shiftId == null) continue;
+          final route = await GpsRouteStore.loadShift(shiftId);
+          final points = <Map<String,dynamic>>[
+            for (final p in (route['points'] as List? ?? const []))
+              Map<String,dynamic>.from(p as Map)
+          ];
+          if (points.isNotEmpty) routes.add({
+            'shiftId': shiftId, 'started': started, 'points': points,
+            'km': (route['distanceKm'] as num?)?.toDouble() ?? 0.0
+          });
+        }
+        routes.sort((a,b)=>
+          (b['started'] as DateTime).compareTo(a['started'] as DateTime));
+      }
+      if(mounted&&id==_loadId)setState((){
+        _total=total;_book=book;_prefs=prefs;
+        _mileageOdometer=odometer;_gpsRoutes=routes;_error=null;
+      });
     }catch(_){if(mounted&&id==_loadId)setState(()=>_error='Не удалось прочитать данные. Повторите попытку.');}
   }
-  void _monthTo(int delta){setState((){_month=DateTime(_month.year,_month.month+delta);_book=null;_total=null;_mileageOdometer=null;_direction=null;_salaryDaysExpanded=false;});if(_scroll.hasClients)_scroll.jumpTo(0);_load();}
+  void _monthTo(int delta){setState((){_month=DateTime(_month.year,_month.month+delta);_book=null;_total=null;_mileageOdometer=null;_gpsRoutes=[];_direction=null;_salaryDaysExpanded=false;});if(_scroll.hasClients)_scroll.jumpTo(0);_load();}
   Future<void> _pickDay() async {
     final now=DateTime.now();final first=DateTime(_month.year,_month.month);final last=DateTime(_month.year,_month.month+1,0);
     final d=await showDatePicker(context:context,initialDate:ActivityBook.sameDay(first,now)?now:first,firstDate:first,lastDate:last);
@@ -350,170 +327,294 @@ class _MetricDetailsState extends State<_MetricDetails> {
     if(selected!=null&&mounted)_day(selected);
   }
 
-  Future<void> _mileageRouteHistory() async {
-    final month=_month;
-    try {
-      final state=await TestStore.load();
-      if(!mounted)return;
-      final days=<DateTime,double>{};
-      for(final shift in state.shifts){
-        final date=DateTime.tryParse((shift['start'] as String?)??'');
-        final gps=(shift['gpsKm'] as num?)?.toDouble()??0;
-        if(date!=null&&date.year==month.year&&date.month==month.month&&gps>0){
-          final day=DateTime(date.year,date.month,date.day);
-          days.update(day,(previous)=>previous+gps,ifAbsent:()=>gps);
-        }
-      }
-      final dates=days.keys.toList()..sort((a,b)=>b.compareTo(a));
-      Navigator.of(context).push<void>(_SceneRoute(builder:(routeContext)=>
-        _DetailFrame(
-          title:'История маршрутов',
-          scene:_Scene.cab,
-          showHero:false,
-          children:[
-            const SizedBox(height:14),
-            const _DetailGlass(child:Text(
-              'GPS здесь работает в демонстрационном режиме. '
-              'Расстояния из журнала доступны по дням; '
-              'реальный GPS-трек не записывается.',
-              style:TextStyle(color:Color(0xFFBCCBD2),fontSize:13),
-            )),
-            const SizedBox(height:12),
-            if(dates.isEmpty)
-              const _DetailGlass(child:Text(
-                'За выбранный месяц GPS-маршрутов пока нет.',
-                style:TextStyle(color:Color(0xFFE8EEF1),fontSize:14),
-              ))
-            else
-              _DetailGlass(child:Column(children:_separated([
-                for(final day in dates)
-                  _detailRow(
-                    _detailDate(day),
-                    '${_fmt1(days[day]??0)} км',
-                    onTap:()=>Navigator.of(routeContext).push<void>(
-                      _SceneRoute(builder:(_)=>_DayGps(day:day))),
-                  ),
-              ]))),
-          ],
-        ),
-      ));
-    }catch(_){
-      if(mounted)ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content:Text('Не удалось загрузить историю GPS.')),
-      );
-    }
+
+  double? _mileageDayValue(DateTime day) {
+    final manual = _dayValue(day, 'mileage');
+    if (manual != null && manual > 0) return manual;
+    final gps = _gpsRoutes.where((r)=>
+      ActivityBook.sameDay(r['started'] as DateTime,day))
+      .fold<double>(0.0,(sum,r)=>sum+(r['km'] as double));
+    return gps > 0 ? gps : manual;
   }
+
+  double get _mileageMonthValue {
+    final manual = _total?.mileage ?? 0.0;
+    final gpsOnly = _gpsRoutes.where((r) {
+      final day = r['started'] as DateTime;
+      return (_dayValue(day,'mileage') ?? 0.0) <= 0;
+    }).fold<double>(0.0,(sum,r)=>sum+(r['km'] as double));
+    return manual + gpsOnly;
+  }
+
+  void _mileageOpenRoute(Map<String,dynamic> route) {
+    final points = route['points'] as List<Map<String,dynamic>>;
+    final started = route['started'] as DateTime;
+    final km = (route['km'] as double);
+    Navigator.of(context).push<void>(_SceneRoute(builder: (_) => _DetailFrame(
+      title:'GPS · ${_detailDate(started)}',
+      scene:_Scene.cab,
+      showHero:false,
+      children:[
+        const SizedBox(height:14),
+        Container(height:215,
+          decoration:BoxDecoration(
+            color:const Color(0xE5102027),
+            borderRadius:BorderRadius.circular(18),
+            border:Border.all(color:const Color(0x885E929E)),
+          ),
+          child:ClipRRect(
+            borderRadius:BorderRadius.circular(18),
+            child:CustomPaint(
+              painter:_MileageRecordedTrackPainter(points),
+              child:const SizedBox.expand(),
+            ),
+          ),
+        ),
+        _DetailGlass(accent:true,child:Column(
+          crossAxisAlignment:CrossAxisAlignment.start,
+          children:[
+            _dt('${_fmt1(km)} км • ${points.length} GPS-точек',
+              color:_amber,size:17),
+            const SizedBox(height:8),
+            _dt('Начало записи: ${_detailTime(DateTime.tryParse(
+              points.first['time']?.toString() ?? '') ?? started)}',size:13),
+            _dt('Последняя точка: ${_detailTime(DateTime.tryParse(
+              points.last['time']?.toString() ?? '') ?? started)}',size:13),
+          ],
+        )),
+        const _DetailGlass(child:Text(
+          'Линия построена из записанных координат. '
+          'Сетка декоративная, это не карта дорог. '
+          'При выключенном GPS или свёрнутом приложении '
+          'часть маршрута может отсутствовать.',
+          style:TextStyle(color:Color(0xFFBDC9CE),fontSize:13),
+        )),
+      ],
+    )));
+  }
+
+  Future<void> _mileageRouteHistory() async {
+    if (_gpsRoutes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content:Text(
+          'GPS-маршрутов за выбранный месяц пока нет.',
+        )),
+      );
+      return;
+    }
+    await Navigator.of(context).push<void>(_SceneRoute(builder: (_) =>
+      _DetailFrame(
+        title:'История маршрутов',
+        scene:_Scene.cab,
+        showHero:false,
+        children:[
+          const SizedBox(height:12),
+          _DetailGlass(child:Column(children:_separated([
+            for (final route in _gpsRoutes)
+              _detailRow(
+                '${_detailDate(route['started'] as DateTime)} · '
+                '${_detailTime(route['started'] as DateTime)}',
+                '${_fmt1(route['km'] as double)} км',
+                subtitle:'${(route['points'] as List).length} GPS-точек',
+                onTap:()=>_mileageOpenRoute(route),
+              ),
+          ]))),
+        ],
+      ),
+    ));
+  }
+
+  Widget _mileageRouteMap(double u) {
+    final latest=_gpsRoutes.isEmpty ? null : _gpsRoutes.first;
+    final points= latest==null ? <Map<String,dynamic>>[] :
+      latest['points'] as List<Map<String,dynamic>>;
+    final started=latest?['started'] as DateTime?;
+    final length=latest?['km'] as double? ?? 0.0;
+    return Container(
+      height:165*u,
+      margin:EdgeInsets.fromLTRB(13*u,9*u,13*u,0),
+      decoration:BoxDecoration(
+        borderRadius:BorderRadius.circular(17*u),
+        border:Border.all(color:const Color(0x86618D9D),width:.75*u),
+        color:const Color(0xC90A1921),
+        boxShadow:const [
+          BoxShadow(color:Color(0x99000000),blurRadius:14),
+        ],
+      ),
+      child:ClipRRect(
+        borderRadius:BorderRadius.circular(17*u),
+        child:Stack(children:[
+          Positioned.fill(child:CustomPaint(
+            painter:_MileageRecordedTrackPainter(points))),
+          Positioned(top:10*u,left:12*u,right:12*u,child:Row(children:[
+            Icon(Icons.route,color:const Color(0xFFFFB45B),size:18*u),
+            SizedBox(width:7*u),
+            Expanded(child:Text('Маршрут смены',
+              style:TextStyle(color:Colors.white,fontSize:15*u,
+                fontWeight:FontWeight.w600))),
+            Icon(Icons.gps_fixed,color:points.isNotEmpty?
+              const Color(0xFF69D7F2):const Color(0xFF8797A0),size:13*u),
+            SizedBox(width:5*u),
+            Text(points.isNotEmpty?'GPS · запись':'GPS · ожидание',
+              style:TextStyle(color:const Color(0xFFB9D5E0),fontSize:10*u)),
+          ])),
+          if(points.isEmpty)
+            Center(child:Padding(
+              padding:EdgeInsets.symmetric(horizontal:20*u),
+              child:Text('Нет записанных GPS-точек.\n'
+                'Открой смену и разреши доступ к геолокации.',
+                textAlign:TextAlign.center,
+                style:TextStyle(fontSize:12*u,height:1.4,
+                  color:const Color(0xFFD3DFE2)),
+              ),
+            )),
+          Positioned(left:10*u,right:10*u,bottom:9*u,child:Material(
+            color:const Color(0xD809151B),
+            borderRadius:BorderRadius.circular(11*u),
+            child:InkWell(
+              onTap:_mileageRouteHistory,
+              borderRadius:BorderRadius.circular(11*u),
+              child:Padding(
+                padding:EdgeInsets.symmetric(horizontal:12*u,vertical:8*u),
+                child:Row(children:[
+                  Expanded(child:Column(
+                    crossAxisAlignment:CrossAxisAlignment.start,
+                    children:[
+                      Text(started==null?'История маршрутов':
+                        '${_detailDate(started)} · ${_fmt1(length)} км',
+                        style:TextStyle(color:Colors.white,
+                          fontSize:12*u,fontWeight:FontWeight.w600)),
+                      Text('Реальные координаты · схема без карты дорог',
+                        style:TextStyle(color:const Color(0xFF9AB8C5),
+                          fontSize:9*u)),
+                    ],
+                  )),
+                  Icon(Icons.chevron_right,color:const Color(0xFFFFC57A),
+                    size:19*u),
+                ]),
+              ),
+            ),
+          )),
+        ]),
+      ),
+    );
+  }
+
+  Widget _mileagePhoto(double u) => LayoutBuilder(builder:(context,box) {
+    final r=box.maxWidth/864.0;
+    final current=_mileageOdometer==null?'':_mileageOdometer!.round().toString();
+    return SizedBox(
+      width:box.maxWidth,
+      height:554*r,
+      child:Stack(children:[
+        Positioned.fill(child:Image.asset(
+          'assets/images/scenes/mileage_reference_instruments.png',
+          fit:BoxFit.fill,filterQuality:FilterQuality.high,
+        )),
+        // Только внутреннее окно барабанов; металл и циферблаты из фото.
+        Positioned(
+          left:294*r, top:364*r, width:188*r,height:73*r,
+          child:IgnorePointer(child:CustomPaint(
+            painter:_MileageDrumPainter(current))),
+        ),
+        // Фото содержит старое число: перекрываем ТОЛЬКО область цифр.
+        Positioned(
+          left:625*r,top:244*r,width:171*r,height:65*r,
+          child:IgnorePointer(child:ClipRRect(
+            borderRadius:BorderRadius.circular(6*r),
+            child:Container(
+              decoration:const BoxDecoration(
+                gradient:LinearGradient(
+                  begin:Alignment.topLeft,end:Alignment.bottomRight,
+                  colors:[Color(0xFF251F19),Color(0xFF121D21),
+                    Color(0xFF132229)],
+                ),
+              ),
+              child:Center(child:FittedBox(fit:BoxFit.scaleDown,
+                child:Row(mainAxisSize:MainAxisSize.min,
+                  crossAxisAlignment:CrossAxisAlignment.end,children:[
+                  Text(_total==null?'—':_fmtInt(_mileageMonthValue),
+                    style:TextStyle(
+                      fontSize:50*r,color:const Color(0xFFF5E9D6),
+                      fontWeight:FontWeight.w700,
+                      shadows:const [
+                        Shadow(color:Color(0xFF000000),
+                          blurRadius:3,offset:Offset(1,2))
+                      ])),
+                  SizedBox(width:4*r),
+                  Padding(
+                    padding:EdgeInsets.only(bottom:8*r),
+                    child:Text('км',style:TextStyle(
+                      fontSize:18*r,color:const Color(0xFFBDD1D7),
+                      fontWeight:FontWeight.w500))),
+                ]))),
+              ),
+            ),
+          )),
+      ]),
+    );
+  });
+
 
   Widget _mileageScreen()=>Scaffold(
     backgroundColor:const Color(0xFF080D11),
-    body:LayoutBuilder(builder:(context,box){
-      // Layout follows the supplied 709px-wide mockup at a 2x density.
-      // One clean photo is used: the mileage-specific source artwork.
+    body:LayoutBuilder(builder:(context,box) {
       final u=box.maxWidth/354.5;
-      final photoScale=math.max(box.maxWidth/711.0,box.maxHeight/1536.0);
-      final photoCropX=(711*photoScale-box.maxWidth)/2.0;
-      final safe=MediaQuery.paddingOf(context);
-      final available=math.max(0.0,box.maxHeight-safe.top-safe.bottom);
-      final heroSpace=math.max(200*u,390*u-safe.top-86*u);
       return Stack(children:[
-        Positioned.fill(child:ColoredBox(color:const Color(0xFF080D11))),
-        const Positioned.fill(
-          child:Image(
-            image:AssetImage('assets/images/scenes/mileage.png'),
-            fit:BoxFit.cover,
-            alignment:Alignment.topCenter,
-            filterQuality:FilterQuality.high,
-          ),
-        ),
+        const Positioned.fill(child:Image(
+          image:AssetImage('assets/images/scenes/mileage.png'),
+          fit:BoxFit.cover,alignment:Alignment.topCenter,
+          filterQuality:FilterQuality.high,
+        )),
         const Positioned.fill(child:IgnorePointer(child:DecoratedBox(
-          decoration:BoxDecoration(
-            gradient:LinearGradient(
-              begin:Alignment.topCenter,
-              end:Alignment.bottomCenter,
-              stops:[0,.30,.49,.65,1],
-              colors:[
-                Color(0x25000000),Color(0x00000000),
-                Color(0x24070A0E),Color(0x7406090C),Color(0xE4080D11),
-              ],
-            ),
-          ),
+          decoration:BoxDecoration(gradient:LinearGradient(
+            begin:Alignment.topCenter,end:Alignment.bottomCenter,
+            colors:[Color(0x33000000),Color(0x22000000),
+              Color(0xC80A0E12),Color(0xEA080D11)],
+            stops:[0,.29,.82,1],
+          )),
         ))),
-        // Match BoxFit.cover's photograph coordinates, including side crop.
-        // Painting by screen-width alone makes the digits slip on tall devices.
-        Positioned(
-          left:430*photoScale-photoCropX,
-          top:452*photoScale,
-          width:230*photoScale,height:140*photoScale,
-          child:IgnorePointer(child:CustomPaint(
-            painter:_MileageGlassReadoutPainter(
-              value:_total==null?'—':_fmtInt(_total!.mileage),
-            ),
-          )),
-        ),
-        Positioned(
-          left:214*photoScale-photoCropX,
-          top:592*photoScale,
-          width:124*photoScale,height:50*photoScale,
-          child:IgnorePointer(child:CustomPaint(
-            painter:_MileageOdometerPainter(
-              reading:_mileageOdometer==null?'':_mileageOdometer!.round().toString(),
-            ),
-          )),
-        ),
-        SafeArea(child:SingleChildScrollView(
-          key:const PageStorageKey('mileage-screen'),
+        SafeArea(child:ListView(
+          key:const PageStorageKey('mileage-with-real-gps'),
           controller:_scroll,
-          child:ConstrainedBox(
-            constraints:BoxConstraints(minHeight:available),
-            child:Column(children:[
-              _mileageHeader(u),
-              SizedBox(height:8*u),
-              _mileageMonthSelector(u),
-              SizedBox(height:heroSpace),
-              if(_error!=null)
-                Padding(
-                  padding:EdgeInsets.symmetric(horizontal:15*u),
-                  child:Column(children:[
-                    _DetailGlass(child:_dt(_error!)),
-                    _detailButton('Повторить',_load),
-                  ]),
-                )
-              else
-                _mileageDaysPanel(u),
-              SizedBox(height:12*u),
-              _mileageHistoryButton(u),
-              SizedBox(height:16*u),
-              Row(
-                mainAxisAlignment:MainAxisAlignment.center,
-                children:[
-                  Icon(Icons.info_outline,
-                    size:15*u,color:const Color(0xFF959EA6)),
-                  SizedBox(width:9*u),
-                  Text('Данные из журнала',
-                    style:TextStyle(
-                      fontSize:11*u,color:const Color(0xFF959EA6))),
-                ],
-              ),
-              SizedBox(height:23*u),
-              Align(
-                alignment:Alignment.centerLeft,
-                child:TextButton.icon(
-                  onPressed:()=>_openGarageSection(
-                    context,'Статистика',''),
-                  icon:Icon(Icons.chevron_left,
-                    size:19*u,color:const Color(0xFFABB7C1)),
-                  label:Text('К показателям',
-                    style:TextStyle(
-                      fontSize:13*u,color:const Color(0xFFABB7C1))),
-                  style:TextButton.styleFrom(
-                    padding:EdgeInsets.symmetric(
-                      horizontal:15*u,vertical:6*u),
-                  ),
-                ),
-              ),
-              SizedBox(height:11*u),
+          physics:const ClampingScrollPhysics(),
+          padding:EdgeInsets.only(bottom:20*u),
+          children:[
+            _mileageHeader(u),
+            SizedBox(height:7*u),
+            Center(child:_mileageMonthSelector(u)),
+            _mileageRouteMap(u),
+            SizedBox(height:5*u),
+            _mileagePhoto(u),
+            SizedBox(height:8*u),
+            if(_error!=null)
+              Padding(padding:EdgeInsets.symmetric(horizontal:15*u),
+                child:Column(children:[
+                  _DetailGlass(child:_dt(_error!)),
+                  _detailButton('Повторить',_load),
+                ]))
+            else
+              _mileageDaysPanel(u),
+            SizedBox(height:9*u),
+            _mileageHistoryButton(u),
+            SizedBox(height:12*u),
+            Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+              Icon(Icons.info_outline,size:14*u,
+                color:const Color(0xFFA6B1B8)),
+              SizedBox(width:8*u),
+              Text('Данные из журнала и GPS',
+                style:TextStyle(color:const Color(0xFFA6B1B8),
+                  fontSize:11*u)),
             ]),
-          ),
+            SizedBox(height:16*u),
+            Align(alignment:Alignment.centerLeft,child:TextButton.icon(
+              onPressed:()=>_openGarageSection(context,'Статистика',''),
+              icon:Icon(Icons.chevron_left,
+                color:const Color(0xFFABB7C1),size:19*u),
+              label:Text('К показателям',style:TextStyle(
+                color:const Color(0xFFABB7C1),fontSize:13*u)),
+            )),
+          ],
         )),
       ]);
     }),
@@ -621,12 +722,12 @@ class _MetricDetailsState extends State<_MetricDetails> {
     final dates=<DateTime>[
       for(var day=count;day>=1;day--)
         DateTime(_month.year,_month.month,day),
-    ].where((day)=>_dayValue(day,'mileage')!=null).take(4).toList();
+    ].where((day)=>_mileageDayValue(day)!=null).take(4).toList();
 
     const line=Color(0x6650575A);
     return Container(
       width:double.infinity,
-      constraints:BoxConstraints(minHeight:213*u),
+      constraints:BoxConstraints(minHeight:184*u),
       margin:EdgeInsets.symmetric(horizontal:15*u),
       padding:EdgeInsets.fromLTRB(14*u,12*u,14*u,9*u),
       decoration:BoxDecoration(
@@ -667,7 +768,7 @@ class _MetricDetailsState extends State<_MetricDetails> {
             SizedBox(height:2*u),
             Text(
               'Последние записи (всего за месяц: '
-              '${_total==null?'—':_fmtInt(_total!.mileage)} км)',
+              '${_total==null?'—':_fmtInt(_mileageMonthValue)} км)',
               style:TextStyle(
                 fontSize:11.5*u,
                 color:const Color(0xFFA1A6A9),
@@ -716,7 +817,7 @@ class _MetricDetailsState extends State<_MetricDetails> {
                         ),
                       ),
                       Text(
-                        '${_fmtInt(_dayValue(dates[i],'mileage')??0)} км',
+                        '${_fmtInt(_mileageDayValue(dates[i])??0)} км',
                         style:TextStyle(
                           color:const Color(0xFFF2F3F5),
                           fontSize:13*u,

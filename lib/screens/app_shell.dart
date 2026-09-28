@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/test_store.dart';
+import '../services/gps_tracker.dart';
 
 import '../models/app_role.dart';
 import '../services/session_service.dart';
@@ -35,6 +36,25 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _index = 0;
+
+  void _syncGpsTracker() {
+    GpsTrackerController.instance.syncWithJournal();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    TestStore.revision.addListener(_syncGpsTracker);
+    scheduleMicrotask(_syncGpsTracker);
+  }
+
+  @override
+  void dispose() {
+    TestStore.revision.removeListener(_syncGpsTracker);
+    GpsTrackerController.instance.dispose();
+    super.dispose();
+  }
+
 
   List<_NavItem> get _items {
     if (widget.session.role == AppRole.loader) {
@@ -94,12 +114,9 @@ class _AppShellState extends State<AppShell> {
         session: widget.session,
         onNavigate: (index) => setState(() => _index = index),
         onQuickAdd: _openQuickAdd,
-        showNavigation: false,
       ),
       WorkPage(session: widget.session,
-        onNavigate: (index) => setState(() => _index = index),
-        onQuickAdd: _openQuickAdd,
-        showNavigation: false),
+        onNavigate: (index) => setState(() => _index = index), onQuickAdd: _openQuickAdd),
       const SizedBox.shrink(),
       const _TestHub(page:'Накладные',embedded:true),
       StatisticsPage(session: widget.session),
@@ -152,35 +169,25 @@ class _AppShellState extends State<AppShell> {
           ),
         ],
       ),
-      // One stable navigation widget for every driver tab. The page content
-      // changes in _SceneTabStage; the bar itself stays mounted in Scaffold.
-      bottomNavigationBar: widget.session.role == AppRole.loader
-          ? _BottomNavigation(
-              items: items,
-              index: _index,
-              onChanged: (value) {
-                HapticFeedback.selectionClick();
-                setState(() => _index = value);
-              },
-              onLongPressLogo: _logout,
-            )
-          : _DriverBottomNavigation(
-              items: items,
-              index: _index,
-              onChanged: (value) {
-                if (value == 2) {
-                  _openQuickAdd();
-                  return;
-                }
-                if (value == 4) {
-                  _openHomeMenu(context, widget.session);
-                  return;
-                }
-                HapticFeedback.selectionClick();
-                setState(() => _index = value);
-              },
-              onLongPressLogo: _logout,
-            ),
+      bottomNavigationBar: widget.session.role != AppRole.loader && _index <= 1
+          ? null
+          : _BottomNavigation(
+        items: items,
+        index: _index,
+        onChanged: (value) {
+          if (widget.session.role != AppRole.loader && value == 2) {
+            _openQuickAdd();
+            return;
+          }
+          if (widget.session.role != AppRole.loader && value == 4) {
+            _openHomeMenu(context, widget.session);
+            return;
+          }
+          HapticFeedback.selectionClick();
+          setState(() => _index = value);
+        },
+        onLongPressLogo: _logout,
+      ),
     );
   }
 }
@@ -197,107 +204,6 @@ class _NavItem {
   });
 }
 
-
-// Shared footer for all driver tabs: Work styling + Home's gold add circle.
-// It is intentionally outside _SceneTabStage so it never changes on page switch.
-class _DriverBottomNavigation extends StatelessWidget {
-  final List<_NavItem> items;
-  final int index;
-  final ValueChanged<int> onChanged;
-  final VoidCallback onLongPressLogo;
-
-  const _DriverBottomNavigation({
-    required this.items,
-    required this.index,
-    required this.onChanged,
-    required this.onLongPressLogo,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey('shared-driver-navigation'),
-      decoration: const BoxDecoration(
-        color: Color(0xF0081117),
-        border: Border(top: BorderSide(color: Color(0x444A6875))),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 68,
-          child: Row(
-            children: List.generate(items.length, (i) {
-              final selected = index == i;
-              final isAdd = i == 2;
-              final iconColor = selected ? _amber : _paper;
-              return Expanded(
-                child: Semantics(
-                  button: true,
-                  selected: selected && !isAdd,
-                  label: items[i].label,
-                  child: GestureDetector(
-                    key: ValueKey('driver-navigation-$i'),
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => onChanged(i),
-                    onLongPress: i == 0 ? onLongPressLogo : null,
-                    child: isAdd
-                        ? Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              _DriverAddOrb(),
-                              SizedBox(height: 2),
-                              Text('Добавить',
-                                style: TextStyle(color: _paper, fontSize: 10)),
-                            ],
-                          )
-                        : Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(items[i].icon,
-                                size: 22, color: iconColor),
-                              const SizedBox(height: 5),
-                              Text(items[i].label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: iconColor,
-                                  fontSize: 10,
-                                  fontWeight: selected
-                                      ? FontWeight.w600 : FontWeight.w400,
-                                )),
-                            ],
-                          ),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DriverAddOrb extends StatelessWidget {
-  const _DriverAddOrb();
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 48,
-    height: 48,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      color: const Color(0xFF070E12),
-      border: Border.all(color: _amber, width: 1.6),
-      boxShadow: const [
-        BoxShadow(color: Color(0x44FFA332), blurRadius: 14),
-      ],
-    ),
-    child: const Center(
-      child: _GarageIcon('plus', color: _amber, size: 31),
-    ),
-  );
-}
 
 class _BottomNavigation extends StatelessWidget {
   final List<_NavItem> items;
@@ -653,9 +559,7 @@ class HomePage extends StatefulWidget {
   final AppSession session;
   final ValueChanged<int> onNavigate;
   final VoidCallback onQuickAdd;
-  final bool showNavigation;
-  const HomePage({super.key, required this.session, required this.onNavigate,
-    required this.onQuickAdd, this.showNavigation = true});
+  const HomePage({super.key, required this.session, required this.onNavigate, required this.onQuickAdd});
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -685,9 +589,7 @@ class _HomePageState extends State<HomePage> {
       final data = snap.data ?? const _HomeMonthData(gas: 0, petrol: 0,tonnage: 0, trips: 0, mileage: 0, salary: 0);
       return LayoutBuilder(builder: (context, c) => _ReferenceHomeDashboard(
         session: widget.session, data: data, month: _month, onMonthChanged: _selectMonth,
-        size: Size(c.maxWidth, c.maxHeight), onNavigate: widget.onNavigate,
-        onQuickAdd: widget.onQuickAdd,
-        showNavigation: widget.showNavigation));
+        size: Size(c.maxWidth, c.maxHeight), onNavigate: widget.onNavigate, onQuickAdd: widget.onQuickAdd));
     });
 }
 
