@@ -107,7 +107,7 @@ class _ReferenceHomeDashboard extends StatelessWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light, statusBarBrightness: Brightness.dark,
-        statusBarContrastEnforced: false,
+        systemStatusBarContrastEnforced: false,
         systemNavigationBarColor: Colors.transparent,
         systemNavigationBarIconBrightness: Brightness.light,
         systemNavigationBarContrastEnforced: false),
