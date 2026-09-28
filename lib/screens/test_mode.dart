@@ -14,7 +14,7 @@ Future<void> _testEditor(BuildContext context,String kind,{Map<String,dynamic>? 
     if(!context.mounted)return;
     await Navigator.push(context,_SceneRoute<void>(builder:(_)=>_TestRecordEditor(kind:kind,entry:entry,shiftId:shiftId,initialType:initialType)));});
 }
-void _testOpen(BuildContext context,{String page='Смена',String? shiftId})=>Navigator.of(context).push<void>(_SceneRoute(builder:(_)=>_TestHub(page:page,shiftId:shiftId)));
+void _testOpen(BuildContext context,{String page='Смена',String? shiftId,DateTime? month})=>Navigator.of(context).push<void>(_SceneRoute(builder:(_)=>_TestHub(page:page,shiftId:shiftId,month:month)));
 
 class _TestRecordEditor extends StatefulWidget {
   final String kind;final Map<String,dynamic>? entry;final String? shiftId,initialType;
@@ -66,8 +66,8 @@ Future<DateTime?> _testDate(BuildContext context,DateTime initial) async {
 }
 
 class _TestHub extends StatefulWidget {
-  final String page;final String? shiftId;final bool embedded;
-  const _TestHub({this.page='Смена',this.shiftId,this.embedded=false});
+  final String page;final String? shiftId;final bool embedded;final DateTime? month;
+  const _TestHub({this.page='Смена',this.shiftId,this.embedded=false,this.month});
   @override
   State<_TestHub> createState()=>_TestHubState();
 }
@@ -87,6 +87,21 @@ class _TestHubState extends State<_TestHub> {
     else ...content()];
     return _DetailFrame(title:widget.page,embedded:widget.embedded,children:children);}
   List<Widget> content(){final b=book!;
+    if (['Рейсы', 'Топливо', 'Платные направления'].contains(widget.page)) {
+      final paid = widget.page == 'Платные направления';
+      final kind = widget.page == 'Топливо' ? 'fuel' : 'trip';
+      final id = widget.shiftId ?? b.active?['id'];
+      final selected = b.records.where((e) => e['kind'] == kind &&
+        (paid ? e['isPaid'] == true && b.inMonth(b.recordDay(e).toIso8601String(), widget.month ?? DateTime.now())
+          : id != null && e['shiftId'] == id)).toList()
+        ..sort((a,b) => (a['date'] as String).compareTo(b['date'] as String));
+      return [
+        if (paid) _dt('${_garageMonths[(widget.month ?? DateTime.now()).month-1]} ${(widget.month ?? DateTime.now()).year}'),
+        if (!paid) _detailButton(kind == 'trip' ? 'Добавить рейс' : 'Добавить топливо',
+          () => _testEditor(context,kind,shiftId:id as String?),icon:Icons.add),
+        ...records(selected),
+      ];
+    }
     if(widget.page=='Накладные')return [_detailButton('Создать накладную',()=>_testEditor(context,'invoice'),icon:Icons.add),...records(b.records.where((e)=>e['kind']=='invoice').toList())];
     if(widget.page=='История смен')return [if(b.shifts.isEmpty)_dt('Смен пока нет'),for(final s in b.shifts.reversed)_DetailGlass(child:_detailRow(_detailDate(DateTime.parse(s['start'] as String)),s['end']==null?'Открыта':'Завершена',subtitle:'${_fmt1(b.mileage(s))} км · ${_fmt1(b.hours(s))} ч',onTap:()=>_testOpen(context,page:'Смена',shiftId:s['id'] as String)))];
     if(widget.page=='Тестовые данные')return [

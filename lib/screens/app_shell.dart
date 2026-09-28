@@ -155,12 +155,13 @@ class _AppShellState extends State<AppShell> {
       body: Stack(
         children: [
           if (widget.session.role != AppRole.loader && _index == 0)
-            Positioned.fill(child: Image.asset('assets/images/garage_approved.png', fit: BoxFit.fill))
+            const SizedBox.shrink()
           else if (widget.session.role != AppRole.loader && _index == 1)
             Positioned.fill(child: Image.asset('assets/images/work_approved.png', fit: BoxFit.fill))
           else
             const _AppBackground(),
           SafeArea(
+            top: widget.session.role == AppRole.loader || _index != 0,
             bottom: false,
             child: _SceneTabStage(
               index: _index,
@@ -502,6 +503,8 @@ class _HomeMonthData {
   final double city;
   final double region;
   final double todaySalary;
+  final TestState? book;
+  final DateTime? period;
 
   const _HomeMonthData({
     required this.gas,
@@ -513,6 +516,8 @@ class _HomeMonthData {
     this.city = 0,
     this.region = 0,
     this.todaySalary = 0,
+    this.book,
+    this.period,
   });
 
   static String _monthKey(String name, [DateTime? month]) {
@@ -524,7 +529,7 @@ class _HomeMonthData {
     final now=DateTime.now();final d=month??now;
     final b=await TestStore.load();final journal=await ActivityRepository.load(d);
     final stats=b.statistics(d);
-    return _HomeMonthData(gas:journal.total('gas'),petrol:journal.total('petrol'),tonnage:journal.total('tonnage'),trips:journal.total('trips').round(),
+    return _HomeMonthData(book:b,period:DateTime(d.year,d.month),gas:journal.total('gas'),petrol:journal.total('petrol'),tonnage:journal.total('tonnage'),trips:journal.total('trips').round(),
       mileage:stats['mileage']!,salary:stats['salary']!,
       city:journal.total('city_tonnage'),region:journal.total('region_tonnage'),todaySalary:b.statistics(now,day:now)['salary']!);
   }
@@ -586,7 +591,7 @@ class _HomePageState extends State<HomePage> {
     future: _data,
     builder: (context, snap) {
       if(snap.hasError)return Center(child:_detailButton('Не удалось прочитать тестовые данные. Повторить',_reload));
-      final data = snap.data ?? const _HomeMonthData(gas: 0, petrol: 0,tonnage: 0, trips: 0, mileage: 0, salary: 0);
+      final data = (snap.data?.period == _month ? snap.data : null) ?? const _HomeMonthData(gas: 0, petrol: 0,tonnage: 0, trips: 0, mileage: 0, salary: 0);
       return LayoutBuilder(builder: (context, c) => _ReferenceHomeDashboard(
         session: widget.session, data: data, month: _month, onMonthChanged: _selectMonth,
         size: Size(c.maxWidth, c.maxHeight), onNavigate: widget.onNavigate, onQuickAdd: widget.onQuickAdd));
