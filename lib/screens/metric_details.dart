@@ -230,10 +230,12 @@ class _MileageOdometerPainter extends CustomPainter {
     // the plane of the LCD more naturally.
     canvas.transform(_mileagePhotoPlane(
       100,24,
-      const Offset(4.5,8.0),
-      const Offset(57.0,12.0),
-      const Offset(56.0,23.5),
-      const Offset(3.5,20.0),
+      // Softer, more natural odometer plane: the photographed window is only
+      // slightly slanted, not heavily falling to the right.
+      const Offset(4.6,9.4),
+      const Offset(57.2,10.4),
+      const Offset(56.4,22.2),
+      const Offset(3.8,21.2),
     ).storage);
 
     final onlyDigits=reading.replaceAll(RegExp(r'[^0-9]'),'');
