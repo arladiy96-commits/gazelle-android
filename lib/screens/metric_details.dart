@@ -46,6 +46,280 @@ Widget _detailRow(String label,String value,{VoidCallback? onTap,String? subtitl
     const SizedBox(width:12),_dt(value,weight:FontWeight.w500),if(onTap!=null)...[const SizedBox(width:8),const Icon(Icons.chevron_right,color:_paper,size:18)]])));
 List<Widget> _separated(List<Widget> rows)=>[for(var i=0;i<rows.length;i++)...[if(i>0)const Divider(height:1,color:Color(0x803E505B)),rows[i]]];
 
+
+// The photographic mileage background already contains both bezels.
+// These painters only add the dynamic light/LEDs inside those bezels;
+// no independent rectangular cards are placed over the photograph.
+class _MileageGlassReadoutPainter extends CustomPainter {
+  final String value;
+  const _MileageGlassReadoutPainter({required this.value});
+
+  TextPainter _text(String text, TextStyle style) => TextPainter(
+    text:TextSpan(text:text,style:style),
+    textDirection:TextDirection.ltr,
+    maxLines:1,
+  )..layout();
+
+  @override
+  void paint(Canvas canvas,Size size){
+    canvas.save();
+    canvas.scale(size.width/115.0,size.height/70.0);
+
+    // Follow the bevel in the photo: the right side slopes down slightly.
+    final pane=Path()
+      ..moveTo(4,3)
+      ..quadraticBezierTo(5,1,9,2)
+      ..lineTo(99,7)
+      ..quadraticBezierTo(107,8,108,15)
+      ..lineTo(114,55)
+      ..quadraticBezierTo(115,62,108,63)
+      ..lineTo(15,58)
+      ..quadraticBezierTo(10,58,9,52)
+      ..close();
+
+    // A translucent smoked-glass glaze preserves texture from the photograph.
+    canvas.drawPath(pane,Paint()
+      ..shader=const LinearGradient(
+        begin:Alignment.topLeft,end:Alignment.bottomRight,
+        colors:[Color(0x481C1915),Color(0x160A1014),Color(0x4D071016)],
+        stops:[0,.48,1],
+      ).createShader(const Rect.fromLTWH(0,0,115,70)));
+
+    canvas.save();
+    canvas.clipPath(pane);
+    // Soft amber illumination from the dash on the left, cyan at the right.
+    canvas.drawRect(const Rect.fromLTWH(0,0,115,70),Paint()
+      ..shader=const LinearGradient(
+        begin:Alignment.centerLeft,end:Alignment.centerRight,
+        colors:[Color(0x20C6903D),Color(0x04000000),Color(0x1012B9D2)],
+      ).createShader(const Rect.fromLTWH(0,0,115,70)));
+
+    // Glass reflection: it must stay behind the figures, not cover them.
+    final reflection=Path()
+      ..moveTo(7,7)..lineTo(90,12)..lineTo(47,23)
+      ..lineTo(10,20)..close();
+    canvas.drawPath(reflection,Paint()
+      ..shader=const LinearGradient(
+        begin:Alignment.topCenter,end:Alignment.bottomCenter,
+        colors:[Color(0x19FFFFFF),Color(0x00FFFFFF)],
+      ).createShader(const Rect.fromLTWH(0,4,100,23)));
+
+    // The characters share the photographed plane of the dashboard glass.
+    canvas.translate(38,15);
+    canvas.rotate(.042);
+
+    final numberStyle=TextStyle(
+      fontSize:24.5,
+      fontWeight:FontWeight.w600,
+      letterSpacing:-.45,
+      foreground:Paint()
+        ..shader=const LinearGradient(
+          begin:Alignment.topCenter,end:Alignment.bottomCenter,
+          stops:[0,.35,.8,1],
+          colors:[
+            Color(0xFFFFF9ED),
+            Color(0xFFEDE6D5),
+            Color(0xFFD8CAB2),
+            Color(0xFFAB9572),
+          ],
+        ).createShader(const Rect.fromLTWH(0,0,120,30)),
+    );
+    final number=_text(value,numberStyle);
+    final unit=_text(' км',const TextStyle(
+      color:Color(0xFFA5D6DF),fontSize:11.5,
+      fontWeight:FontWeight.w500,
+    ));
+    final totalWidth=number.width+unit.width;
+    final fit=math.min(1.0,72.0/totalWidth);
+    canvas.scale(fit);
+
+    // A recessed display catches the glow and leaves a dark depth shadow.
+    final shadow=_text(value,const TextStyle(
+      color:Color(0xC5000000),
+      fontSize:24.5,fontWeight:FontWeight.w600,letterSpacing:-.45,
+    ));
+    shadow.paint(canvas,const Offset(0.95,1.5));
+    final bloom=_text(value,const TextStyle(
+      color:Color(0x25FFE4B3),
+      fontSize:24.5,fontWeight:FontWeight.w600,letterSpacing:-.45,
+    ));
+    canvas.saveLayer(const Rect.fromLTWH(-10,-10,130,55),
+      Paint()..maskFilter=const MaskFilter.blur(BlurStyle.normal,3));
+    bloom.paint(canvas,Offset.zero);
+    canvas.restore();
+
+    number.paint(canvas,Offset.zero);
+    unit.paint(canvas,Offset(number.width+1,10.2));
+    canvas.restore(); // rotation/translation (and glass clip)
+
+    // The subtitle is also laid into the glass, not a separate Flutter label.
+    canvas.save();
+    canvas.translate(43,43);
+    canvas.rotate(.042);
+    final subtitle=_text('За месяц',const TextStyle(
+      color:Color(0xFFAAB8B8),fontSize:10.5,
+      fontWeight:FontWeight.w400,
+    ));
+    final subtitleShadow=_text('За месяц',const TextStyle(
+      color:Color(0xBA000000),fontSize:10.5,
+      fontWeight:FontWeight.w400,
+    ));
+    subtitleShadow.paint(canvas,const Offset(.5,1.0));
+    subtitle.paint(canvas,Offset.zero);
+    canvas.restore();
+
+    // Hairline reflections on the actual bezel, kept very faint.
+    canvas.drawPath(pane,Paint()
+      ..style=PaintingStyle.stroke
+      ..strokeWidth=.38
+      ..color=const Color(0x396FADB7));
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _MileageGlassReadoutPainter oldDelegate)=>
+    oldDelegate.value!=value;
+}
+
+class _MileageOdometerPainter extends CustomPainter {
+  final String reading;
+  const _MileageOdometerPainter({required this.reading});
+
+  // Standard seven-segment patterns, with inactive segments always visible.
+  static const _patterns=<String,List<int>>{
+    '0':[0,1,2,4,5,6], '1':[2,5], '2':[0,2,3,4,6],
+    '3':[0,2,3,5,6], '4':[1,2,3,5], '5':[0,1,3,5,6],
+    '6':[0,1,3,4,5,6], '7':[0,2,5],
+    '8':[0,1,2,3,4,5,6], '9':[0,1,2,3,5,6],
+    '-':[3],
+  };
+
+  Path _horizontal(double x,double y,double w,double t){
+    final bevel=t*.56;
+    return Path()
+      ..moveTo(x+bevel,y)
+      ..lineTo(x+w-bevel,y)
+      ..lineTo(x+w,y+t/2)
+      ..lineTo(x+w-bevel,y+t)
+      ..lineTo(x+bevel,y+t)
+      ..lineTo(x,y+t/2)
+      ..close();
+  }
+
+  Path _vertical(double x,double y,double h,double t){
+    final bevel=t*.53;
+    return Path()
+      ..moveTo(x+t/2,y)
+      ..lineTo(x+t,y+bevel)
+      ..lineTo(x+t,y+h-bevel)
+      ..lineTo(x+t/2,y+h)
+      ..lineTo(x,y+h-bevel)
+      ..lineTo(x,y+bevel)
+      ..close();
+  }
+
+  void _digit(Canvas canvas,String digit,double left,double top,
+    double w,double h){
+    final t=math.max(.78,w*.17);
+    final mid=h/2;
+    final vs=(mid-t*1.5);
+    final paths=<Path>[
+      _horizontal(left+t*.66,top,w-t*1.32,t),
+      _vertical(left,top+t*.85,vs,t),
+      _vertical(left+w-t,top+t*.85,vs,t),
+      _horizontal(left+t*.66,top+mid-t/2,w-t*1.32,t),
+      _vertical(left,top+mid+t*.35,vs,t),
+      _vertical(left+w-t,top+mid+t*.35,vs,t),
+      _horizontal(left+t*.66,top+h-t,w-t*1.32,t),
+    ];
+    final active=_patterns[digit]??const <int>[];
+    for(var i=0;i<7;i++){
+      final path=paths[i];
+      if(!active.contains(i)){
+        canvas.drawPath(path,Paint()..color=const Color(0x234D3016));
+        continue;
+      }
+      canvas.drawPath(path,Paint()
+        ..color=const Color(0x89F5A348)
+        ..maskFilter=const MaskFilter.blur(BlurStyle.normal,1.65));
+      canvas.drawPath(path,Paint()
+        ..shader=const LinearGradient(
+          begin:Alignment.topCenter,end:Alignment.bottomCenter,
+          colors:[Color(0xFFFFD38A),Color(0xFFFFAE48),Color(0xFFBD6325)],
+        ).createShader(Rect.fromLTWH(left,top,w,h)));
+      // A bright inner filament is reflected onto the glass.
+      canvas.drawPath(path,Paint()
+        ..style=PaintingStyle.stroke
+        ..strokeWidth=.13
+        ..color=const Color(0x90FFE5A8));
+    }
+  }
+
+  @override
+  void paint(Canvas canvas,Size size){
+    canvas.save();
+    canvas.scale(size.width/62.0,size.height/25.0);
+    final panel=RRect.fromRectAndRadius(
+      const Rect.fromLTWH(1.5,1.8,59.0,21.0),
+      const Radius.circular(2.9),
+    );
+    // Restrained shading leaves the photographic metal surround intact.
+    canvas.drawRRect(panel,Paint()
+      ..shader=const LinearGradient(
+        begin:Alignment.topLeft,end:Alignment.bottomRight,
+        colors:[Color(0xB6100E0B),Color(0xAE20140B),Color(0xD00C0908)],
+      ).createShader(const Rect.fromLTWH(0,0,62,25)));
+    canvas.drawRRect(panel,Paint()
+      ..style=PaintingStyle.stroke
+      ..strokeWidth=.45
+      ..color=const Color(0x784C321A));
+
+    canvas.save();
+    canvas.clipRRect(panel);
+    // The unlit LCD material and subdued diagonal dashboard reflection.
+    canvas.drawRect(const Rect.fromLTWH(1,2,61,20),Paint()
+      ..shader=const LinearGradient(
+        begin:Alignment.topLeft,end:Alignment.bottomRight,
+        colors:[Color(0x154F351E),Color(0x00000000),Color(0x18120804)],
+      ).createShader(const Rect.fromLTWH(0,0,62,25)));
+    for(var y=4.0;y<22;y+=2.1){
+      canvas.drawLine(Offset(2,y),Offset(59,y),
+        Paint()..strokeWidth=.14..color=const Color(0x18694620));
+    }
+
+    final justDigits=reading.replaceAll(RegExp(r'[^0-9]'),'');
+    final shown=justDigits.isEmpty?'------':justDigits.padLeft(6,'0');
+    final n=shown.length;
+    final groupGap=n>=5?1.5:0.0;
+    const gap=.85;
+    final glyphW=(53.0-gap*(n-1)-groupGap)/n;
+    final full= glyphW*n+gap*(n-1)+groupGap;
+    var x=(62-full)/2;
+    for(var i=0;i<n;i++){
+      if(groupGap>0&&i==n-3)x+=groupGap;
+      _digit(canvas,shown[i],x,5.0,glyphW,15.0);
+      x+=glyphW+gap;
+    }
+
+    // An instrument-glass reflection sits IN FRONT of the LEDs.
+    canvas.drawRect(const Rect.fromLTWH(2,2,58,21),Paint()
+      ..shader=const LinearGradient(
+        begin:Alignment.topCenter,end:Alignment.bottomCenter,
+        stops:[0,.24,.32,.70,1],
+        colors:[
+          Color(0x36FFF1CC),Color(0x04FFF1CC),Color(0x00000000),
+          Color(0x00000000),Color(0x19000000),
+        ],
+      ).createShader(const Rect.fromLTWH(0,1,62,24)));
+    canvas.restore();
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _MileageOdometerPainter oldDelegate)=>
+    oldDelegate.reading!=reading;
+}
+
 class _MetricDetails extends StatefulWidget {
   final String metric;final DateTime month;
   const _MetricDetails({required this.metric,required this.month});
@@ -222,54 +496,21 @@ class _MetricDetailsState extends State<_MetricDetails> {
             ),
           ),
         ))),
-        // The glass and dashboard are photographic. The readings are
-        // independent widgets, updated from the journal when it changes.
+        // Both readings are painted into the original photographic instruments.
+        // The background stays untouched; only live values are rendered.
         Positioned(
-          left:231*u,top:223*u,width:106*u,height:73*u,
-          child:IgnorePointer(child:Column(
-            mainAxisAlignment:MainAxisAlignment.center,
-            children:[
-              FittedBox(
-                fit:BoxFit.scaleDown,
-                child:Text.rich(TextSpan(
-                  children:[
-                    TextSpan(text:_total==null?'—':_fmtInt(_total!.mileage),
-                      style:TextStyle(
-                        color:const Color(0xFFF5E8D4),
-                        fontSize:21*u,fontWeight:FontWeight.w500,
-                      )),
-                    TextSpan(text:' км',
-                      style:TextStyle(
-                        color:const Color(0xFF8CCDE0),
-                        fontSize:12*u,fontWeight:FontWeight.w500,
-                      )),
-                  ],
-                )),
-              ),
-              SizedBox(height:3*u),
-              Text('За месяц',style:TextStyle(
-                fontSize:11*u,
-                color:const Color(0xFFB4B9BB),
-              )),
-            ],
+          left:216*u,top:227*u,width:115*u,height:70*u,
+          child:IgnorePointer(child:CustomPaint(
+            painter:_MileageGlassReadoutPainter(
+              value:_total==null?'—':_fmtInt(_total!.mileage),
+            ),
           )),
         ),
         Positioned(
-          left:110*u,top:294*u,width:77*u,height:24*u,
-          child:IgnorePointer(child:Center(
-            child:FittedBox(
-              fit:BoxFit.scaleDown,
-              child:Text(
-                _mileageOdometer==null?'—':_fmtInt(_mileageOdometer!),
-                maxLines:1,
-                style:TextStyle(
-                  color:const Color(0xFFFFB957),
-                  fontSize:15*u,
-                  letterSpacing:1.05*u,
-                  fontFamily:'monospace',
-                  fontWeight:FontWeight.w500,
-                ),
-              ),
+          left:108*u,top:297*u,width:62*u,height:25*u,
+          child:IgnorePointer(child:CustomPaint(
+            painter:_MileageOdometerPainter(
+              reading:_mileageOdometer==null?'':_mileageOdometer!.round().toString(),
             ),
           )),
         ),
