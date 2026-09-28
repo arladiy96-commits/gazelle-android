@@ -1,13 +1,14 @@
 part of 'app_shell.dart';
 
-// Approved composition: 840 × 1870. Background and controls share coordinates.
-// Widgets remain live; artwork contains only garage, truck and wall lettering.
+// Shared garage colors and controls. Home artwork contains no baked-in UI.
 const _amber = Color(0xFFFFBB4D);
 const _ice = Color(0xFF22DCEF);
 const _paper = Color(0xFFEDEFF2);
 const _garageMonths = ['Январь','Февраль','Март','Апрель','Май','Июнь',
   'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
+// Scene coordinates match mill_home.png: 854 × 1842.
+// One UNIFORM scale for artwork, typography and hit targets; never stretch Y.
 class _ReferenceHomeDashboard extends StatelessWidget {
   final AppSession session;
   final _HomeMonthData data;
@@ -16,124 +17,529 @@ class _ReferenceHomeDashboard extends StatelessWidget {
   final Size size;
   final ValueChanged<int> onNavigate;
   final VoidCallback onQuickAdd;
-  final bool showNavigation;
   const _ReferenceHomeDashboard({required this.session, required this.data,
     required this.month, required this.onMonthChanged, required this.size,
-    required this.onNavigate, required this.onQuickAdd, this.showNavigation = true});
+    required this.onNavigate, required this.onQuickAdd});
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.paddingOf(context).bottom;
-    final scale = size.width / 840;
-    // Short devices still fit the whole composition; only very short landscape
-    // windows scroll, so controls are never clipped or made microscopically small.
-    // Compensate for the shared bar taking space below this page: the photo
-    // and cards retain the same vertical scale as before the refactor.
-    final height = math.max(1450.0,
-      (size.height - bottom +
-        (showNavigation ? 0.0 : 68.0 + bottom)) / scale);
-    final sy = height / 1870;
-    Widget place(double x, double y, double w, double h, Widget child) => Positioned(
-      left: x, top: y * sy, width: w, height: h * sy,
-      child: FittedBox(fit: BoxFit.contain, alignment: Alignment.center,
-        child: SizedBox(width: w, height: h, child: child)));
-    void menu() { _openHomeMenu(context, session); }
-    void details(String title) { _openMetricDetails(context,title,month); }
-    final displayName = session.displayName == 'Водитель' ? 'Аркадий' : session.displayName;
-    final initials = displayName == 'Аркадий' ? 'АБ' : displayName.trim().split(RegExp(r'\s+'))
-      .where((word) => word.isNotEmpty).take(2).map((word) => word[0]).join().toUpperCase();
-    final canvas = SizedBox(width: 840, height: height, child: Stack(children: [
-      Positioned.fill(child: Image.asset('assets/images/garage_approved.png',
-        fit: BoxFit.fill, filterQuality: FilterQuality.high)),
-      Positioned(left: 0, top: 0, width: 840, height: 355 * sy,
-        child: const IgnorePointer(child: DecoratedBox(decoration: BoxDecoration(
-          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-            colors: [Color(0xB3000609), Color(0x8800070B), Color(0x0000070B)], stops: [0,.72,1]))))),
-      Positioned(left: 0, top: 1120 * sy, width: 840, height: 750 * sy,
-        child: const IgnorePointer(child: DecoratedBox(decoration: BoxDecoration(
-          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-            colors: [Color(0x2202070A), Color(0x8802070A), Color(0x6602070A)]))))),
-      place(20, 30, 276, 75, _GarageTap(label: 'Профиль', onTap: menu, child: Row(children: [
-        Container(width: 70, height: 70, decoration: BoxDecoration(shape: BoxShape.circle,
-          color: const Color(0x88080D0E), border: Border.all(color: _amber, width: 1.5),
-          boxShadow: const [BoxShadow(color: Color(0x22FF961C), blurRadius: 14)]),
-          child: Center(child: _garageText(initials, 26, weight: FontWeight.w600))),
-        const SizedBox(width: 20), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center, children: [
-            _garageText(displayName, 24, weight: FontWeight.w600),
-            const SizedBox(height: 4), _garageText('Тестовый режим', 20, color: const Color(0xFFADB4BA))]))]))),
-      place(343, 41, 158, 42, Column(children: [
-        Transform.scale(scaleX: 1.12, child: const Text('ГАЗЕЛЬ', style: TextStyle(
-          color: Color(0xFFB7BEC7), fontSize: 25, letterSpacing: 3,
-          fontWeight: FontWeight.w700, fontStyle: FontStyle.italic))),
-        const SizedBox(height: 7), Container(width: 68, height: 2, color: _amber)])),
-      place(611, 38, 125, 55, const Row(children: [
-        _GarageIcon('sun', color: _amber, size: 43), SizedBox(width: 12),
-        Text('-12°', style: TextStyle(color: _paper, fontSize: 31, fontWeight: FontWeight.w600))])),
-      place(766, 25, 61, 73, _GarageTap(label: 'Уведомления', onTap: () =>
-        _garageInfo(context, 'Уведомления', 'Сервис пока не подключён', 'Здесь будут уведомления приложения.'),
-        child: const Center(child: _GarageIcon('bellOutline', size: 39)))),
-      place(190, 119, 460, 37, Center(child: _garageText('Заработано за месяц', 24, color: const Color(0xFFBCC2C9)))),
-      place(263, 155, 317, 63, _GarageTap(label: 'Зарплата', onTap: () => details('Зарплата'), child: Center(child: FittedBox(fit: BoxFit.scaleDown,
-        child: _garageText('${_fmtInt(data.salary)} ₸', 65, color: _amber, weight: FontWeight.w600))))),
-      place(201, 153, 54, 69, _GarageTap(label: 'Предыдущий месяц', onTap: () =>
-        onMonthChanged(DateTime(month.year, month.month-1)), child: const Icon(Icons.chevron_left, color: Color(0xFF959DA5), size: 41))),
-      place(585, 153, 54, 69, _GarageTap(label: 'Следующий месяц', onTap: () =>
-        onMonthChanged(DateTime(month.year, month.month+1)), child: const Icon(Icons.chevron_right, color: Color(0xFF959DA5), size: 41))),
-      place(230, 218, 380, 43, _GarageTap(label: 'Выбрать месяц', onTap: () => _chooseMonth(context),
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          _garageText('${_garageMonths[month.month-1]} ${month.year}', 25),
-          const Icon(Icons.expand_more, color: _paper, size: 28)]))),
-      place(208, 274, 420, 63, _GarageTap(label: 'Текущая смена', onTap: () => onNavigate(1), child: const _TestHomeStatus())),
-      place(2, 139, 106, 675, _GarageRail(
-        onHistory: () => _openGarageSection(context,'История',session.login),
-        onDirections: () => _openGarageSection(context,'Направления',session.login),
-        onDocuments: () => _openGarageSection(context,'Документы',session.login),
-        onStats: () => _openGarageSection(context,'Статистика',session.login))),
-      Positioned.fill(child: const IgnorePointer(child: CustomPaint(painter: _GarageLeaders()))),
-      place(127, 541, 206, 86, _GarageHud(kind: 'flame', label: 'Газ',
-        value: '${_fmt1(data.gas)} л', color: _ice, onTap: () => details('Газ'))),
-      place(119, 810, 212, 85, _GarageHud(kind: 'fuel', label: 'Бензин',
-        value: '${_fmt1(data.petrol)} л', color: const Color(0xFFFF6454), onTap: () => details('Бензин'))),
-      place(605, 571, 230, 88, _GarageHud(kind: 'city', label: 'Город',
-        value: '${_fmt1(data.city)} т', color: _amber, onTap: () => details('Город'))),
-      place(648, 682, 189, 87, _GarageHud(kind: 'district', label: 'Район',
-        value: '${_fmt1(data.region)} т', color: const Color(0xFFD58BE8), onTap: () => details('Район'))),
-      place(681, 795, 154, 170, _GarageTap(label: 'Пробег', onTap: () => details('Пробег'),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const SizedBox(width: 86, height: 84, child: CustomPaint(painter: _GarageRing(_amber),
-            child: Center(child: _GarageIcon('road', color: _amber, size: 42)))),
-          const SizedBox(height: 5), _garageText('Пробег', 19),
-          FittedBox(fit: BoxFit.scaleDown, child: _garageText('${_fmtInt(data.mileage)} км', 27, weight: FontWeight.w600)),
-          _garageText('за месяц', 17)]))),
-      place(454, 784, 218, 67, _ServiceHoodTarget(session: session)),
-      place(247, 1106, 355, 44, _GarageOil(login: session.login, onOpen: () => _openMaintenance(context, session, initialItem: 'oil'))),
-      place(20, 1175, 287, 223, _GarageSalary(data: data, onTap: () => details('Зарплата'))),
-      place(317, 1168, 207, 216, _GarageTap(label: 'Открыть или завершить смену',
-        onTap: () => _openShiftAction(context), child: const _TestHomeShiftButton())),
-      place(533, 1175, 287, 223, const _GarageQuote()),
-      place(21, 1420, 798, 153, _TestHomeTrip(onTap: () => onNavigate(1))),
-      if (showNavigation)
-        place(0, 1626, 840, 150, _GarageNavigation(onWork: () => onNavigate(1),
-          onAdd: onQuickAdd, onInvoices: () => onNavigate(3), onMore: menu)),
+    final padding = MediaQuery.paddingOf(context);
+    final scale = size.width / 854;
+    const offsetX = 0.0;
+    final book = data.book;
+    final active = book?.active;
+    final closed = (book?.shifts ?? <Map<String, dynamic>>[])
+        .where((s) => s['end'] != null).toList()
+      ..sort((a, b) => (b['end'] as String).compareTo(a['end'] as String));
+    final last = closed.isEmpty ? null : closed.first;
+    final current = active == null ? <Map<String, dynamic>>[]
+        : book!.forShift(active['id'] as String);
+    final trips = current.where((e) => e['kind'] == 'trip').length;
+    double fuel(String type) => current.where((e) =>
+        e['kind'] == 'fuel' && e['type'] == type)
+        .fold<double>(0, (sum, e) => sum + (e['amount'] as num).toDouble());
+    final paid = book == null ? 0 : book.records.where((e) =>
+        e['kind'] == 'trip' && e['isPaid'] == true &&
+        book.inMonth(book.recordDay(e).toIso8601String(), month)).length;
+    final daily = List.generate(DateTime(month.year, month.month + 1, 0).day,
+        (i) => book?.statistics(month, day: DateTime(month.year, month.month, i + 1))
+            ?? <String, double>{});
+    List<double> series(String key) => daily.map((d) => d[key] ?? 0.0).toList();
+    void details(String metric) => _openMetricDetails(context, metric, month);
+    void summary() => _testOpen(context, shiftId: (active ?? last)?['id'] as String?);
+    void records(String page) => _testOpen(context, page: page,
+        shiftId: active?['id'] as String?);
+    final name = session.displayName.trim().isEmpty ? 'Водитель' : session.displayName;
+    final initials = name.split(RegExp(r'\s+')).take(2).map((s) => s[0]).join();
+    Widget place(double x, double y, double w, double h, Widget child) =>
+        Positioned(left: x, top: y, width: w, height: h, child: child);
+    final scene = SizedBox(width: 854, height: 1842, child: Stack(children: [
+      Positioned.fill(child: RepaintBoundary(child: Image.asset(
+        'assets/images/scenes/mill_home.png', fit: BoxFit.contain,
+        filterQuality: FilterQuality.high, excludeFromSemantics: true))),
+      // All display faces use the wall perspective, not independent offsets.
+      _MillWallDisplay(points: const [Offset(65, 225), Offset(221, 306), Offset(220, 424), Offset(64, 368)],
+        label: 'Платные\nнаправления', value: paid.toDouble(), unit: '',
+        icon: Icons.stacked_bar_chart, accent: _amber,
+        samples: series('paid_routes_pay'),
+        onTap: () => _testOpen(context, page: 'Платные направления', month: month)),
+      _MillWallDisplay(points: const [Offset(64, 435), Offset(221, 500), Offset(220, 627), Offset(63, 578)],
+        label: 'Газ', value: data.gas, unit: ' л', icon: Icons.local_fire_department,
+        accent: _amber, samples: series('gas'), onTap: () => details('Газ')),
+      _MillWallDisplay(points: const [Offset(64, 637), Offset(220, 680), Offset(219, 821), Offset(63, 783)],
+        label: 'Бензин', value: data.petrol, unit: ' л', icon: Icons.local_gas_station,
+        accent: const Color(0xFFFF6845), samples: series('petrol'), onTap: () => details('Бензин')),
+      _MillWallDisplay(points: const [Offset(658, 329), Offset(793, 284), Offset(793, 419), Offset(658, 458)],
+        label: 'Город', value: data.city * 1000, unit: ' кг', icon: Icons.location_city,
+        accent: _amber, samples: series('city_kg'), onTap: () => details('Город')),
+      _MillWallDisplay(points: const [Offset(658, 510), Offset(793, 475), Offset(793, 630), Offset(658, 663)],
+        label: 'Район', value: data.region * 1000, unit: ' кг', icon: Icons.location_on_outlined,
+        accent: _ice, samples: series('region_kg'), lineChart: true, onTap: () => details('Район')),
+      _MillWallDisplay(points: const [Offset(658, 702), Offset(793, 671), Offset(793, 827), Offset(658, 851)],
+        label: 'Пробег', value: data.mileage, unit: ' км', icon: Icons.speed,
+        accent: _amber, samples: series('mileage'), onTap: () => details('Пробег')),
+      place(371, 975, 110, 110, _MillPress(
+        label: active == null ? 'Начать смену' : 'Завершить смену',
+        onTap: () => _openShiftAction(context),
+        child: AnimatedSwitcher(duration: const Duration(milliseconds: 220), child: Column(
+          key: ValueKey(active != null), mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(active == null ? Icons.play_arrow_rounded : Icons.stop_rounded,
+                color: _amber, size: 38), const SizedBox(height: 5),
+            _millText(active == null ? 'НАЧАТЬ\nСМЕНУ' : 'ЗАВЕРШИТЬ\nСМЕНУ', 20,
+                weight: FontWeight.w600),
+          ])))),
+      place(61, 1175, 150, 118, _MillStatus(icon: Icons.settings_outlined,
+        title: active == null ? 'Смена закрыта' : 'Смена открыта', onTap: summary,
+        child: _MillClock(start: active?['start'] as String?))),
+      place(244, 1175, 157, 118, _MillStatus(icon: Icons.local_shipping_outlined,
+        title: 'Рейсы', onTap: () => records('Рейсы'),
+        child: _MillValue(value: trips.toDouble(), unit: _millTripUnit(trips), size: 25, color: _ice))),
+      place(450, 1175, 164, 118, _MillStatus(icon: Icons.local_gas_station_outlined,
+        title: 'Топливо', onTap: () => records('Топливо'),
+        child: Column(children: [
+          _MillValue(value: fuel('Газ'), prefix: 'Газ ', unit: ' л', size: 19, color: _ice),
+          _MillValue(value: fuel('Бензин'), prefix: 'Бензин ', unit: ' л', size: 19, color: _ice),
+        ]))),
+      place(653, 1175, 142, 118, _MillStatus(icon: Icons.flag_outlined,
+        title: 'Завершение', onTap: summary,
+        child: AnimatedSwitcher(duration: const Duration(milliseconds: 220), child:
+          _millText(active != null ? 'Ожидание' : last == null ? 'Нет итогов' :
+            '${_fmt1(book!.mileage(last))} км\n${_fmt1(book.hours(last))} ч', 23,
+            color: active == null && last != null ? _ice : const Color(0xFFAFB7BB),
+            key: ValueKey('${active?["id"]}-${last?["id"]}-${last?["currentKm"]}-${last?["hoursWorked"]}'))))),
     ]));
-    return ColoredBox(color: const Color(0xFF02070A), child: SingleChildScrollView(
-      physics: const ClampingScrollPhysics(), child: Padding(padding: EdgeInsets.only(bottom: bottom),
-        child: SizedBox(width: size.width, height: height*scale,
-          child: FittedBox(fit: BoxFit.fill, alignment: Alignment.topCenter,
-            child: MediaQuery.withClampedTextScaling(minScaleFactor: 1, maxScaleFactor: 1, child: canvas))))));
+    final top = math.max(padding.top / scale + 10, 83.0);
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light, statusBarBrightness: Brightness.dark,
+        systemStatusBarContrastEnforced: false,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarContrastEnforced: false),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: 0, end: 1), duration: const Duration(milliseconds: 320),
+        builder: (_, opacity, child) => Opacity(opacity: opacity, child: child),
+        child: ClipRect(child: Stack(children: [
+        const Positioned.fill(child: ColoredBox(color: Color(0xFF040A10))),
+        Positioned(left: offsetX, top: 0, width: 854 * scale, height: 1842 * scale,
+          child: FittedBox(fit: BoxFit.contain, child: MediaQuery.withClampedTextScaling(
+            minScaleFactor: 1, maxScaleFactor: 1, child: scene))),
+        Positioned(left: 0, right: 0, top: top * scale, height: 87 * scale,
+          child: Padding(padding: EdgeInsets.symmetric(horizontal: 27 * scale),
+            child: Row(children: [
+              Expanded(child: _MillPress(label: 'Профиль $name',
+                onTap: () => _openHomeMenu(context, session), child: Row(children: [
+                  Container(width: 64 * scale, height: 64 * scale,
+                    decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0x6605090E),
+                      border: Border.all(color: _amber), boxShadow: const [BoxShadow(color: Color(0x44FFAA33), blurRadius: 9)]),
+                    child: Center(child: _millText(initials, 25 * scale))),
+                  SizedBox(width: 13 * scale), Expanded(child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [_millText(name, 24 * scale, align: TextAlign.left),
+                      _millText('Тестовый режим', 17 * scale, color: const Color(0xFFBEC6CB), align: TextAlign.left)])),
+                ]))),
+              SizedBox(width: 12 * scale),
+              SizedBox(width: 328 * scale, child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                SizedBox(width: 35 * scale, height: 54 * scale,
+                  child: const CustomPaint(painter: _MillWheatMark())),
+                SizedBox(width: 10 * scale), _millText('М Е Л Ь Н И Ц А', 24 * scale, weight: FontWeight.w600),
+              ])),
+              SizedBox(width: 112 * scale),
+            ]))),
+        Positioned(left: 187 * scale + offsetX, top: (top + 92) * scale,
+          width: 480 * scale, height: 126 * scale,
+          child: Column(children: [
+            _millText('Заработано за месяц', 22 * scale),
+            Expanded(child: Row(children: [
+              Expanded(child: _MillPress(label: 'Предыдущий месяц', onTap: () => onMonthChanged(DateTime(month.year, month.month - 1)),
+                child: const Icon(Icons.chevron_left, color: _paper))),
+              Expanded(flex: 5, child: _MillPress(label: 'Зарплата за выбранный месяц', onTap: () => details('Зарплата'),
+                child: _MillValue(value: data.salary, unit: ' ₸', size: 62 * scale, color: _amber))),
+              Expanded(child: _MillPress(label: 'Следующий месяц', onTap: () => onMonthChanged(DateTime(month.year, month.month + 1)),
+                child: const Icon(Icons.chevron_right, color: _paper))),
+            ])),
+            _MillPress(label: 'Выбрать месяц', onTap: () => _chooseMonth(context),
+              child: AnimatedSwitcher(duration: const Duration(milliseconds: 200), child:
+                _millText('${_garageMonths[month.month - 1]} ${month.year} ⌄', 23 * scale, key: ValueKey(month)))),
+          ])),
+        Positioned(left: 8, right: 8, bottom: padding.bottom + 3,
+          child: _MillNavigation(onWork: () => onNavigate(1), onAdd: onQuickAdd,
+            onInvoices: () => onNavigate(3), onMore: () => _openHomeMenu(context, session))),
+      ]))),
+    );
   }
 
   Future<void> _chooseMonth(BuildContext context) async {
     final selected = await showModalBottomSheet<DateTime>(context: context,
-      backgroundColor: const Color(0xFF0C151C), builder: (sheetContext) => SafeArea(
-        child: SizedBox(height: 300, child: GridView.count(crossAxisCount: 3,
-          childAspectRatio: 2.2, padding: const EdgeInsets.all(16),
-          children: List.generate(12, (i) => TextButton(onPressed: () =>
-            Navigator.pop(sheetContext, DateTime(month.year,i+1)),
-            child: Text(_garageMonths[i], style: TextStyle(color: i+1 == month.month ? _amber : _paper))))))));
+      backgroundColor: const Color(0xEE0B151D), builder: (c) => SafeArea(child: SizedBox(
+        height: 300, child: GridView.count(crossAxisCount: 3, childAspectRatio: 2.2,
+          padding: const EdgeInsets.all(16), children: List.generate(12, (i) => TextButton(
+            onPressed: () => Navigator.pop(c, DateTime(month.year, i + 1)),
+            child: Text(_garageMonths[i], style: TextStyle(color: i + 1 == month.month ? _amber : _paper))))))));
     if (selected != null) onMonthChanged(selected);
   }
+}
+
+class _MillWheatMark extends CustomPainter {
+  const _MillWheatMark();
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / 35, size.height / 54);
+    final paint = Paint()..color = _amber;
+    canvas.drawPath(Path()..moveTo(10, 52)..quadraticBezierTo(20, 28, 25, 3),
+      Paint()..color = _amber..style = PaintingStyle.stroke..strokeWidth = 1.7);
+    for (var i = 0; i < 4; i++) {
+      final y = 15.0 + i * 8;
+      final x = 23.0 - i * 2.5;
+      for (final side in [-1.0, 1.0]) {
+        canvas.save();
+        canvas.translate(x + side * 4, y);
+        canvas.rotate(side * .65);
+        canvas.drawOval(const Rect.fromLTWH(-2.8, -7, 5.6, 13), paint);
+        canvas.restore();
+      }
+    }
+    canvas.drawOval(const Rect.fromLTWH(23, 0, 5, 11), paint);
+    canvas.restore();
+  }
+  @override
+  bool shouldRepaint(covariant _MillWheatMark oldDelegate) => false;
+}
+
+String _millTripUnit(int n) => n % 100 >= 11 && n % 100 <= 14 ? ' рейсов'
+    : n % 10 == 1 ? ' рейс' : n % 10 >= 2 && n % 10 <= 4 ? ' рейса' : ' рейсов';
+
+Widget _millText(String text, double size, {Color color = _paper,
+    FontWeight weight = FontWeight.w400, TextAlign align = TextAlign.center, Key? key}) =>
+  Text(text, key: key, textAlign: align, maxLines: 2, overflow: TextOverflow.ellipsis,
+    style: TextStyle(fontSize: size, height: 1.12, color: color, fontWeight: weight,
+      shadows: const [Shadow(color: Color(0xCC000000), blurRadius: 4)]));
+
+class _MillValue extends StatelessWidget {
+  final double value, size;
+  final String unit, prefix;
+  final Color color;
+  const _MillValue({required this.value, this.unit = '', this.prefix = '', this.size = 40, this.color = _paper});
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+    tween: Tween<double>(begin: value, end: value), duration: const Duration(milliseconds: 320),
+    curve: Curves.easeOutCubic, builder: (_, v, __) => FittedBox(fit: BoxFit.scaleDown,
+      child: _millText('$prefix${v == v.roundToDouble() ? _fmtInt(v) : _fmt1(v)}$unit', size,
+        color: color, weight: FontWeight.w600)));
+}
+
+class _MillPress extends StatefulWidget {
+  final String label;
+  final Widget child;
+  final VoidCallback onTap;
+  const _MillPress({required this.label, required this.child, required this.onTap});
+  @override
+  State<_MillPress> createState() => _MillPressState();
+}
+class _MillPressState extends State<_MillPress> {
+  bool pressed = false;
+  void setPressed(bool v) { if (mounted) setState(() => pressed = v); }
+  @override
+  Widget build(BuildContext context) => Semantics(button: true, label: widget.label,
+    child: GestureDetector(behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => setPressed(true), onTapCancel: () => setPressed(false),
+      onTapUp: (_) => setPressed(false), onTap: () { HapticFeedback.selectionClick(); widget.onTap(); },
+      child: AnimatedScale(scale: pressed ? .965 : 1, duration: const Duration(milliseconds: 100),
+        child: AnimatedOpacity(opacity: pressed ? .72 : 1,
+          duration: const Duration(milliseconds: 100), child: widget.child))));
+}
+
+class _MillWallDisplay extends StatelessWidget {
+  final List<Offset> points;
+  final String label, unit;
+  final List<double> samples;
+  final bool lineChart;
+  final double value;
+  final IconData icon;
+  final Color accent;
+  final VoidCallback onTap;
+  const _MillWallDisplay({required this.points, required this.label,
+    required this.value, required this.unit, required this.icon, required this.accent, required this.onTap,
+    required this.samples, this.lineChart = false});
+  @override
+  Widget build(BuildContext context) {
+    // Projective mapping of the rectangle onto the photographed metal face.
+    final p0 = points[0], p1 = points[1], p2 = points[2], p3 = points[3];
+    final dx1 = p1.dx - p2.dx, dx2 = p3.dx - p2.dx;
+    final dy1 = p1.dy - p2.dy, dy2 = p3.dy - p2.dy;
+    final dx3 = p0.dx - p1.dx + p2.dx - p3.dx;
+    final dy3 = p0.dy - p1.dy + p2.dy - p3.dy;
+    final determinant = dx1 * dy2 - dx2 * dy1;
+    final g = (dx3 * dy2 - dx2 * dy3) / determinant;
+    final h = (dx1 * dy3 - dx3 * dy1) / determinant;
+    final matrix = Matrix4.identity()
+      ..setEntry(0, 0, (p1.dx - p0.dx + g * p1.dx) / 240)
+      ..setEntry(0, 1, (p3.dx - p0.dx + h * p3.dx) / 220)
+      ..setEntry(0, 3, p0.dx)
+      ..setEntry(1, 0, (p1.dy - p0.dy + g * p1.dy) / 240)
+      ..setEntry(1, 1, (p3.dy - p0.dy + h * p3.dy) / 220)
+      ..setEntry(1, 3, p0.dy)
+      ..setEntry(3, 0, g / 240)..setEntry(3, 1, h / 220);
+    return Positioned.fill(child: Align(alignment: Alignment.topLeft,
+      child: Transform(transform: matrix, child: SizedBox(width: 240, height: 220,
+        child: _MillPress(label: '$label ${_fmt1(value)}$unit', onTap: onTap,
+          child: Padding(padding: const EdgeInsets.fromLTRB(5, 6, 5, 5),
+            child: Column(children: [
+              Expanded(child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                SizedBox(width: 68, height: 78,
+                  child: CustomPaint(painter: _MillMetricMark(label, accent))),
+                const SizedBox(width: 10),
+                Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    // Scale the complete caption; never split a word into fragments.
+                    FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+                      child: Text(label, maxLines: 2,
+                        style: const TextStyle(color: _paper, fontSize: 25, height: 1.12))),
+                    const SizedBox(height: 7),
+                    FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+                      child: Text.rich(TextSpan(children: [
+                        TextSpan(text: value == value.roundToDouble() ? _fmtInt(value) : _fmt1(value),
+                          style: const TextStyle(fontSize: 53, fontWeight: FontWeight.w700)),
+                        TextSpan(text: unit, style: const TextStyle(fontSize: 31,
+                          fontWeight: FontWeight.w500)),
+                      ]), style: const TextStyle(color: _paper, height: 1.1,
+                        shadows: [Shadow(color: Color(0x88000000), blurRadius: 4)]))),
+                  ])),
+              ])),
+              const SizedBox(height: 5),
+              SizedBox(height: 65, width: double.infinity,
+                child: CustomPaint(painter: _MillHistoryChart(samples,
+                  label == 'Город' || lineChart ? _ice : _amber, lineChart: lineChart))),
+            ])))))));
+  }
+}
+
+// Unlit scale segments remain visible at zero; illuminated data is always real.
+class _MillHistoryChart extends CustomPainter {
+  final List<double> samples;
+  final Color color;
+  final bool lineChart;
+  const _MillHistoryChart(this.samples, this.color, {this.lineChart = false});
+  @override
+  void paint(Canvas canvas, Size size) {
+    final baseline = size.height - 12;
+    final graphHeight = baseline - 5;
+    final slots = samples.isEmpty ? 31 : samples.length;
+    final step = size.width / slots;
+    final peak = samples.fold<double>(0, (a, b) => math.max(a, b));
+    final grid = Paint()..color = color.withValues(alpha: .13)..strokeWidth = .6;
+    for (var i = 0; i < 4; i++) {
+      final y = baseline - graphHeight * i / 3;
+      canvas.drawLine(Offset.zero.translate(0, y), Offset(size.width, y), grid);
+    }
+    final path = Path();
+    final paint = Paint()..shader = LinearGradient(
+      begin: Alignment.bottomCenter, end: Alignment.topCenter,
+      colors: [color.withValues(alpha: .3), color])
+      .createShader(Rect.fromLTWH(0, 0, size.width, baseline));
+    for (var i = 0; i < slots; i++) {
+      final x = (i + .5) * step;
+      if (lineChart) {
+        if (i % 5 == 0) canvas.drawLine(Offset(x, 5), Offset(x, baseline), grid);
+      } else {
+        // These uniform, dim cells are the unlit display scale, not sample values.
+        canvas.drawRect(Rect.fromLTWH(x - step * .32, 5, step * .64, graphHeight),
+          Paint()..color = color.withValues(alpha: .075));
+      }
+      if (peak <= 0) continue;
+      final h = samples[i] / peak * graphHeight;
+      if (lineChart) {
+        if (i == 0) { path.moveTo(x, baseline - h); }
+        else { path.lineTo(x, baseline - h); }
+      } else if (samples[i] > 0) {
+        canvas.drawRect(Rect.fromLTWH(x - step * .32, baseline - h, step * .64, h), paint);
+      }
+    }
+    if (lineChart && peak > 0) {
+      canvas.drawPath(path, Paint()..color = color.withValues(alpha: .3)
+        ..style = PaintingStyle.stroke..strokeWidth = 5
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3));
+      canvas.drawPath(path, Paint()..color = color
+        ..style = PaintingStyle.stroke..strokeWidth = 1.8);
+    }
+    canvas.drawLine(Offset(0, baseline), Offset(size.width, baseline),
+      Paint()..color = color.withValues(alpha: .65)..strokeWidth = 1);
+    void caption(String text, double x, double y, Color ink, {double font = 9}) {
+      final p = TextPainter(text: TextSpan(text: text,
+        style: TextStyle(color: ink, fontSize: font, letterSpacing: .6)),
+        textDirection: TextDirection.ltr)..layout();
+      p.paint(canvas, Offset(x, y));
+    }
+    caption('01', 0, baseline + 2, _paper.withValues(alpha: .5));
+    caption('$slots', size.width - 13, baseline + 2, _paper.withValues(alpha: .5));
+    if (peak <= 0) {
+      caption('НЕТ ЗАПИСЕЙ', size.width / 2 - 44, 22,
+        _paper.withValues(alpha: .65), font: 11);
+    }
+  }
+  @override
+  bool shouldRepaint(covariant _MillHistoryChart old) =>
+      old.samples != samples || old.color != color || old.lineChart != lineChart;
+}
+
+class _MillMetricMark extends CustomPainter {
+  final String label;
+  final Color color;
+  const _MillMetricMark(this.label, this.color);
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / 72, size.height / 72);
+    final ink = Paint()..shader = LinearGradient(
+      begin: Alignment.topLeft, end: Alignment.bottomRight,
+      colors: [Color.lerp(color, Colors.white, .28)!, color,
+        Color.lerp(color, Colors.black, .25)!])
+      .createShader(const Rect.fromLTWH(0, 0, 72, 72));
+    final outline = Paint()..color = color..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round;
+    if (label.startsWith('Платные')) {
+      for (var column = 0; column < 3; column++) {
+        final x = 8.0 + column * 18;
+        final count = 3 + column * 2;
+        for (var row = 0; row < count; row++) {
+          final y = 60.0 - row * 7;
+          canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(x, y - 5, 18, 7),
+            const Radius.circular(2)), ink);
+          canvas.drawOval(Rect.fromLTWH(x, y - 8, 18, 7), ink);
+          canvas.drawArc(Rect.fromLTWH(x, y - 8, 18, 7), 0, math.pi, false,
+            Paint()..color = const Color(0xCC684112)..style = PaintingStyle.stroke..strokeWidth = 1);
+        }
+      }
+    } else if (label == 'Газ') {
+      final flame = Path()..moveTo(37, 3)
+        ..cubicTo(40, 19, 22, 24, 28, 38)
+        ..cubicTo(34, 33, 35, 28, 35, 25)
+        ..cubicTo(55, 40, 58, 49, 49, 60)
+        ..cubicTo(39, 73, 16, 66, 14, 51)
+        ..cubicTo(11, 34, 31, 24, 37, 3)..close();
+      canvas.drawPath(flame, ink);
+      canvas.drawPath(Path()..moveTo(36, 42)..cubicTo(36, 49, 27, 54, 31, 61)
+        ..cubicTo(38, 67, 43, 59, 40, 55)..close(), Paint()..color = const Color(0xFF172028));
+    } else if (label == 'Бензин') {
+      canvas.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(10, 10, 31, 52),
+        const Radius.circular(3)), outline);
+      canvas.drawRect(const Rect.fromLTWH(16, 17, 19, 18), ink);
+      canvas.drawLine(const Offset(6, 64), const Offset(45, 64), outline);
+      canvas.drawPath(Path()..moveTo(42, 37)..cubicTo(56, 34, 45, 60, 58, 59)
+        ..quadraticBezierTo(63, 59, 61, 48)..lineTo(57, 25)..lineTo(49, 15), outline);
+      canvas.drawLine(const Offset(53, 18), const Offset(62, 27), outline);
+    } else if (label == 'Город') {
+      canvas.drawPath(Path()..moveTo(6, 64)..lineTo(6, 35)..lineTo(23, 35)
+        ..moveTo(25, 64)..lineTo(25, 10)..lineTo(45, 10)..lineTo(45, 64)
+        ..moveTo(48, 64)..lineTo(48, 26)..lineTo(65, 26)..lineTo(65, 64)
+        ..moveTo(2, 66)..lineTo(69, 66), outline);
+      for (final x in [12.0, 31.0, 39.0, 54.0]) {
+        for (var y = x == 31 || x == 39 ? 19.0 : 40.0; y < 59; y += 10) {
+          canvas.drawRect(Rect.fromLTWH(x, y, 3, 5), ink);
+        }
+      }
+    } else if (label == 'Район') {
+      final pin = Path()..moveTo(36, 67)..cubicTo(30, 55, 13, 38, 15, 24)
+        ..cubicTo(19, 0, 54, 0, 58, 24)..cubicTo(60, 37, 43, 56, 36, 67)..close();
+      canvas.drawPath(pin, ink);
+      canvas.drawCircle(const Offset(36, 26), 11, Paint()..color = const Color(0xFF10202A));
+      canvas.drawCircle(const Offset(36, 26), 7, outline..strokeWidth = 2);
+    } else {
+      canvas.drawArc(const Rect.fromLTWH(7, 7, 58, 58), math.pi * .72,
+        math.pi * 1.56, false, outline..strokeWidth = 5);
+      for (var i = 0; i <= 8; i++) {
+        final a = math.pi * (.72 + i * 1.56 / 8);
+        canvas.drawLine(Offset(36 + math.cos(a) * 23, 36 + math.sin(a) * 23),
+          Offset(36 + math.cos(a) * 18, 36 + math.sin(a) * 18),
+          outline..strokeWidth = 2);
+      }
+      canvas.drawPath(Path()..moveTo(32, 37)..lineTo(52, 20)..lineTo(39, 42)..close(), ink);
+      canvas.drawCircle(const Offset(36, 40), 5, ink);
+    }
+    canvas.restore();
+  }
+  @override
+  bool shouldRepaint(covariant _MillMetricMark old) => old.label != label || old.color != color;
+}
+
+class _MillStatus extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final Widget child;
+  final VoidCallback onTap;
+  const _MillStatus({required this.icon, required this.title, required this.child, required this.onTap});
+  @override
+  Widget build(BuildContext context) => _MillPress(label: title, onTap: onTap,
+    child: Column(children: [
+      Container(width: 43, height: 43,
+        decoration: BoxDecoration(shape: BoxShape.circle,
+          border: Border.all(color: _amber, width: 2),
+          boxShadow: const [BoxShadow(color: Color(0x55FFA329), blurRadius: 12)],
+          color: const Color(0x770B1015)),
+        child: Icon(icon, color: _amber, size: 28)), const SizedBox(height: 6),
+      FittedBox(fit: BoxFit.scaleDown, child: _millText(title, 18)), const SizedBox(height: 4), Expanded(child: Center(child: child))]));
+}
+
+class _MillClock extends StatefulWidget {
+  final String? start;
+  const _MillClock({this.start});
+  @override
+  State<_MillClock> createState() => _MillClockState();
+}
+class _MillClockState extends State<_MillClock> {
+  Timer? timer;
+  @override
+  void initState() { super.initState(); syncTimer(); }
+  @override
+  void didUpdateWidget(covariant _MillClock oldWidget) {
+    super.didUpdateWidget(oldWidget); if (oldWidget.start != widget.start) syncTimer();
+  }
+  void syncTimer() {
+    timer?.cancel();
+    if (widget.start != null) timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && TickerMode.of(context)) setState(() {});
+    });
+  }
+  @override
+  void dispose() { timer?.cancel(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) {
+    if (widget.start == null) return _millText('—', 25, color: const Color(0xFFAFB7BB));
+    final seconds = math.max(0, DateTime.now().difference(DateTime.parse(widget.start!)).inSeconds);
+    String pad(int n) => n.toString().padLeft(2, '0');
+    return _millText('${pad(seconds ~/ 3600)}:${pad(seconds ~/ 60 % 60)}:${pad(seconds % 60)}', 25, color: _ice);
+  }
+}
+
+class _MillNavigation extends StatelessWidget {
+  final VoidCallback onWork, onAdd, onInvoices, onMore;
+  const _MillNavigation({required this.onWork, required this.onAdd, required this.onInvoices, required this.onMore});
+  @override
+  Widget build(BuildContext context) => ClipRRect(borderRadius: BorderRadius.circular(25),
+    child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+      child: Container(height: 72, decoration: BoxDecoration(
+        color: const Color(0x36070D12), borderRadius: BorderRadius.circular(25),
+        border: Border.all(color: const Color(0x80EFAF5D), width: .7)),
+        child: Row(children: [
+          item('Главная', Icons.home_outlined, () {}, active: true),
+          item('Работа', Icons.local_shipping_outlined, onWork),
+          Expanded(child: _MillPress(label: 'Добавить рейс или топливо', onTap: onAdd,
+            child: Center(child: Container(width: 54, height: 54,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0x38291708),
+                border: Border.all(color: _amber, width: 1.5),
+                boxShadow: const [BoxShadow(color: Color(0x44FFAA22), blurRadius: 12)]),
+              child: const Icon(Icons.add, color: _amber, size: 37))))),
+          item('Накладные', Icons.receipt_long_outlined, onInvoices),
+          item('Ещё', Icons.grid_view_outlined, onMore),
+        ]))));
+  Widget item(String title, IconData icon, VoidCallback tap, {bool active = false}) => Expanded(
+    child: _MillPress(label: title, onTap: tap, child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      Icon(icon, size: 25, color: active ? _amber : _paper,
+        shadows: active ? const [Shadow(color: Color(0x88FFAA22), blurRadius: 12)] : null),
+      const SizedBox(height: 5), FittedBox(fit: BoxFit.scaleDown,
+        child: _millText(title, 10, color: active ? _amber : _paper)),
+    ])));
 }
 
 Widget _garageText(String value, double size, {Color color = _paper,
