@@ -22,29 +22,30 @@ class _ReferenceHomeDashboard extends StatelessWidget {
     required this.onNavigate, required this.onQuickAdd});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => _TestLive(
+    builder: (TestState book) => _buildDashboard(context, book));
+
+  Widget _buildDashboard(BuildContext context, TestState book) {
     final padding = MediaQuery.paddingOf(context);
     final scale = size.width / 854;
     const offsetX = 0.0;
-    final book = data.book;
-    final active = book?.active;
-    final closed = (book?.shifts ?? <Map<String, dynamic>>[])
+    final active = book.active;
+    final closed = book.shifts
         .where((s) => s['end'] != null).toList()
       ..sort((a, b) => (b['end'] as String).compareTo(a['end'] as String));
     final last = closed.isEmpty ? null : closed.first;
     final current = active == null ? <Map<String, dynamic>>[]
-        : book!.forShift(active['id'] as String);
+        : book.forShift(active['id'] as String);
     final trips = current.where((e) => e['kind'] == 'trip').length;
     double fuel(String type) => current.where((e) =>
         e['kind'] == 'fuel' && e['type'] == type)
         .fold<double>(0, (sum, e) => sum + (e['amount'] as num).toDouble());
-    final paid = book == null ? 0 : book.records.where((e) =>
-        e['kind'] == 'trip' && e['isPaid'] == true &&
-        book.inMonth(book.recordDay(e).toIso8601String(), month)).length;
-    final daily = List.generate(DateTime(month.year, month.month + 1, 0).day,
-        (i) => book?.statistics(month, day: DateTime(month.year, month.month, i + 1))
-            ?? <String, double>{});
-    List<double> series(String key) => daily.map((d) => d[key] ?? 0.0).toList();
+    final paid = _millPaidRows(book, month).length;
+    final List<Map<String, double>> daily = List.generate(
+        DateTime(month.year, month.month + 1, 0).day,
+        (i) => book.statistics(month,
+            day: DateTime(month.year, month.month, i + 1)));
+    List<double> series(String key) => daily.map((day) => day[key] ?? 0.0).toList();
     void details(String metric) => _openMetricDetails(context, metric, month);
     void summary() => _testOpen(context, shiftId: (active ?? last)?['id'] as String?);
     void records(String page) => _testOpen(context, page: page,
@@ -62,7 +63,7 @@ class _ReferenceHomeDashboard extends StatelessWidget {
         label: 'Платные\nнаправления', value: paid.toDouble(), unit: '',
         icon: Icons.stacked_bar_chart, accent: _amber,
         samples: series('paid_routes_pay'),
-        onTap: () => _testOpen(context, page: 'Платные направления', month: month)),
+        onTap: () => _openMillPaidRoutes(context, month)),
       _MillWallDisplay(points: const [Offset(64, 435), Offset(221, 500), Offset(220, 627), Offset(63, 578)],
         label: 'Газ', value: data.gas, unit: ' л', icon: Icons.local_fire_department,
         accent: _amber, samples: series('gas'), onTap: () => details('Газ')),
@@ -104,7 +105,7 @@ class _ReferenceHomeDashboard extends StatelessWidget {
         title: 'Завершение', onTap: summary,
         child: AnimatedSwitcher(duration: const Duration(milliseconds: 220), child:
           _millText(active != null ? 'Ожидание' : last == null ? 'Нет итогов' :
-            '${_fmt1(book!.mileage(last))} км\n${_fmt1(book.hours(last))} ч', 23,
+            '${_fmt1(book.mileage(last))} км\n${_fmt1(book.hours(last))} ч', 23,
             color: active == null && last != null ? _ice : const Color(0xFFAFB7BB),
             key: ValueKey('${active?["id"]}-${last?["id"]}-${last?["currentKm"]}-${last?["hoursWorked"]}'))))),
     ]));
@@ -178,6 +179,33 @@ class _ReferenceHomeDashboard extends StatelessWidget {
             child: Text(_garageMonths[i], style: TextStyle(color: i + 1 == month.month ? _amber : _paper))))))));
     if (selected != null) onMonthChanged(selected);
   }
+}
+
+// Compatible with TestState from the uploaded project; no _HomeMonthData extension.
+List<Map<String, dynamic>> _millPaidRows(TestState book, DateTime month) {
+  final rows = book.records.where((entry) =>
+      entry['kind'] == 'trip' && entry['isPaid'] == true &&
+      book.inMonth(book.recordDay(entry).toIso8601String(), month)).toList();
+  rows.sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
+  return rows;
+}
+
+void _openMillPaidRoutes(BuildContext context, DateTime month) {
+  Navigator.of(context).push<void>(_SceneRoute<void>(builder: (pageContext) =>
+    _TestLive(builder: (book) {
+      final rows = _millPaidRows(book, month);
+      return _DetailFrame(title: 'Платные направления', children: [
+        _DetailGlass(accent: true, child: _dt(
+          '${_garageMonths[month.month - 1]} ${month.year} · ${rows.length}${_millTripUnit(rows.length)}')),
+        if (rows.isEmpty) _DetailGlass(child: _dt('В этом месяце платных рейсов нет.')),
+        for (final entry in rows)
+          _DetailGlass(child: _detailRow(
+            '${entry['direction'] ?? 'Направление'}',
+            '${_fmt1((entry['amount'] as num).toDouble())} кг',
+            subtitle: _detailDate(DateTime.parse(entry['date'] as String)),
+            onTap: () => _testEditor(pageContext, 'trip', entry: entry))),
+      ]);
+    })));
 }
 
 class _MillWheatMark extends CustomPainter {
