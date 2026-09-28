@@ -54,7 +54,7 @@ class _MetricDetails extends StatefulWidget {
 }
 class _MetricDetailsState extends State<_MetricDetails> {
   late DateTime _month;
-  _HomeMonthData? _total;ActivityBook? _book;TestPreferences? _prefs;
+  _HomeMonthData? _total;ActivityBook? _book;TestPreferences? _prefs;double? _mileageOdometer;
   final _scroll=ScrollController();
   String? _error,_direction;bool _trips=false,_hideEmpty=true,_salaryDaysExpanded=false;int _loadId=0;
   bool get _weight=>['Город','Район'].contains(widget.metric);
@@ -66,10 +66,11 @@ class _MetricDetailsState extends State<_MetricDetails> {
   Future<void> _load() async {
     final id=++_loadId;
     try {final total=await _HomeMonthData.load(_month);final book=await ActivityRepository.load(_month);final prefs=await TestPreferences.getInstance();
-      if(mounted&&id==_loadId)setState((){_total=total;_book=book;_prefs=prefs;_error=null;});
+      final odometer=widget.metric=='Пробег'?_mileageMonthOdometer(await TestStore.load(),_month):null;
+      if(mounted&&id==_loadId)setState((){_total=total;_book=book;_prefs=prefs;_mileageOdometer=odometer;_error=null;});
     }catch(_){if(mounted&&id==_loadId)setState(()=>_error='Не удалось прочитать данные. Повторите попытку.');}
   }
-  void _monthTo(int delta){setState((){_month=DateTime(_month.year,_month.month+delta);_book=null;_total=null;_direction=null;_salaryDaysExpanded=false;});if(_scroll.hasClients)_scroll.jumpTo(0);_load();}
+  void _monthTo(int delta){setState((){_month=DateTime(_month.year,_month.month+delta);_book=null;_total=null;_mileageOdometer=null;_direction=null;_salaryDaysExpanded=false;});if(_scroll.hasClients)_scroll.jumpTo(0);_load();}
   Future<void> _pickDay() async {
     final now=DateTime.now();final first=DateTime(_month.year,_month.month);final last=DateTime(_month.year,_month.month+1,0);
     final d=await showDatePicker(context:context,initialDate:ActivityBook.sameDay(first,now)?now:first,firstDate:first,lastDate:last);
@@ -87,6 +88,8 @@ class _MetricDetailsState extends State<_MetricDetails> {
   @override
   Widget build(BuildContext context)=>widget.metric=='Зарплата'
       ? _salaryScreen()
+      : widget.metric=='Пробег'
+      ? _mileageScreen()
       : _DetailFrame(title:widget.metric,controller:_scroll,showHero:false,children:[
           Row(mainAxisAlignment:MainAxisAlignment.center,children:[
             IconButton(tooltip:'Предыдущий месяц',onPressed:()=>_monthTo(-1),icon:const Icon(Icons.chevron_left,color:_amber)),
@@ -97,6 +100,495 @@ class _MetricDetailsState extends State<_MetricDetails> {
           else if(_total==null||_book==null)const Center(child:CircularProgressIndicator(color:_amber))
           else ..._content(),
         ]);
+
+
+  double? _mileageMonthOdometer(TestState book,DateTime month){
+    final shifts=book.shifts.where((shift){
+      final date=DateTime.tryParse((shift['start'] as String?)??'');
+      return date!=null&&date.year==month.year&&date.month==month.month;
+    }).toList()
+      ..sort((a,b)=>((a['start'] as String?)??'')
+          .compareTo((b['start'] as String?)??''));
+    if(shifts.isEmpty)return null;
+    return (shifts.last['currentKm'] as num?)?.toDouble();
+  }
+
+  Future<void> _mileagePickDay() async {
+    final now=DateTime.now();
+    final first=DateTime(_month.year,_month.month);
+    final last=DateTime(_month.year,_month.month+1,0);
+    final inMonth=now.year==_month.year&&now.month==_month.month;
+    final selected=await showDatePicker(
+      context:context,
+      initialDate:inMonth?now:first,
+      firstDate:first,
+      lastDate:last,
+      builder:(context,child)=>Theme(
+        data:Theme.of(context).copyWith(
+          colorScheme:const ColorScheme.dark(
+            primary:Color(0xFFFFC477),
+            surface:Color(0xFF162129),
+          ),
+        ),
+        child:child!,
+      ),
+    );
+    if(selected!=null&&mounted)_day(selected);
+  }
+
+  Future<void> _mileageRouteHistory() async {
+    final month=_month;
+    try {
+      final state=await TestStore.load();
+      if(!mounted)return;
+      final days=<DateTime,double>{};
+      for(final shift in state.shifts){
+        final date=DateTime.tryParse((shift['start'] as String?)??'');
+        final gps=(shift['gpsKm'] as num?)?.toDouble()??0;
+        if(date!=null&&date.year==month.year&&date.month==month.month&&gps>0){
+          final day=DateTime(date.year,date.month,date.day);
+          days.update(day,(previous)=>previous+gps,ifAbsent:()=>gps);
+        }
+      }
+      final dates=days.keys.toList()..sort((a,b)=>b.compareTo(a));
+      Navigator.of(context).push<void>(_SceneRoute(builder:(routeContext)=>
+        _DetailFrame(
+          title:'История маршрутов',
+          scene:_Scene.cab,
+          showHero:false,
+          children:[
+            const SizedBox(height:14),
+            const _DetailGlass(child:Text(
+              'GPS здесь работает в демонстрационном режиме. '
+              'Расстояния из журнала доступны по дням; '
+              'реальный GPS-трек не записывается.',
+              style:TextStyle(color:Color(0xFFBCCBD2),fontSize:13),
+            )),
+            const SizedBox(height:12),
+            if(dates.isEmpty)
+              const _DetailGlass(child:Text(
+                'За выбранный месяц GPS-маршрутов пока нет.',
+                style:TextStyle(color:Color(0xFFE8EEF1),fontSize:14),
+              ))
+            else
+              _DetailGlass(child:Column(children:_separated([
+                for(final day in dates)
+                  _detailRow(
+                    _detailDate(day),
+                    '${_fmt1(days[day]??0)} км',
+                    onTap:()=>Navigator.of(routeContext).push<void>(
+                      _SceneRoute(builder:(_)=>_DayGps(day:day))),
+                  ),
+              ]))),
+          ],
+        ),
+      ));
+    }catch(_){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content:Text('Не удалось загрузить историю GPS.')),
+      );
+    }
+  }
+
+  Widget _mileageScreen()=>Scaffold(
+    backgroundColor:const Color(0xFF080D11),
+    body:LayoutBuilder(builder:(context,box){
+      // Layout follows the supplied 709px-wide mockup at a 2x density.
+      // One clean photo is used: the mileage-specific source artwork.
+      final u=box.maxWidth/354.5;
+      final safe=MediaQuery.paddingOf(context);
+      final available=math.max(0.0,box.maxHeight-safe.top-safe.bottom);
+      final heroSpace=math.max(200*u,390*u-safe.top-86*u);
+      return Stack(children:[
+        Positioned.fill(child:ColoredBox(color:const Color(0xFF080D11))),
+        const Positioned.fill(
+          child:Image(
+            image:AssetImage('assets/images/scenes/mileage.png'),
+            fit:BoxFit.cover,
+            alignment:Alignment.topCenter,
+            filterQuality:FilterQuality.high,
+          ),
+        ),
+        const Positioned.fill(child:IgnorePointer(child:DecoratedBox(
+          decoration:BoxDecoration(
+            gradient:LinearGradient(
+              begin:Alignment.topCenter,
+              end:Alignment.bottomCenter,
+              stops:[0,.30,.49,.65,1],
+              colors:[
+                Color(0x25000000),Color(0x00000000),
+                Color(0x24070A0E),Color(0x7406090C),Color(0xE4080D11),
+              ],
+            ),
+          ),
+        ))),
+        // The glass and dashboard are photographic. The readings are
+        // independent widgets, updated from the journal when it changes.
+        Positioned(
+          left:231*u,top:223*u,width:106*u,height:73*u,
+          child:IgnorePointer(child:Column(
+            mainAxisAlignment:MainAxisAlignment.center,
+            children:[
+              FittedBox(
+                fit:BoxFit.scaleDown,
+                child:Text.rich(TextSpan(
+                  children:[
+                    TextSpan(text:_total==null?'—':_fmtInt(_total!.mileage),
+                      style:TextStyle(
+                        color:const Color(0xFFF5E8D4),
+                        fontSize:21*u,fontWeight:FontWeight.w500,
+                      )),
+                    TextSpan(text:' км',
+                      style:TextStyle(
+                        color:const Color(0xFF8CCDE0),
+                        fontSize:12*u,fontWeight:FontWeight.w500,
+                      )),
+                  ],
+                )),
+              ),
+              SizedBox(height:3*u),
+              Text('За месяц',style:TextStyle(
+                fontSize:11*u,
+                color:const Color(0xFFB4B9BB),
+              )),
+            ],
+          )),
+        ),
+        Positioned(
+          left:110*u,top:294*u,width:77*u,height:24*u,
+          child:IgnorePointer(child:Center(
+            child:FittedBox(
+              fit:BoxFit.scaleDown,
+              child:Text(
+                _mileageOdometer==null?'—':_fmtInt(_mileageOdometer!),
+                maxLines:1,
+                style:TextStyle(
+                  color:const Color(0xFFFFB957),
+                  fontSize:15*u,
+                  letterSpacing:1.05*u,
+                  fontFamily:'monospace',
+                  fontWeight:FontWeight.w500,
+                ),
+              ),
+            ),
+          )),
+        ),
+        SafeArea(child:SingleChildScrollView(
+          key:const PageStorageKey('mileage-screen'),
+          controller:_scroll,
+          child:ConstrainedBox(
+            constraints:BoxConstraints(minHeight:available),
+            child:Column(children:[
+              _mileageHeader(u),
+              SizedBox(height:8*u),
+              _mileageMonthSelector(u),
+              SizedBox(height:heroSpace),
+              if(_error!=null)
+                Padding(
+                  padding:EdgeInsets.symmetric(horizontal:15*u),
+                  child:Column(children:[
+                    _DetailGlass(child:_dt(_error!)),
+                    _detailButton('Повторить',_load),
+                  ]),
+                )
+              else
+                _mileageDaysPanel(u),
+              SizedBox(height:12*u),
+              _mileageHistoryButton(u),
+              SizedBox(height:16*u),
+              Row(
+                mainAxisAlignment:MainAxisAlignment.center,
+                children:[
+                  Icon(Icons.info_outline,
+                    size:15*u,color:const Color(0xFF959EA6)),
+                  SizedBox(width:9*u),
+                  Text('Данные из журнала',
+                    style:TextStyle(
+                      fontSize:11*u,color:const Color(0xFF959EA6))),
+                ],
+              ),
+              SizedBox(height:23*u),
+              Align(
+                alignment:Alignment.centerLeft,
+                child:TextButton.icon(
+                  onPressed:()=>_openGarageSection(
+                    context,'Статистика',''),
+                  icon:Icon(Icons.chevron_left,
+                    size:19*u,color:const Color(0xFFABB7C1)),
+                  label:Text('К показателям',
+                    style:TextStyle(
+                      fontSize:13*u,color:const Color(0xFFABB7C1))),
+                  style:TextButton.styleFrom(
+                    padding:EdgeInsets.symmetric(
+                      horizontal:15*u,vertical:6*u),
+                  ),
+                ),
+              ),
+              SizedBox(height:11*u),
+            ]),
+          ),
+        )),
+      ]);
+    }),
+  );
+
+  Widget _mileageHeader(double u)=>SizedBox(
+    height:44*u,
+    child:Padding(
+      padding:EdgeInsets.symmetric(horizontal:15*u),
+      child:Row(children:[
+        SizedBox(
+          width:26*u,
+          child:IconButton(
+            onPressed:()=>Navigator.maybePop(context),
+            padding:EdgeInsets.zero,
+            tooltip:'Назад',
+            icon:Icon(Icons.arrow_back_ios_new,
+              color:Colors.white,size:20*u),
+          ),
+        ),
+        SizedBox(width:9*u),
+        Text('Пробег',style:TextStyle(
+          fontSize:17*u,color:Colors.white,
+          fontWeight:FontWeight.w400,
+        )),
+        const Spacer(),
+        PopupMenuButton<String>(
+          tooltip:'Действия',
+          color:const Color(0xFF1C2327),
+          icon:Icon(Icons.more_horiz,
+            size:24*u,color:Colors.white),
+          onSelected:(value){
+            if(value=='day')_mileagePickDay();
+            if(value=='history')_mileageRouteHistory();
+            if(value=='stats')_openGarageSection(
+              context,'Статистика','');
+          },
+          itemBuilder:(context)=>const[
+            PopupMenuItem(
+              value:'day',
+              child:Text('Выбрать дату',
+                style:TextStyle(color:Colors.white))),
+            PopupMenuItem(
+              value:'history',
+              child:Text('История маршрутов',
+                style:TextStyle(color:Colors.white))),
+            PopupMenuItem(
+              value:'stats',
+              child:Text('Показатели',
+                style:TextStyle(color:Colors.white))),
+          ],
+        ),
+      ]),
+    ),
+  );
+
+  Widget _mileageMonthSelector(double u)=>Container(
+    width:160*u,height:34*u,
+    decoration:BoxDecoration(
+      color:const Color(0xE7192228),
+      border:Border.all(
+        color:const Color(0xB8818D93),width:.7*u),
+      borderRadius:BorderRadius.circular(22*u),
+    ),
+    child:Row(children:[
+      SizedBox(
+        width:33*u,
+        child:IconButton(
+          tooltip:'Предыдущий месяц',
+          padding:EdgeInsets.zero,
+          onPressed:()=>_monthTo(-1),
+          icon:Icon(Icons.chevron_left,
+            color:Colors.white,size:21*u),
+        ),
+      ),
+      Expanded(
+        child:FittedBox(
+          fit:BoxFit.scaleDown,
+          child:Text(
+            '${_garageMonths[_month.month-1]} ${_month.year}',
+            maxLines:1,
+            style:TextStyle(
+              color:Colors.white,fontSize:13.5*u),
+          ),
+        ),
+      ),
+      SizedBox(
+        width:33*u,
+        child:IconButton(
+          tooltip:'Следующий месяц',
+          padding:EdgeInsets.zero,
+          onPressed:()=>_monthTo(1),
+          icon:Icon(Icons.chevron_right,
+            color:Colors.white,size:21*u),
+        ),
+      ),
+    ]),
+  );
+
+  Widget _mileageDaysPanel(double u){
+    final now=DateTime.now();
+    final last=DateTime(_month.year,_month.month+1,0).day;
+    final count=now.year==_month.year&&now.month==_month.month?
+      now.day:last;
+    final dates=<DateTime>[
+      for(var day=count;day>=1;day--)
+        DateTime(_month.year,_month.month,day),
+    ].where((day)=>_dayValue(day,'mileage')!=null).take(4).toList();
+
+    const line=Color(0x6650575A);
+    return Container(
+      width:double.infinity,
+      constraints:BoxConstraints(minHeight:213*u),
+      margin:EdgeInsets.symmetric(horizontal:15*u),
+      padding:EdgeInsets.fromLTRB(14*u,12*u,14*u,9*u),
+      decoration:BoxDecoration(
+        color:const Color(0xE51C1D1D),
+        border:Border.all(
+          color:const Color(0xC39E783F),width:.7*u),
+        borderRadius:BorderRadius.circular(12*u),
+        boxShadow:const [
+          BoxShadow(color:Color(0x99000000),
+            blurRadius:18,offset:Offset(0,8)),
+        ],
+      ),
+      child:Material(
+        color:Colors.transparent,
+        child:Column(
+          crossAxisAlignment:CrossAxisAlignment.start,
+          children:[
+            Row(children:[
+              Expanded(
+                child:Text('Пробег по дням',
+                  style:TextStyle(
+                    fontSize:16*u,color:Colors.white,
+                    fontWeight:FontWeight.w500,
+                  )),
+              ),
+              IconButton(
+                tooltip:'Выбрать дату',
+                visualDensity:VisualDensity.compact,
+                padding:EdgeInsets.zero,
+                constraints:BoxConstraints(
+                  minWidth:30*u,minHeight:28*u),
+                onPressed:_mileagePickDay,
+                icon:Icon(Icons.calendar_month_outlined,
+                  size:19*u,
+                  color:const Color(0xFFC9D4D8)),
+              ),
+            ]),
+            SizedBox(height:2*u),
+            Text(
+              'Последние записи (всего за месяц: '
+              '${_total==null?'—':_fmtInt(_total!.mileage)} км)',
+              style:TextStyle(
+                fontSize:11.5*u,
+                color:const Color(0xFFA1A6A9),
+              ),
+            ),
+            SizedBox(height:11*u),
+            const Divider(height:1,thickness:.7,color:line),
+            if(_total==null||_book==null)
+              Padding(
+                padding:EdgeInsets.symmetric(vertical:37*u),
+                child:Center(
+                  child:SizedBox(
+                    width:22*u,height:22*u,
+                    child:CircularProgressIndicator(
+                      strokeWidth:2*u,
+                      color:const Color(0xFFFFBF66),
+                    ),
+                  ),
+                ),
+              )
+            else if(dates.isEmpty)
+              Padding(
+                padding:EdgeInsets.symmetric(vertical:31*u),
+                child:Text(
+                  'За этот месяц записей пробега пока нет.',
+                  style:TextStyle(
+                    fontSize:12*u,
+                    color:const Color(0xFFBDC5CB),
+                  ),
+                ),
+              )
+            else
+              for(var i=0;i<dates.length;i++)...[
+                InkWell(
+                  onTap:()=>_day(dates[i]),
+                  child:SizedBox(
+                    height:36*u,
+                    child:Row(children:[
+                      Expanded(
+                        child:Text(
+                          _detailDate(dates[i]),
+                          style:TextStyle(
+                            color:const Color(0xFFF2F3F5),
+                            fontSize:13*u,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '${_fmtInt(_dayValue(dates[i],'mileage')??0)} км',
+                        style:TextStyle(
+                          color:const Color(0xFFF2F3F5),
+                          fontSize:13*u,
+                        ),
+                      ),
+                      SizedBox(width:8*u),
+                      Icon(Icons.chevron_right,
+                        color:const Color(0xFFCCD4D8),
+                        size:20*u),
+                    ]),
+                  ),
+                ),
+                if(i!=dates.length-1)
+                  const Divider(height:1,thickness:.7,color:line),
+              ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _mileageHistoryButton(double u)=>Container(
+    margin:EdgeInsets.symmetric(horizontal:15*u),
+    decoration:BoxDecoration(
+      border:Border.all(
+        color:const Color(0xB16A919E),width:.7*u),
+      borderRadius:BorderRadius.circular(12*u),
+      color:const Color(0xC7102027),
+      boxShadow:const [
+        BoxShadow(color:Color(0x44000000),
+          blurRadius:12,offset:Offset(0,4)),
+      ],
+    ),
+    child:Material(
+      color:Colors.transparent,
+      child:InkWell(
+        onTap:_mileageRouteHistory,
+        borderRadius:BorderRadius.circular(12*u),
+        child:SizedBox(
+          height:45*u,
+          child:Padding(
+            padding:EdgeInsets.symmetric(horizontal:13*u),
+            child:Row(children:[
+              Icon(Icons.route_outlined,
+                color:const Color(0xFF82DDF3),
+                size:27*u),
+              SizedBox(width:13*u),
+              Expanded(
+                child:Text('Открыть историю маршрутов',
+                  style:TextStyle(
+                    color:Colors.white,fontSize:12.5*u))),
+              Icon(Icons.chevron_right,
+                color:Colors.white,size:20*u),
+            ]),
+          ),
+        ),
+      ),
+    ),
+  );
 
   // Salary uses its own image and overlay; every other metric keeps the
   // existing backdrop and its original navigation.
