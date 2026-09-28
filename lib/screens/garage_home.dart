@@ -7,8 +7,8 @@ const _paper = Color(0xFFEDEFF2);
 const _garageMonths = ['Январь','Февраль','Март','Апрель','Май','Июнь',
   'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
-// One scene coordinate system: 941 × 2038. Artwork is uniformly scaled and
-// cropped only at the floor/outer edges. Hit targets use the identical transform.
+// One scene coordinate system: 941 × 2038. The platform anchors the
+// composition above navigation; artwork and hit targets share one transform.
 class _ReferenceHomeDashboard extends StatelessWidget {
   final AppSession session;
   final _HomeMonthData data;
@@ -24,7 +24,11 @@ class _ReferenceHomeDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final padding = MediaQuery.paddingOf(context);
-    final scale = math.max(size.width / 941, size.height / 2038);
+    final scale = size.width / 941;
+    // The artwork includes a long foreground. Fit the platform, not that floor,
+    // to the usable viewport. Keep the same transform for image and controls.
+    final sceneScaleY = math.max(scale,
+        (size.height - padding.bottom - 90) * .91 / 1280);
     final offsetX = (size.width - 941 * scale) / 2;
     final book = data.book;
     final active = book?.active;
@@ -41,6 +45,10 @@ class _ReferenceHomeDashboard extends StatelessWidget {
     final paid = book == null ? 0 : book.records.where((e) =>
         e['kind'] == 'trip' && e['isPaid'] == true &&
         book.inMonth(book.recordDay(e).toIso8601String(), month)).length;
+    final daily = List.generate(DateTime(month.year, month.month + 1, 0).day,
+        (i) => book?.statistics(month, day: DateTime(month.year, month.month, i + 1))
+            ?? <String, double>{});
+    List<double> series(String key) => daily.map((d) => d[key] ?? 0.0).toList();
     void details(String metric) => _openMetricDetails(context, metric, month);
     void summary() => _testOpen(context, shiftId: (active ?? last)?['id'] as String?);
     void records(String page) => _testOpen(context, page: page,
@@ -56,46 +64,47 @@ class _ReferenceHomeDashboard extends StatelessWidget {
       // All display faces use the wall perspective, not independent offsets.
       _MillWallDisplay(points: const [Offset(64, 227), Offset(240, 298), Offset(240, 423), Offset(62, 363)],
         label: 'Платные\nнаправления', value: paid.toDouble(), unit: '',
-        icon: Icons.toll_rounded, accent: _amber,
+        icon: Icons.stacked_bar_chart, accent: _amber,
+        samples: series('paid_routes_pay'),
         onTap: () => _testOpen(context, page: 'Платные направления', month: month)),
       _MillWallDisplay(points: const [Offset(62, 438), Offset(240, 492), Offset(239, 595), Offset(61, 552)],
         label: 'Газ', value: data.gas, unit: ' л', icon: Icons.local_fire_department,
-        accent: _amber, onTap: () => details('Газ')),
+        accent: _amber, samples: series('gas'), onTap: () => details('Газ')),
       _MillWallDisplay(points: const [Offset(61, 637), Offset(239, 672), Offset(239, 784), Offset(60, 755)],
         label: 'Бензин', value: data.petrol, unit: ' л', icon: Icons.local_gas_station,
-        accent: const Color(0xFFFF6845), onTap: () => details('Бензин')),
+        accent: const Color(0xFFFF6845), samples: series('petrol'), onTap: () => details('Бензин')),
       _MillWallDisplay(points: const [Offset(730, 329), Offset(878, 289), Offset(879, 438), Offset(729, 465)],
         label: 'Город', value: data.city * 1000, unit: ' кг', icon: Icons.location_city,
-        accent: _amber, onTap: () => details('Город')),
+        accent: _amber, samples: series('city_kg'), onTap: () => details('Город')),
       _MillWallDisplay(points: const [Offset(731, 510), Offset(879, 479), Offset(879, 635), Offset(730, 661)],
         label: 'Район', value: data.region * 1000, unit: ' кг', icon: Icons.location_on_outlined,
-        accent: _ice, onTap: () => details('Район')),
+        accent: _ice, samples: series('region_kg'), lineChart: true, onTap: () => details('Район')),
       _MillWallDisplay(points: const [Offset(731, 709), Offset(878, 683), Offset(879, 801), Offset(731, 819)],
         label: 'Пробег', value: data.mileage, unit: ' км', icon: Icons.speed,
-        accent: _amber, onTap: () => details('Пробег')),
+        accent: _amber, samples: series('mileage'), onTap: () => details('Пробег')),
       place(410, 917, 109, 108, _MillPress(
         label: active == null ? 'Начать смену' : 'Завершить смену',
         onTap: () => _openShiftAction(context),
         child: AnimatedSwitcher(duration: const Duration(milliseconds: 220), child: Column(
           key: ValueKey(active != null), mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(active == null ? Icons.play_arrow_rounded : Icons.stop_rounded,
-                color: _amber, size: 33), const SizedBox(height: 7),
-            _millText(active == null ? 'НАЧАТЬ\nСМЕНУ' : 'ЗАВЕРШИТЬ\nСМЕНУ', 18,
+                color: _amber, size: 38), const SizedBox(height: 5),
+            _millText(active == null ? 'НАЧАТЬ\nСМЕНУ' : 'ЗАВЕРШИТЬ\nСМЕНУ', 20,
                 weight: FontWeight.w600),
           ])))),
-      place(67, 1110, 162, 116, _MillStatus(icon: Icons.settings_outlined,
+      place(67, 1096, 162, 144, _MillStatus(icon: Icons.settings_outlined,
         title: active == null ? 'Смена закрыта' : 'Смена открыта', onTap: summary,
         child: _MillClock(start: active?['start'] as String?))),
-      place(263, 1110, 171, 116, _MillStatus(icon: Icons.local_shipping_outlined,
+      place(263, 1096, 171, 144, _MillStatus(icon: Icons.local_shipping_outlined,
         title: 'Рейсы', onTap: () => records('Рейсы'),
         child: _MillValue(value: trips.toDouble(), unit: _millTripUnit(trips), size: 25, color: _ice))),
-      place(485, 1110, 193, 116, _MillStatus(icon: Icons.local_gas_station_outlined,
+      place(485, 1096, 193, 144, _MillStatus(icon: Icons.local_gas_station_outlined,
         title: 'Топливо', onTap: () => records('Топливо'),
         child: Column(children: [
           _MillValue(value: fuel('Газ'), prefix: 'Газ ', unit: ' л', size: 22, color: _ice),
           _MillValue(value: fuel('Бензин'), prefix: 'Бензин ', unit: ' л', size: 22, color: _ice),
         ]))),
-      place(716, 1110, 156, 116, _MillStatus(icon: Icons.flag_outlined,
+      place(716, 1096, 156, 144, _MillStatus(icon: Icons.flag_outlined,
         title: 'Завершение', onTap: summary,
         child: AnimatedSwitcher(duration: const Duration(milliseconds: 220), child:
           _millText(active != null ? 'Ожидание' : last == null ? 'Нет итогов' :
@@ -115,7 +124,7 @@ class _ReferenceHomeDashboard extends StatelessWidget {
         tween: Tween<double>(begin: 0, end: 1), duration: const Duration(milliseconds: 320),
         builder: (_, opacity, child) => Opacity(opacity: opacity, child: child),
         child: ClipRect(child: Stack(children: [
-        Positioned(left: offsetX, top: 0, width: 941 * scale, height: 2038 * scale,
+        Positioned(left: offsetX, top: 0, width: 941 * scale, height: 2038 * sceneScaleY,
           child: FittedBox(fit: BoxFit.fill, child: MediaQuery.withClampedTextScaling(
             minScaleFactor: 1, maxScaleFactor: 1, child: scene))),
         Positioned(left: 0, right: 0, top: top * scale, height: 87 * scale,
@@ -148,7 +157,7 @@ class _ReferenceHomeDashboard extends StatelessWidget {
               Expanded(child: _MillPress(label: 'Предыдущий месяц', onTap: () => onMonthChanged(DateTime(month.year, month.month - 1)),
                 child: const Icon(Icons.chevron_left, color: _paper))),
               Expanded(flex: 5, child: _MillPress(label: 'Зарплата за выбранный месяц', onTap: () => details('Зарплата'),
-                child: _MillValue(value: data.salary, unit: ' ₸', size: 54 * scale, color: _amber))),
+                child: _MillValue(value: data.salary, unit: ' ₸', size: 62 * scale, color: _amber))),
               Expanded(child: _MillPress(label: 'Следующий месяц', onTap: () => onMonthChanged(DateTime(month.year, month.month + 1)),
                 child: const Icon(Icons.chevron_right, color: _paper))),
             ])),
@@ -247,12 +256,15 @@ class _MillPressState extends State<_MillPress> {
 class _MillWallDisplay extends StatelessWidget {
   final List<Offset> points;
   final String label, unit;
+  final List<double> samples;
+  final bool lineChart;
   final double value;
   final IconData icon;
   final Color accent;
   final VoidCallback onTap;
   const _MillWallDisplay({required this.points, required this.label,
-    required this.value, required this.unit, required this.icon, required this.accent, required this.onTap});
+    required this.value, required this.unit, required this.icon, required this.accent, required this.onTap,
+    required this.samples, this.lineChart = false});
   @override
   Widget build(BuildContext context) {
     // Projective mapping of the rectangle onto the photographed metal face.
@@ -275,17 +287,71 @@ class _MillWallDisplay extends StatelessWidget {
     return Positioned.fill(child: Align(alignment: Alignment.topLeft,
       child: Transform(transform: matrix, child: SizedBox(width: 200, height: 160,
         child: _MillPress(label: '$label ${_fmt1(value)}$unit', onTap: onTap,
-          child: Padding(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 8),
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Row(children: [Icon(icon, color: accent, size: 37), const SizedBox(width: 8),
-                Expanded(child: _millText(label, 24, align: TextAlign.left))]),
-              const SizedBox(height: 10),
-              _MillValue(value: value, unit: unit, size: 43),
-              const SizedBox(height: 11),
-              Container(height: 2, decoration: BoxDecoration(color: accent.withValues(alpha: .7),
-                boxShadow: [BoxShadow(color: accent.withValues(alpha: .35), blurRadius: 8)])),
+          child: Padding(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+            child: Column(children: [
+              Expanded(child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                Icon(icon, color: accent, size: 53,
+                  shadows: [Shadow(color: accent.withValues(alpha: .35), blurRadius: 9)]),
+                const SizedBox(width: 8),
+                Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(label, maxLines: 3, style: TextStyle(color: _paper,
+                      fontSize: label.length > 12 ? 20 : 23, height: 1.05)),
+                    const SizedBox(height: 6),
+                    Align(alignment: Alignment.centerLeft,
+                      child: _MillValue(value: value, unit: unit, size: 46)),
+                  ])),
+              ])),
+              SizedBox(height: 37, width: double.infinity,
+                child: CustomPaint(painter: _MillHistoryChart(samples,
+                  label == 'Город' ? _ice : _amber, lineChart: lineChart))),
             ])))))));
+
   }
+}
+
+// Daily values come from the same statistics calculation as the detail screens.
+// A zero month deliberately has no invented bars or decorative activity.
+class _MillHistoryChart extends CustomPainter {
+  final List<double> samples;
+  final Color color;
+  final bool lineChart;
+  const _MillHistoryChart(this.samples, this.color, {this.lineChart = false});
+  @override
+  void paint(Canvas canvas, Size size) {
+    final baseline = size.height - 2;
+    canvas.drawLine(Offset(0, baseline), Offset(size.width, baseline),
+      Paint()..color = color.withValues(alpha: .28)..strokeWidth = 1);
+    final peak = samples.fold<double>(0, (a, b) => math.max(a, b));
+    if (peak <= 0 || samples.isEmpty) return;
+    final step = size.width / samples.length;
+    final path = Path();
+    final paint = Paint()..shader = LinearGradient(
+      begin: Alignment.bottomCenter, end: Alignment.topCenter,
+      colors: [color.withValues(alpha: .35), color])
+      .createShader(Offset.zero & size);
+    for (var i = 0; i < samples.length; i++) {
+      final x = (i + .5) * step;
+      final h = (samples[i] / peak) * (baseline - 2);
+      if (lineChart) {
+        if (i == 0) { path.moveTo(x, baseline - h); }
+        else { path.lineTo(x, baseline - h); }
+      } else if (samples[i] > 0) {
+        canvas.drawRect(Rect.fromLTWH(x - step * .33, baseline - h,
+            step * .66, h), paint);
+      }
+    }
+    if (lineChart) {
+      canvas.drawPath(path, Paint()..color = _ice.withValues(alpha: .25)
+        ..style = PaintingStyle.stroke..strokeWidth = 5
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3));
+      canvas.drawPath(path, Paint()..color = _ice
+        ..style = PaintingStyle.stroke..strokeWidth = 1.6);
+    }
+  }
+  @override
+  bool shouldRepaint(covariant _MillHistoryChart old) =>
+      old.samples != samples || old.color != color || old.lineChart != lineChart;
 }
 
 class _MillStatus extends StatelessWidget {
@@ -296,7 +362,13 @@ class _MillStatus extends StatelessWidget {
   const _MillStatus({required this.icon, required this.title, required this.child, required this.onTap});
   @override
   Widget build(BuildContext context) => _MillPress(label: title, onTap: onTap,
-    child: Column(children: [Icon(icon, color: _amber, size: 32), const SizedBox(height: 5),
+    child: Column(children: [
+      Container(width: 53, height: 53,
+        decoration: BoxDecoration(shape: BoxShape.circle,
+          border: Border.all(color: _amber, width: 2),
+          boxShadow: const [BoxShadow(color: Color(0x55FFA329), blurRadius: 12)],
+          color: const Color(0x770B1015)),
+        child: Icon(icon, color: _amber, size: 33)), const SizedBox(height: 6),
       _millText(title, 20), const SizedBox(height: 4), Expanded(child: Center(child: child))]));
 }
 
