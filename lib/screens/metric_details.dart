@@ -50,6 +50,7 @@ List<Widget> _separated(List<Widget> rows)=>[for(var i=0;i<rows.length;i++)...[i
 // The photographic mileage background already contains both bezels.
 // These painters only add the dynamic light/LEDs inside those bezels;
 // no independent rectangular cards are placed over the photograph.
+
 class _MileageGlassReadoutPainter extends CustomPainter {
   final String value;
   const _MileageGlassReadoutPainter({required this.value});
@@ -65,103 +66,72 @@ class _MileageGlassReadoutPainter extends CustomPainter {
     canvas.save();
     canvas.scale(size.width/115.0,size.height/70.0);
 
-    // Follow the bevel in the photo: the right side slopes down slightly.
-    final pane=Path()
-      ..moveTo(4,3)
-      ..quadraticBezierTo(5,1,9,2)
-      ..lineTo(99,7)
-      ..quadraticBezierTo(107,8,108,15)
-      ..lineTo(114,55)
-      ..quadraticBezierTo(115,62,108,63)
-      ..lineTo(15,58)
-      ..quadraticBezierTo(10,58,9,52)
-      ..close();
-
-    // A translucent smoked-glass glaze preserves texture from the photograph.
-    canvas.drawPath(pane,Paint()
-      ..shader=const LinearGradient(
-        begin:Alignment.topLeft,end:Alignment.bottomRight,
-        colors:[Color(0x481C1915),Color(0x160A1014),Color(0x4D071016)],
-        stops:[0,.48,1],
-      ).createShader(const Rect.fromLTWH(0,0,115,70)));
-
+    // The photo already contains the glass tile. We only lay the live value
+    // onto the photographed plane so it feels built in.
     canvas.save();
-    canvas.clipPath(pane);
-    // Soft amber illumination from the dash on the left, cyan at the right.
-    canvas.drawRect(const Rect.fromLTWH(0,0,115,70),Paint()
-      ..shader=const LinearGradient(
-        begin:Alignment.centerLeft,end:Alignment.centerRight,
-        colors:[Color(0x20C6903D),Color(0x04000000),Color(0x1012B9D2)],
-      ).createShader(const Rect.fromLTWH(0,0,115,70)));
+    canvas.translate(0.0,0.0);
+    canvas.rotate(.064);
 
-    // Glass reflection: it must stay behind the figures, not cover them.
-    final reflection=Path()
-      ..moveTo(7,7)..lineTo(90,12)..lineTo(47,23)
-      ..lineTo(10,20)..close();
-    canvas.drawPath(reflection,Paint()
-      ..shader=const LinearGradient(
-        begin:Alignment.topCenter,end:Alignment.bottomCenter,
-        colors:[Color(0x19FFFFFF),Color(0x00FFFFFF)],
-      ).createShader(const Rect.fromLTWH(0,4,100,23)));
-
-    // The value sits more centrally inside the right-hand glass tile and
-    // follows its perspective a little more closely.
-    const displayLeft=30.0;
-    const displayWidth=74.0;
-    canvas.rotate(.062);
+    const displayLeft=31.0;
+    const displayTop=25.0;
+    const displayWidth=72.0;
 
     final numberStyle=TextStyle(
-      fontSize:24.5,
+      fontSize:24.0,
       fontWeight:FontWeight.w600,
-      letterSpacing:-.45,
+      letterSpacing:-.4,
       foreground:Paint()
         ..shader=const LinearGradient(
           begin:Alignment.topCenter,end:Alignment.bottomCenter,
-          stops:[0,.35,.8,1],
+          stops:[0,.38,.82,1],
           colors:[
-            Color(0xFFFFF9ED),
-            Color(0xFFEDE6D5),
-            Color(0xFFD8CAB2),
-            Color(0xFFAB9572),
+            Color(0xFFFAF8F0),
+            Color(0xFFEDE7D8),
+            Color(0xFFD7CAB2),
+            Color(0xFFA58D67),
           ],
         ).createShader(const Rect.fromLTWH(0,0,120,30)),
     );
-    final number=_text(value,numberStyle);
-    final unit=_text(' км',const TextStyle(
-      color:Color(0xFFA5D6DF),fontSize:11.5,
+    final unitStyle=TextStyle(
+      color:const Color(0xFFA4D3DE),
+      fontSize:11.0,
       fontWeight:FontWeight.w500,
-    ));
+    );
+
+    final number=_text(value,numberStyle);
+    final unit=_text(' км',unitStyle);
     final totalWidth=number.width+unit.width;
     final fit=math.min(1.0,displayWidth/totalWidth);
     final drawWidth=totalWidth*fit;
     final startX=displayLeft+(displayWidth-drawWidth)/2;
-    canvas.translate(startX,19.5);
+
+    canvas.translate(startX,displayTop);
     canvas.scale(fit);
 
-    // A recessed display catches the glow and leaves a dark depth shadow.
     final shadow=_text(value,const TextStyle(
-      color:Color(0xC5000000),
-      fontSize:24.5,fontWeight:FontWeight.w600,letterSpacing:-.45,
+      color:Color(0xA8000000),
+      fontSize:24.0,fontWeight:FontWeight.w600,letterSpacing:-.4,
     ));
-    shadow.paint(canvas,const Offset(0.95,1.5));
+    shadow.paint(canvas,const Offset(0.9,1.2));
+
     final bloom=_text(value,const TextStyle(
-      color:Color(0x25FFE4B3),
-      fontSize:24.5,fontWeight:FontWeight.w600,letterSpacing:-.45,
+      color:Color(0x22FFF2CE),
+      fontSize:24.0,fontWeight:FontWeight.w600,letterSpacing:-.4,
     ));
-    canvas.saveLayer(const Rect.fromLTWH(-10,-10,130,55),
-      Paint()..maskFilter=const MaskFilter.blur(BlurStyle.normal,3));
+    canvas.saveLayer(const Rect.fromLTWH(-12,-10,140,50),
+      Paint()..maskFilter=const MaskFilter.blur(BlurStyle.normal,2.5));
     bloom.paint(canvas,Offset.zero);
     canvas.restore();
 
     number.paint(canvas,Offset.zero);
-    unit.paint(canvas,Offset(number.width+1,10.2));
-    canvas.restore(); // rotation/translation (and glass clip)
 
-    // Hairline reflections on the actual bezel, kept very faint.
-    canvas.drawPath(pane,Paint()
-      ..style=PaintingStyle.stroke
-      ..strokeWidth=.38
-      ..color=const Color(0x396FADB7));
+    final unitShadow=_text(' км',const TextStyle(
+      color:Color(0x7A000000),fontSize:11.0,fontWeight:FontWeight.w500,
+    ));
+    unitShadow.paint(canvas,Offset(number.width+1.2,10.5));
+    unit.paint(canvas,Offset(number.width+.6,9.9));
+
+    canvas.restore();
     canvas.restore();
   }
 
@@ -170,11 +140,12 @@ class _MileageGlassReadoutPainter extends CustomPainter {
     oldDelegate.value!=value;
 }
 
+
+
 class _MileageOdometerPainter extends CustomPainter {
   final String reading;
   const _MileageOdometerPainter({required this.reading});
 
-  // Standard seven-segment patterns, with inactive segments always visible.
   static const _patterns=<String,List<int>>{
     '0':[0,1,2,4,5,6], '1':[2,5], '2':[0,2,3,4,6],
     '3':[0,2,3,5,6], '4':[1,2,3,5], '5':[0,1,3,5,6],
@@ -196,51 +167,47 @@ class _MileageOdometerPainter extends CustomPainter {
   }
 
   Path _vertical(double x,double y,double h,double t){
-    final bevel=t*.53;
+    final bevel=t*.56;
     return Path()
-      ..moveTo(x+t/2,y)
+      ..moveTo(x,y+bevel)
+      ..lineTo(x+t/2,y)
       ..lineTo(x+t,y+bevel)
       ..lineTo(x+t,y+h-bevel)
       ..lineTo(x+t/2,y+h)
       ..lineTo(x,y+h-bevel)
-      ..lineTo(x,y+bevel)
       ..close();
   }
 
-  void _digit(Canvas canvas,String digit,double left,double top,
-    double w,double h){
-    final t=math.max(.78,w*.17);
-    final mid=h/2;
-    final vs=(mid-t*1.5);
+  void _digit(Canvas canvas,double left,double top,double w,double h,String digit){
+    final t=w*.16;
     final paths=<Path>[
-      _horizontal(left+t*.66,top,w-t*1.32,t),
-      _vertical(left,top+t*.85,vs,t),
-      _vertical(left+w-t,top+t*.85,vs,t),
-      _horizontal(left+t*.66,top+mid-t/2,w-t*1.32,t),
-      _vertical(left,top+mid+t*.35,vs,t),
-      _vertical(left+w-t,top+mid+t*.35,vs,t),
-      _horizontal(left+t*.66,top+h-t,w-t*1.32,t),
+      _horizontal(left+t*.9,top,w-t*1.8,t),
+      _vertical(left,top+t*.55,h/2-t*.7,t),
+      _vertical(left+w-t,top+t*.55,h/2-t*.7,t),
+      _horizontal(left+t*.9,top+h/2-t/2,w-t*1.8,t),
+      _vertical(left,top+h/2+t*.2,h/2-t*.75,t),
+      _vertical(left+w-t,top+h/2+t*.2,h/2-t*.75,t),
+      _horizontal(left+t*.9,top+h-t,w-t*1.8,t),
     ];
     final active=_patterns[digit]??const <int>[];
     for(var i=0;i<7;i++){
       final path=paths[i];
       if(!active.contains(i)){
-        canvas.drawPath(path,Paint()..color=const Color(0x234D3016));
+        canvas.drawPath(path,Paint()..color=const Color(0x163E2612));
         continue;
       }
       canvas.drawPath(path,Paint()
-        ..color=const Color(0x89F5A348)
-        ..maskFilter=const MaskFilter.blur(BlurStyle.normal,1.65));
+        ..color=const Color(0x72F3A24C)
+        ..maskFilter=const MaskFilter.blur(BlurStyle.normal,1.4));
       canvas.drawPath(path,Paint()
         ..shader=const LinearGradient(
           begin:Alignment.topCenter,end:Alignment.bottomCenter,
-          colors:[Color(0xFFFFD38A),Color(0xFFFFAE48),Color(0xFFBD6325)],
+          colors:[Color(0xFFFFD48A),Color(0xFFFFAA43),Color(0xFFBC6325)],
         ).createShader(Rect.fromLTWH(left,top,w,h)));
-      // A bright inner filament is reflected onto the glass.
       canvas.drawPath(path,Paint()
         ..style=PaintingStyle.stroke
-        ..strokeWidth=.13
-        ..color=const Color(0x90FFE5A8));
+        ..strokeWidth=.12
+        ..color=const Color(0x8DFFE2A5));
     }
   }
 
@@ -248,59 +215,40 @@ class _MileageOdometerPainter extends CustomPainter {
   void paint(Canvas canvas,Size size){
     canvas.save();
     canvas.scale(size.width/62.0,size.height/25.0);
-    final panel=RRect.fromRectAndRadius(
-      const Rect.fromLTWH(1.5,1.8,59.0,21.0),
-      const Radius.circular(2.9),
-    );
-    // Restrained shading leaves the photographic metal surround intact.
-    canvas.drawRRect(panel,Paint()
-      ..shader=const LinearGradient(
-        begin:Alignment.topLeft,end:Alignment.bottomRight,
-        colors:[Color(0xB6100E0B),Color(0xAE20140B),Color(0xD00C0908)],
-      ).createShader(const Rect.fromLTWH(0,0,62,25)));
-    canvas.drawRRect(panel,Paint()
-      ..style=PaintingStyle.stroke
-      ..strokeWidth=.45
-      ..color=const Color(0x784C321A));
-
-    canvas.save();
-    canvas.clipRRect(panel);
-    // The unlit LCD material and subdued diagonal dashboard reflection.
-    canvas.drawRect(const Rect.fromLTWH(1,2,61,20),Paint()
-      ..shader=const LinearGradient(
-        begin:Alignment.topLeft,end:Alignment.bottomRight,
-        colors:[Color(0x154F351E),Color(0x00000000),Color(0x18120804)],
-      ).createShader(const Rect.fromLTWH(0,0,62,25)));
-    for(var y=4.0;y<22;y+=2.1){
-      canvas.drawLine(Offset(2,y),Offset(59,y),
-        Paint()..strokeWidth=.14..color=const Color(0x18694620));
-    }
 
     final justDigits=reading.replaceAll(RegExp(r'[^0-9]'),'');
     final shown=justDigits.isEmpty?'------':justDigits.padLeft(6,'0');
     final n=shown.length;
-    final groupGap=n>=5?1.5:0.0;
-    const gap=.85;
-    final glyphW=(53.0-gap*(n-1)-groupGap)/n;
-    final full= glyphW*n+gap*(n-1)+groupGap;
+    final groupGap=n>=5?1.45:0.0;
+    const gap=.78;
+    final glyphW=(52.0-gap*(n-1)-groupGap)/n;
+    final full=glyphW*n+gap*(n-1)+groupGap;
     var x=(62-full)/2;
+    const top=2.6;
+    const height=19.4;
+
+    // Very soft darkening inside the photographed odometer window only.
+    final glaze=RRect.fromRectAndRadius(const Rect.fromLTWH(2,1.6,58,21),const Radius.circular(2.2));
+    canvas.drawRRect(glaze,Paint()
+      ..shader=const LinearGradient(
+        begin:Alignment.topCenter,end:Alignment.bottomCenter,
+        colors:[Color(0x12000000),Color(0x00000000),Color(0x15000000)],
+      ).createShader(const Rect.fromLTWH(2,1.6,58,21)));
+
     for(var i=0;i<n;i++){
-      if(groupGap>0&&i==n-3)x+=groupGap;
-      _digit(canvas,shown[i],x,5.0,glyphW,15.0);
+      if(i==3&&n>=5)x+=groupGap;
+      _digit(canvas,x,top,glyphW,height,shown[i]);
       x+=glyphW+gap;
     }
 
-    // An instrument-glass reflection sits IN FRONT of the LEDs.
-    canvas.drawRect(const Rect.fromLTWH(2,2,58,21),Paint()
+    // Tiny warm reflection to blend with the photographed display lens.
+    canvas.drawRRect(glaze,Paint()
+      ..style=PaintingStyle.stroke
+      ..strokeWidth=.2
       ..shader=const LinearGradient(
-        begin:Alignment.topCenter,end:Alignment.bottomCenter,
-        stops:[0,.24,.32,.70,1],
-        colors:[
-          Color(0x36FFF1CC),Color(0x04FFF1CC),Color(0x00000000),
-          Color(0x00000000),Color(0x19000000),
-        ],
-      ).createShader(const Rect.fromLTWH(0,1,62,24)));
-    canvas.restore();
+        begin:Alignment.topLeft,end:Alignment.bottomRight,
+        colors:[Color(0x24FFE7B2),Color(0x00000000),Color(0x12000000)],
+      ).createShader(const Rect.fromLTWH(0,0,62,25)));
     canvas.restore();
   }
 
@@ -308,6 +256,7 @@ class _MileageOdometerPainter extends CustomPainter {
   bool shouldRepaint(covariant _MileageOdometerPainter oldDelegate)=>
     oldDelegate.reading!=reading;
 }
+
 
 class _MetricDetails extends StatefulWidget {
   final String metric;final DateTime month;
@@ -488,7 +437,7 @@ class _MetricDetailsState extends State<_MetricDetails> {
         // Both readings are painted into the original photographic instruments.
         // The background stays untouched; only live values are rendered.
         Positioned(
-          left:216*u,top:227*u,width:115*u,height:70*u,
+          left:216*u,top:227*u,width:113*u,height:68*u,
           child:IgnorePointer(child:CustomPaint(
             painter:_MileageGlassReadoutPainter(
               value:_total==null?'—':_fmtInt(_total!.mileage),
@@ -496,7 +445,7 @@ class _MetricDetailsState extends State<_MetricDetails> {
           )),
         ),
         Positioned(
-          left:106*u,top:295*u,width:66*u,height:27*u,
+          left:107*u,top:296*u,width:64*u,height:26*u,
           child:IgnorePointer(child:Transform(
             alignment:Alignment.center,
             transform:Matrix4.identity()
