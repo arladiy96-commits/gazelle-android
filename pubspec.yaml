@@ -13,6 +13,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   video_player: ^2.10.0
   shared_preferences: ^2.5.3
+  geolocator: ^13.0.2
 
 dev_dependencies:
   flutter_test:
@@ -31,4 +32,3 @@ flutter:
     - assets/images/service_open.png
     - assets/images/service_closed.png
     - assets/images/scenes/
-    - assets/images/salary_cab.png
