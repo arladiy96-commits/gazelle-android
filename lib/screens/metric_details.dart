@@ -226,25 +226,27 @@ class _MileageOdometerPainter extends CustomPainter {
     // Photograph origin (214,592), bounds 124x50; corners follow the LCD
     // window, not a separate rectangle laid on top of the dashboard.
     canvas.scale(size.width/62.0,size.height/25.0);
+    // Fine-tuned to the photographed odometer window so the digits follow
+    // the plane of the LCD more naturally.
     canvas.transform(_mileagePhotoPlane(
       100,24,
-      const Offset(4.0,6.5),
-      const Offset(57.5,7.5),
-      const Offset(57.5,22.0),
-      const Offset(3.0,20.5),
+      const Offset(5.0,8.3),
+      const Offset(58.6,6.2),
+      const Offset(57.8,21.2),
+      const Offset(4.1,22.7),
     ).storage);
 
     final onlyDigits=reading.replaceAll(RegExp(r'[^0-9]'),'');
     final shown=onlyDigits.isEmpty?'------':onlyDigits.padLeft(6,'0');
     final n=shown.length;
-    const leftMargin=3.0;
-    const spacing=1.0;
-    final groupGap=n>=5?2.0:0.0;
-    final digitWidth=(94.0-spacing*(n-1)-groupGap)/n;
+    const leftMargin=4.0;
+    const spacing=.9;
+    final groupGap=n>=5?1.8:0.0;
+    final digitWidth=(92.0-spacing*(n-1)-groupGap)/n;
     var x=leftMargin;
     for(var i=0;i<n;i++){
       if(i==n-3&&groupGap>0)x+=groupGap;
-      _digit(canvas,shown[i],x,2.2,digitWidth,19.5);
+      _digit(canvas,shown[i],x,1.9,digitWidth,18.7);
       x+=digitWidth+spacing;
     }
     // The original background supplies the smoked LCD, bezel and highlights.
@@ -447,9 +449,9 @@ class _MetricDetailsState extends State<_MetricDetails> {
           )),
         ),
         Positioned(
-          left:214*photoScale-photoCropX,
-          top:592*photoScale,
-          width:124*photoScale,height:50*photoScale,
+          left:212*photoScale-photoCropX,
+          top:594*photoScale,
+          width:128*photoScale,height:52*photoScale,
           child:IgnorePointer(child:CustomPaint(
             painter:_MileageOdometerPainter(
               reading:_mileageOdometer==null?'':_mileageOdometer!.round().toString(),
