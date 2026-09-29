@@ -1349,25 +1349,32 @@ class _GasDashboardState extends State<_GasDashboard> {
     final days = groups.keys.toList()..sort((a,b) => b.compareTo(a));
     final latest = entries.isEmpty ? null : entries.first;
     final average = entries.isEmpty ? 0.0 : total / entries.length;
-    return Scaffold(backgroundColor: const Color(0xFF050B10), body: SafeArea(
-      child: LayoutBuilder(builder: (context, constraints) {
-        final scale = constraints.maxWidth / 864;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light),
+      child: Scaffold(backgroundColor: const Color(0xFF050B10), body: LayoutBuilder(builder: (context, constraints) {
+        final scale = math.min(constraints.maxWidth / 864,
+          (constraints.maxHeight - MediaQuery.paddingOf(context).bottom - 160) / 900);
+        final sceneWidth = 864 * scale;
+        final headerTop = math.max(28.0, MediaQuery.paddingOf(context).top / scale + 8);
         Widget at(double x, double y, double w, double h, Widget child) =>
           Positioned(left: x, top: y, width: w, height: h, child: child);
         final hero = SizedBox(width: 864, height: 900, child: Stack(children: [
-          at(25, 28, 88, 88, _GasTap(label: 'Назад', onTap: () => Navigator.pop(context),
+          at(25, headerTop, 88, 88, _GasTap(label: 'Назад', onTap: () => Navigator.pop(context),
             child: Container(decoration: BoxDecoration(shape: BoxShape.circle,
               color: const Color(0xB0081016), border: Border.all(color: _gasGold, width: 1.5)),
               child: const Icon(Icons.arrow_back, color: _gasGold, size: 40)))),
-          at(340, 22, 200, 85, const Row(children: [
+          at(340, headerTop, 200, 85, const Row(children: [
             Icon(Icons.local_fire_department_outlined, color: _gasGold, size: 65),
             SizedBox(width: 16), Text('Газ', style: TextStyle(color: _gasWhite, fontSize: 44, fontWeight: FontWeight.w600))])),
-          at(621, 34, 215,  70, _GasTap(label: 'Выбрать месяц', onTap: pickMonth,
+          at(621, headerTop + 6, 215,  70, _GasTap(label: 'Выбрать месяц', onTap: pickMonth,
             child: Container(alignment: Alignment.center, decoration: BoxDecoration(
               color: const Color(0xCF0A141B), borderRadius: BorderRadius.circular(25),
               border: Border.all(color: _gasGold)), child: FittedBox(fit: BoxFit.scaleDown,
               child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Text(
-                '${_garageMonths[month.month-1]} ${month.year} ⌄', style: const TextStyle(color: _gasWhite, fontSize: 20))))))),
+                '${_garageMonths[month.month-1]} ${month.year} ⌄', style: const TextStyle(color: _gasWhite, fontSize: 15))))))),
           at(300, 205, 278, 113, Column(children: [
             const Text('Выдано газа за месяц', style: TextStyle(color: _gasWhite, fontSize: 21)),
             const SizedBox(height: 8), Expanded(child: FittedBox(fit: BoxFit.scaleDown,
@@ -1394,16 +1401,20 @@ class _GasDashboardState extends State<_GasDashboard> {
             icon: Icons.access_time, color: _gasGold, values: daily, line: true,
             onTap: latest == null ? () => setState(() => tab = 2) : () => _testEditor(context, 'fuel', entry: latest)),
         ]));
-        return SingleChildScrollView(child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight), child: Stack(children: [
-          Positioned(top: 0, left: 0, right: 0, child: ShaderMask(
-            blendMode: BlendMode.dstIn, shaderCallback: (rect) => const LinearGradient(
-              begin: Alignment.topCenter, end: Alignment.bottomCenter,
-              colors: [Colors.white, Colors.white, Colors.transparent],
-              stops: [0, .78, 1]).createShader(rect),
-            child: Image.asset('assets/images/scenes/gas_dashboard.png', fit: BoxFit.fitWidth,
-              excludeFromSemantics: true, filterQuality: FilterQuality.high))),
-          Column(children: [
+        return Stack(children: [
+          Positioned.fill(child: Image.asset('assets/images/scenes/gas_dashboard.png',
+            fit: BoxFit.cover, excludeFromSemantics: true)),
+          Positioned(top: 0, left: (constraints.maxWidth - sceneWidth) / 2,
+            width: sceneWidth, child: ShaderMask(blendMode: BlendMode.dstIn,
+              shaderCallback: (rect) => const LinearGradient(
+                begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                colors: [Colors.white, Colors.white, Colors.transparent],
+                stops: [0, .88, 1]).createShader(rect),
+              child: Image.asset('assets/images/scenes/gas_dashboard.png',
+                fit: BoxFit.fitWidth, excludeFromSemantics: true))),
+          Padding(padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom + 6),
+            child: Column(children: [
+
             SizedBox(width: constraints.maxWidth, height: 900 * scale,
               child: FittedBox(fit: BoxFit.contain, child: MediaQuery.withClampedTextScaling(
                 minScaleFactor: 1, maxScaleFactor: 1, child: hero))),
@@ -1411,28 +1422,34 @@ class _GasDashboardState extends State<_GasDashboard> {
               for (var i = 0; i < 3; i++) Expanded(child: Padding(
                 padding: EdgeInsets.only(right: i == 2 ? 0 : 4), child: _GasTap(
                   label: const ['Выдачи','Статистика','Журнал'][i], onTap: () => setState(() => tab = i),
-                  child: Container(height: 48, decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(17),
+                  child: Container(height: 36, decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(13),
                     color: tab == i ? const Color(0xD9453215) : const Color(0xD909131B),
                     border: Border.all(color: tab == i ? _gasGold : const Color(0xFF45505A))),
                     child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                       Icon(const [Icons.local_gas_station_outlined,Icons.bar_chart,Icons.receipt_long_outlined][i],
-                        color: tab == i ? _gasGold : _gasWhite, size: 21),
+                        color: tab == i ? _gasGold : _gasWhite, size: 18),
                       const SizedBox(width: 5), Flexible(child: Text(const ['Выдачи','Статистика','Журнал'][i],
-                        maxLines: 1, style: const TextStyle(color: _gasWhite, fontSize: 11))),
+                        maxLines: 1, style: const TextStyle(color: _gasWhite, fontSize: 10))),
                     ])))))
             ])),
-            Container(margin: const EdgeInsets.fromLTRB(14, 12, 14, 22), padding: const EdgeInsets.all(12),
+            Flexible(fit: FlexFit.loose, child: Container(
+              margin: const EdgeInsets.fromLTRB(14, 7, 14, 0), padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(color: const Color(0xED0B141C), borderRadius: BorderRadius.circular(22),
                 border: Border.all(color: const Color(0xFF655D4B), width: 1),
                 boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 16)]),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [Icon(tab == 0 ? Icons.calendar_month_outlined : tab == 1 ? Icons.bar_chart : Icons.receipt_long,
-                    color: _gasGold, size: 26), const SizedBox(width: 10),
+                    color: _gasGold, size: 21), const SizedBox(width: 10),
                   Expanded(child: Text(const ['Газ по дням','Статистика газа','Журнал выдач'][tab],
-                    style: const TextStyle(color: _gasWhite, fontSize: 20))),
+                    style: const TextStyle(color: _gasWhite, fontSize: 15))),
                   IconButton(tooltip: 'Добавить выдачу газа', onPressed: add,
+                    visualDensity: VisualDensity.compact, iconSize: 21,
                     icon: const Icon(Icons.add_circle_outline, color: _gasGold))]),
+                Flexible(fit: FlexFit.loose, child: ListView(
+                  key: ValueKey('gas-$tab-${month.year}-${month.month}'),
+                  shrinkWrap: true, primary: false, padding: EdgeInsets.zero,
+                  children: [
                 if (error != null) ...[Text(error!, style: const TextStyle(color: _gasWhite)),
                   TextButton(onPressed: load, child: const Text('Повторить'))]
                 else if (book == null) const Padding(padding: EdgeInsets.all(24),
@@ -1464,9 +1481,11 @@ class _GasDashboardState extends State<_GasDashboard> {
                   _GasStatRow('Дней с выдачами', '${days.length}'),
                 ],
               ])),
-          ]),
-        ])));
+              ]))),
+          ])),
+        ]);
       })));
+
   }
 }
 class _GasTap extends StatelessWidget {
@@ -1488,17 +1507,17 @@ class _GasDayRow extends StatelessWidget {
   final DateTime day; final double total; final int count; final VoidCallback onTap;
   const _GasDayRow({required this.day, required this.total, required this.count, required this.onTap});
   @override Widget build(BuildContext context) => _gasRecordFrame(onTap, Row(children: [
-    SizedBox(width: 58, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(day.day.toString().padLeft(2,'0'), style: const TextStyle(color: _gasWhite, fontSize: 27)),
+    SizedBox(width: 46, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(day.day.toString().padLeft(2,'0'), style: const TextStyle(color: _gasWhite, fontSize: 20)),
       Text(_garageMonths[day.month-1], style: const TextStyle(color: Color(0xFFABB8BF), fontSize: 9)),
-    ])), const Icon(Icons.location_on_outlined, color: _gasBlue, size: 27), const SizedBox(width: 12),
+    ])), const Icon(Icons.location_on_outlined, color: _gasBlue, size: 21), const SizedBox(width: 8),
     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Газ · Выдача', style: TextStyle(color: _gasWhite, fontSize: 13)),
-      const SizedBox(height: 4), Text(count == 1 ? 'Выдано водителю' : 'Выдач за день: $count',
-        style: const TextStyle(color: Color(0xFFA3AEB6), fontSize: 11))])),
-    SizedBox(width: 72, child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerRight,
+      const Text('Газ · Выдача', style: TextStyle(color: _gasWhite, fontSize: 10)),
+      const SizedBox(height: 2), Text(count == 1 ? 'Выдано водителю' : 'Выдач за день: $count',
+        style: const TextStyle(color: Color(0xFFA3AEB6), fontSize: 10))])),
+    SizedBox(width: 58, child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerRight,
       child: Text('${_fmt1(total)} л', maxLines: 1,
-        style: const TextStyle(color: _gasWhite, fontSize: 20, fontWeight: FontWeight.w600)))),
+        style: const TextStyle(color: _gasWhite, fontSize: 16, fontWeight: FontWeight.w600)))),
     const Icon(Icons.chevron_right, color: _gasWhite, size: 22),
   ]));
 }
@@ -1512,21 +1531,21 @@ class _GasJournalRow extends StatelessWidget {
       const Icon(Icons.local_gas_station_outlined, color: _gasBlue, size: 25), const SizedBox(width: 10),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('${_detailDate(day)}${time == null ? '' : ' · ${_detailTime(time)}'}',
-          style: const TextStyle(color: _gasWhite, fontSize: 14)),
-        const SizedBox(height: 5), Text(note.isEmpty ? 'Выдано водителю · нажмите для изменения' : note,
+          style: const TextStyle(color: _gasWhite, fontSize: 12)),
+        const SizedBox(height: 2), Text(note.isEmpty ? 'Выдано водителю · нажмите для изменения' : note,
           maxLines: 2, overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: Color(0xFFA3AEB6), fontSize: 11)),
+          style: const TextStyle(color: Color(0xFFA3AEB6), fontSize: 10)),
       ])), const SizedBox(width: 8),
       Text('${_fmt1((row['amount'] as num).toDouble())} л',
-        style: const TextStyle(color: _gasWhite, fontSize: 19)),
+        style: const TextStyle(color: _gasWhite, fontSize: 16)),
       const Icon(Icons.chevron_right, color: _gasGold, size: 20),
     ]));
   }
 }
-Widget _gasRecordFrame(VoidCallback tap, Widget child) => Padding(padding: const EdgeInsets.only(top: 7),
+Widget _gasRecordFrame(VoidCallback tap, Widget child) => Padding(padding: const EdgeInsets.only(top: 4),
   child: _GasTap(label: 'Открыть выдачи газа', onTap: tap,
-    child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(15),
+    child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF424B52)),
         gradient: const LinearGradient(colors: [Color(0xA5202B32), Color(0xCF08121A)])), child: child)));
 class _GasWall extends StatelessWidget {
