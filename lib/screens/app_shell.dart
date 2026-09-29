@@ -159,10 +159,11 @@ class _AppShellState extends State<AppShell> {
           if (widget.session.role != AppRole.loader && _index == 0)
             Positioned.fill(child: Image.asset('assets/images/garage_approved.png', fit: BoxFit.fill))
           else if (widget.session.role != AppRole.loader && _index == 1)
-            Positioned.fill(child: Image.asset('assets/images/work_approved.png', fit: BoxFit.fill))
+            const Positioned.fill(child: ColoredBox(color: Color(0xFF071017)))
           else
             const _AppBackground(),
           SafeArea(
+            top: !(widget.session.role != AppRole.loader && _index == 1),
             bottom: false,
             child: _SceneTabStage(
               index: _index,

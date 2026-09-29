@@ -211,7 +211,7 @@ class _WorkNavigation extends StatelessWidget {
 class _MillWorkScreen extends StatelessWidget {
   final AppSession session;final ValueChanged<int>? onNavigate;final VoidCallback? onQuickAdd;final bool showNavigation;
   const _MillWorkScreen({required this.session,this.onNavigate,this.onQuickAdd,this.showNavigation=true});
-  static const gold=Color(0xFFFFC46A),cyan=Color(0xFF53CDEB);
+  static const gold=Color(0xFFE3B66F),cyan=Color(0xFF64B8CD);
   void go(BuildContext c,int i){if(onNavigate!=null){onNavigate!(i);}else{_CinematicMore(session:session).navigate(c,i);}}
   Future<void> note(BuildContext c,Map<String,dynamic>? shift,List<Map<String,dynamic>> rows) async {
     if(shift==null){await _showShiftForm(c);return;}
@@ -227,17 +227,46 @@ class _MillWorkScreen extends StatelessWidget {
       await TestStore.saveRecord({...?existing,'kind':'other','shiftId':shift['id'],'amount':0.0,'workNote':true,'note':text,
         'date':existing?['date']??DateTime.now().toIso8601String()});});
   }
-  void history(BuildContext c)=>Navigator.push(c,_SceneRoute<void>(builder:(_)=>Scaffold(backgroundColor:const Color(0xFF0B151D),
-    appBar:AppBar(title:const Text('История маршрута'),backgroundColor:const Color(0xFF101D25)),body:_TestLive(builder:(b){
-      final shifts=[...b.shifts]..sort((a,b)=>(b['start'] as String).compareTo(a['start'] as String));
-      return ListView(children:[if(shifts.isEmpty)const Padding(padding:EdgeInsets.all(24),child:Text('Маршрутов пока нет',style:TextStyle(color:Colors.white70))),
-        for(final s in shifts)ListTile(title:Text(_detailDate(DateTime.parse(s['start'] as String)),style:const TextStyle(color:Colors.white)),
-          subtitle:Text('GPS: ${_fmt1((s['gpsKm'] as num?)?.toDouble()??0)} км',style:const TextStyle(color:gold)),
-          trailing:const Icon(Icons.chevron_right,color:gold),onTap:()=>Navigator.push(c,_SceneRoute<void>(builder:(_)=>Scaffold(
-            appBar:AppBar(title:Text('Маршрут · ${_detailDate(DateTime.parse(s['start'] as String))}')),
-            body:SafeArea(child:ShiftRouteMap(shiftId:s['id'] as String,paused:s['gpsStatus']=='paused')))))),
-      ]);
-    }))));
+  void history(BuildContext c,String? shiftId)=>Navigator.push(c,_SceneRoute<void>(builder:(page)=>Scaffold(
+    backgroundColor:const Color(0xFF0B151D),
+    appBar:AppBar(title:const Text('История смены'),backgroundColor:const Color(0xFF101D25)),
+    body:Stack(children:[
+      Positioned.fill(child:Image.asset('assets/images/scenes/work_dashboard.png',fit:BoxFit.cover)),
+      const Positioned.fill(child:ColoredBox(color:Color(0xCB071017))),
+      _TestLive(builder:(b){
+        final shift=b.shifts.where((s)=>s['id']==shiftId).firstOrNull;
+        if(shift==null)return const Center(child:Text('Нет открытой смены',style:TextStyle(color:Colors.white70)));
+        final events=[...b.forShift(shiftId!)]..sort((a,b)=>(a['date'] as String).compareTo(b['date'] as String));
+        Widget event(IconData icon,String title,String detail,String timestamp,{VoidCallback? tap}){
+          final time=DateTime.tryParse(timestamp);
+          return Container(margin:const EdgeInsets.only(bottom:10),decoration:BoxDecoration(
+            color:const Color(0xEB101B23),borderRadius:BorderRadius.circular(16),border:Border.all(color:const Color(0x887D6037))),
+            child:ListTile(onTap:tap,leading:Icon(icon,color:gold),
+              title:Text(title,style:const TextStyle(color:Colors.white,fontSize:15)),
+              subtitle:Padding(padding:const EdgeInsets.only(top:5),child:Text('${time==null?'': '${_detailDate(time)} · ${_detailTime(time)}\n'}$detail',
+                style:const TextStyle(color:Color(0xFFADBCC5),fontSize:12,height:1.4))),
+              trailing:tap==null?null:const Icon(Icons.chevron_right,color:gold)));
+        }
+        return ListView(padding:const EdgeInsets.all(16),children:[
+          event(Icons.play_circle_outline,'Смена начата','Одометр: ${shift['startKm']} км',shift['start'] as String),
+          if(events.isEmpty)const Padding(padding:EdgeInsets.all(16),child:Text('Рейсов и выдач топлива пока нет',style:TextStyle(color:Colors.white70))),
+          for(final r in events)Builder(builder:(_){
+            final kind=r['kind']?.toString()??'other';final amount=_fmt1((r['amount'] as num?)?.toDouble()??0);
+            final noteText=r['note']?.toString().trim()??'';
+            final title=switch(kind){'trip'=>'Добавлен рейс','fuel'=>'Добавлено топливо','invoice'=>'Добавлена накладная',_=>r['workNote']==true?'Примечание к смене':'Добавлена запись'};
+            final description=switch(kind){
+              'trip'=>'${r['direction']??r['type']??''} · $amount кг\n${r['type']??''}${noteText.isEmpty?'':'\n$noteText'}',
+              'fuel'=>'${r['type']??'Топливо'} · $amount л${noteText.isEmpty?'':'\n$noteText'}',
+              'invoice'=>'№ ${r['number']??'—'} · ${r['status']=='closed'?'Закрыта':'Черновик'}',
+              _=>noteText,
+            };
+            return event(switch(kind){'trip'=>Icons.local_shipping_outlined,'fuel'=>Icons.local_gas_station_outlined,'invoice'=>Icons.receipt_long_outlined,_=>Icons.edit_note},
+              title,description,r['date']?.toString()??'',tap:()=>_testEditor(page,kind,entry:r));
+          }),
+          if(shift['end']!=null)event(Icons.flag_outlined,'Смена завершена','Одометр: ${shift['currentKm']} км',shift['end'] as String),
+        ]);
+      }),
+    ]))));
   Widget text(String value,double size,{Color color=Colors.white})=>Text(value,style:TextStyle(color:color,fontSize:size,height:1.16),maxLines:2,overflow:TextOverflow.ellipsis);
   @override Widget build(BuildContext context)=>_TestLive(builder:(b){
     final shift=b.active;final rows=shift==null?<Map<String,dynamic>>[]:b.forShift(shift['id'] as String);
@@ -249,6 +278,10 @@ class _MillWorkScreen extends StatelessWidget {
     final km=shift==null?0.0:shift['odometerSet']==true?b.mileage(shift):(shift['gpsKm'] as num?)?.toDouble()??0;
     final destination=trips.isEmpty?'':trips.last['direction']?.toString()??'';
     return LayoutBuilder(builder:(context,box){final scale=box.maxWidth/864;
+      final safeTop=MediaQuery.paddingOf(context).top/scale;
+      final headerTop=math.max(30.0,safeTop+5);
+      // One continuous scene extends beneath the transparent status bar.
+      final sceneHeight=math.max(1330.0,(box.maxHeight-(showNavigation?90.0:0.0))/scale);
       Widget at(double x,double y,double w,double h,Widget child)=>Positioned(left:x,top:y,width:w,height:h,child:child);
       final items=< (String,String,IconData,Color,List<double>,VoidCallback)>[
         ('Тоннаж\nза смену','${_fmt1(sum('trip'))} кг',Icons.grass,gold,trips.map((r)=>(r['amount'] as num).toDouble()).toList(),()=>_testOpen(context,page:'Рейсы',shiftId:shift?['id'] as String?)),
@@ -258,11 +291,18 @@ class _MillWorkScreen extends StatelessWidget {
         ('Бензин\nза смену','${_fmt1(sum('fuel','Бензин'))} л',Icons.local_gas_station_outlined,gold,rows.where((r)=>r['kind']=='fuel'&&r['type']=='Бензин').map((r)=>(r['amount'] as num).toDouble()).toList(),()=>_testEditor(context,'fuel',initialType:'Бензин')),
         ('Время смены',clock,Icons.access_time_outlined,gold,const [],()=>_testOpen(context,shiftId:shift?['id'] as String?)),
       ];
-      final scene=SizedBox(width:864,height:1330,child:Stack(children:[
-        Positioned(top:0,left:0,right:0,child:Image.asset('assets/images/scenes/work_dashboard.png',fit:BoxFit.fitWidth)),
-        at(40,35,75,75,IconButton(tooltip:'Главная',onPressed:()=>go(context,0),icon:const Icon(Icons.arrow_back,color:gold,size:43))),
-        at(288,30,420,70,Row(children:[const Icon(Icons.local_shipping_outlined,color:gold,size:48),const SizedBox(width:30),text('Работа',45)])),
-        at(287,99,460,38,text(shift==null?'Смена закрыта':'Сводка за текущую смену',25,color:const Color(0xFFCBD0D4))),
+      final scene=SizedBox(width:864,height:sceneHeight,child:Stack(children:[
+        Positioned(top:0,left:0,right:0,child:ColorFiltered(
+          // Reduce the bright amber/blue lighting without dimming live labels.
+          colorFilter:const ColorFilter.matrix([
+            .67,.09,.03,0,0,
+            .03,.74,.02,0,0,
+            .03,.09,.67,0,0,
+            0,0,0,1,0]),
+          child:Image.asset('assets/images/scenes/work_dashboard.png',fit:BoxFit.fitWidth))),
+        at(40,headerTop,75,58,IconButton(tooltip:'Главная',onPressed:()=>go(context,0),icon:const Icon(Icons.arrow_back,color:gold,size:43))),
+        at(288,headerTop,420,48,Row(children:[const Icon(Icons.local_shipping_outlined,color:gold,size:48),const SizedBox(width:30),text('Работа',45)])),
+        at(287,headerTop+49,460,27,text(shift==null?'Смена закрыта':'Сводка за текущую смену',25,color:const Color(0xFFCBD0D4))),
         at(73,182,721,302,ClipPath(clipper:_MillMapClip(),child:Transform(
           alignment:Alignment.center,transform:Matrix4.identity()..setEntry(3,1,.000045)..rotateX(-.04),
           child:ShiftRouteMap(key:ValueKey(shift?['id']),shiftId:shift?['id'] as String?,paused:shift?['gpsStatus']=='paused',unit:2)))),
@@ -280,13 +320,13 @@ class _MillWorkScreen extends StatelessWidget {
           const Icon(Icons.edit_note,color:gold,size:49),const SizedBox(width:24),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisAlignment:MainAxisAlignment.center,children:[
             text('Примечание',21,color:const Color(0xFFCBD0D4)),const SizedBox(height:5),text(noteRow?['note']?.toString()??'Добавить примечание',23)])),
           const Icon(Icons.edit_outlined,color:Colors.white70,size:32)]))),
-        at(66,1240,730,55,_GarageTap(label:'История маршрута',onTap:()=>history(context),child:Row(children:[
-          const Icon(Icons.map_outlined,color:gold,size:48),const SizedBox(width:28),Expanded(child:text('История маршрута',26)),const Icon(Icons.chevron_right,color:Colors.white,size:43)]))),
+        at(66,1240,730,55,_GarageTap(label:'История смены',onTap:()=>history(context,shift?['id'] as String?),child:Row(children:[
+          const Icon(Icons.map_outlined,color:gold,size:48),const SizedBox(width:28),Expanded(child:text('История смены',26)),const Icon(Icons.chevron_right,color:Colors.white,size:43)]))),
       ]));
       return Stack(children:[
         const Positioned.fill(child:ColoredBox(color:Color(0xFF071017))),
-        Positioned(top:0,left:0,right:0,child:Image.asset('assets/images/scenes/work_dashboard.png',fit:BoxFit.fitWidth)),
-        Column(children:[Expanded(child:SingleChildScrollView(child:SizedBox(width:box.maxWidth,height:1330*scale,
+        
+        Column(children:[Expanded(child:SingleChildScrollView(child:SizedBox(width:box.maxWidth,height:sceneHeight*scale,
           child:FittedBox(alignment:Alignment.topCenter,fit:BoxFit.contain,child:MediaQuery.withClampedTextScaling(minScaleFactor:1,maxScaleFactor:1,child:scene))))),
           if(showNavigation)SafeArea(top:false,child:Padding(padding:const EdgeInsets.fromLTRB(12,5,12,7),child:Container(height:65,
             decoration:BoxDecoration(color:const Color(0xC5111920),border:Border.all(color:const Color(0x998F7A5B)),borderRadius:BorderRadius.circular(24)),
