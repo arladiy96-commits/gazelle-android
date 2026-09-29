@@ -573,7 +573,7 @@ class _MillNavigation extends StatelessWidget {
                 border: Border.all(color: _millGold, width: 1.5),
                 boxShadow: const [BoxShadow(color: Color(0x227A633D), blurRadius: 12)]),
               child: const Icon(Icons.add, color: _millGold, size: 37))))),
-          item('Накладные', Icons.receipt_long_outlined, onInvoices),
+          item('Статистика', Icons.bar_chart_rounded, onInvoices),
           item('Ещё', Icons.grid_view_outlined, onMore),
         ]))));
   Widget item(String title, IconData icon, VoidCallback tap, {bool active = false}) => Expanded(
@@ -840,7 +840,7 @@ class _GarageNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context){
     final items=[('homeOutline','Главная',(){}),('truck','Работа',onWork),('plus','Добавить',onAdd),
-      ('invoice','Накладные',onInvoices),('gridOutline','Ещё',onMore)];
+      ('chart','Статистика',onInvoices),('gridOutline','Ещё',onMore)];
     return Stack(clipBehavior:Clip.none,children:[
       Positioned(left:0,right:0,top:18,bottom:0,child:Container(decoration:const BoxDecoration(
         color:Color(0xCC040B10),border:Border(top:BorderSide(color:Color(0x667C8C94)))),

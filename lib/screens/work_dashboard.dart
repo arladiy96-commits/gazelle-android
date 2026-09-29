@@ -190,7 +190,7 @@ class _WorkNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context){
     final items=[('homeOutline','Главная',onHome),('truck','Работа',(){}),('plus','Добавить',onAdd),
-      ('invoice','Накладные',onInvoices),('gridOutline','Ещё',onMore)];
+      ('chart','Статистика',onInvoices),('gridOutline','Ещё',onMore)];
     return Stack(clipBehavior:Clip.none,children:[
       Positioned(left:0,right:0,top:20,bottom:0,child:Container(decoration:const BoxDecoration(
         color:Color(0xD3030A0F),border:Border(top:BorderSide(color:Color(0x99788B95)))),

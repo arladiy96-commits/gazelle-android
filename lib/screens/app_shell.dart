@@ -21,6 +21,7 @@ part 'metric_details.dart';
 part 'garage_sections.dart';
 part 'test_mode.dart';
 part 'cinematic.dart';
+part 'statistics_dashboard.dart';
 
 class AppShell extends StatefulWidget {
   final AppSession session;
@@ -89,9 +90,9 @@ class _AppShellState extends State<AppShell> {
         activeIcon: Icons.add_rounded,
       ),
       _NavItem(
-        label: 'Накладные',
-        icon: Icons.receipt_long_outlined,
-        activeIcon: Icons.receipt_long_rounded,
+        label: 'Статистика',
+        icon: Icons.bar_chart_outlined,
+        activeIcon: Icons.bar_chart_rounded,
       ),
       _NavItem(
         label: 'Ещё',
@@ -118,7 +119,7 @@ class _AppShellState extends State<AppShell> {
       WorkPage(session: widget.session,
         onNavigate: (index) => setState(() => _index = index), onQuickAdd: _openQuickAdd),
       const SizedBox.shrink(),
-      const _TestHub(page:'Накладные',embedded:true),
+      _MillStatistics(session:widget.session,onHome:()=>setState(()=>_index=0)),
       StatisticsPage(session: widget.session),
     ];
   }

@@ -737,7 +737,7 @@ class _CinematicMore extends StatelessWidget {
     if(index==4)return;
     if(index==2){_showQuickAddMenu(context,session);return;}
     if(index==0){Navigator.of(context).popUntil((r)=>r.isFirst);return;}
-    if(index==3){Navigator.push(context,_SceneRoute<void>(builder:(_)=>const _TestHub(page:'Накладные')));return;}
+    if(index==3){Navigator.push(context,_SceneRoute<void>(builder:(_)=>_MillStatisticsRoute(session:session)));return;}
     Navigator.push(context,_SceneRoute<void>(builder:(page)=>WorkPage(session:session,
       onNavigate:(i)=>navigate(page,i),onQuickAdd:()=>_showQuickAddMenu(page,session))));
   }
@@ -784,8 +784,8 @@ class _CinematicMore extends StatelessWidget {
               border:Border.all(color:gold),color:const Color(0x554E3315)):null,
               child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
                 Icon(const [Icons.home_outlined,Icons.local_shipping_outlined,Icons.add_circle_outline,
-                  Icons.receipt_long_outlined,Icons.grid_view_rounded][i],color:i>=2&&i!=3?gold:const Color(0xFFD7DCDF),size:i==2?42:23),
-                if(i!=2)...[const SizedBox(height:3),Text(const ['Главная','Работа','','Накладные','Ещё'][i],
+                  Icons.bar_chart_rounded,Icons.grid_view_rounded][i],color:i>=2&&i!=3?gold:const Color(0xFFD7DCDF),size:i==2?42:23),
+                if(i!=2)...[const SizedBox(height:3),Text(const ['Главная','Работа','','Статистика','Ещё'][i],
                   style:TextStyle(color:i==4?gold:const Color(0xFFD7DCDF),fontSize:8))],
               ])))))]))),
     ]))]));
