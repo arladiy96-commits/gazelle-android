@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/test_store.dart';
 import '../services/gps_tracker.dart';
+import '../widgets/shift_route_map.dart';
 
 import '../models/app_role.dart';
 import '../services/session_service.dart';
@@ -116,8 +117,8 @@ class _AppShellState extends State<AppShell> {
         onNavigate: (index) => setState(() => _index = index),
         onQuickAdd: _openQuickAdd,
       ),
-      WorkPage(session: widget.session,
-        onNavigate: (index) => setState(() => _index = index), onQuickAdd: _openQuickAdd),
+      if (_index == 1) WorkPage(session: widget.session,
+        onNavigate: (index) => setState(() => _index = index), onQuickAdd: _openQuickAdd) else const SizedBox.shrink(),
       const SizedBox.shrink(),
       _MillStatistics(session:widget.session,onHome:()=>setState(()=>_index=0)),
       StatisticsPage(session: widget.session),

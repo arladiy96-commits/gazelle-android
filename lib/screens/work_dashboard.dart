@@ -17,7 +17,7 @@ class WorkPage extends StatelessWidget {
   const WorkPage({super.key,required this.session,this.onNavigate,this.onQuickAdd,
     this.showNavigation=true});
 
-  @override Widget build(BuildContext context)=>_CinematicWork(
+  @override Widget build(BuildContext context)=>_MillWorkScreen(
     session:session,onNavigate:onNavigate,onQuickAdd:onQuickAdd,
     showNavigation:showNavigation);
 }
@@ -206,4 +206,107 @@ class _WorkNavigation extends StatelessWidget {
         boxShadow:[BoxShadow(color:Color(0xFFFFA32E),blurRadius:9,spreadRadius:2)])))
     ]);
   }
+}
+
+class _MillWorkScreen extends StatelessWidget {
+  final AppSession session;final ValueChanged<int>? onNavigate;final VoidCallback? onQuickAdd;final bool showNavigation;
+  const _MillWorkScreen({required this.session,this.onNavigate,this.onQuickAdd,this.showNavigation=true});
+  static const gold=Color(0xFFFFC46A),cyan=Color(0xFF53CDEB);
+  void go(BuildContext c,int i){if(onNavigate!=null){onNavigate!(i);}else{_CinematicMore(session:session).navigate(c,i);}}
+  Future<void> note(BuildContext c,Map<String,dynamic>? shift,List<Map<String,dynamic>> rows) async {
+    if(shift==null){await _showShiftForm(c);return;}
+    final existing=rows.where((r)=>r['workNote']==true).firstOrNull;
+    final controller=TextEditingController(text:existing?['note']?.toString()??'');
+    final text=await showDialog<String>(context:c,builder:(dialog)=>AlertDialog(backgroundColor:const Color(0xFF111B22),
+      title:const Text('Примечание к смене',style:TextStyle(color:Colors.white)),
+      content:TextField(controller:controller,maxLines:4,autofocus:true,style:const TextStyle(color:Colors.white)),
+      actions:[TextButton(onPressed:()=>Navigator.pop(dialog),child:const Text('Отмена')),
+        TextButton(onPressed:()=>Navigator.pop(dialog,controller.text.trim()),child:const Text('Сохранить'))]));
+    controller.dispose();if(text==null||!c.mounted)return;
+    await _testRun(c,()async{if(text.isEmpty){if(existing!=null)await TestStore.deleteRecord(existing['id'] as String);return;}
+      await TestStore.saveRecord({...?existing,'kind':'other','shiftId':shift['id'],'amount':0.0,'workNote':true,'note':text,
+        'date':existing?['date']??DateTime.now().toIso8601String()});});
+  }
+  void history(BuildContext c)=>Navigator.push(c,_SceneRoute<void>(builder:(_)=>Scaffold(backgroundColor:const Color(0xFF0B151D),
+    appBar:AppBar(title:const Text('История маршрута'),backgroundColor:const Color(0xFF101D25)),body:_TestLive(builder:(b){
+      final shifts=[...b.shifts]..sort((a,b)=>(b['start'] as String).compareTo(a['start'] as String));
+      return ListView(children:[if(shifts.isEmpty)const Padding(padding:EdgeInsets.all(24),child:Text('Маршрутов пока нет',style:TextStyle(color:Colors.white70))),
+        for(final s in shifts)ListTile(title:Text(_detailDate(DateTime.parse(s['start'] as String)),style:const TextStyle(color:Colors.white)),
+          subtitle:Text('GPS: ${_fmt1((s['gpsKm'] as num?)?.toDouble()??0)} км',style:const TextStyle(color:gold)),
+          trailing:const Icon(Icons.chevron_right,color:gold),onTap:()=>Navigator.push(c,_SceneRoute<void>(builder:(_)=>Scaffold(
+            appBar:AppBar(title:Text('Маршрут · ${_detailDate(DateTime.parse(s['start'] as String))}')),
+            body:SafeArea(child:ShiftRouteMap(shiftId:s['id'] as String,paused:s['gpsStatus']=='paused')))))),
+      ]);
+    }))));
+  Widget text(String value,double size,{Color color=Colors.white})=>Text(value,style:TextStyle(color:color,fontSize:size,height:1.16),maxLines:2,overflow:TextOverflow.ellipsis);
+  @override Widget build(BuildContext context)=>_TestLive(builder:(b){
+    final shift=b.active;final rows=shift==null?<Map<String,dynamic>>[]:b.forShift(shift['id'] as String);
+    double sum(String kind,[String? type])=>rows.where((r)=>r['kind']==kind&&(type==null||r['type']==type)).fold<double>(0,(s,r)=>s+((r['amount'] as num?)?.toDouble()??0));
+    final trips=rows.where((r)=>r['kind']=='trip').toList()..sort((a,b)=>(a['date'] as String).compareTo(b['date'] as String));
+    final elapsed=shift==null?0:math.max(0,(b.elapsed(shift)*3600).round());
+    final clock='${(elapsed~/3600).toString().padLeft(2,'0')}:${(elapsed~/60%60).toString().padLeft(2,'0')}:${(elapsed%60).toString().padLeft(2,'0')}';
+    final noteRow=rows.where((r)=>r['workNote']==true).firstOrNull;
+    final km=shift==null?0.0:shift['odometerSet']==true?b.mileage(shift):(shift['gpsKm'] as num?)?.toDouble()??0;
+    final destination=trips.isEmpty?'':trips.last['direction']?.toString()??'';
+    return LayoutBuilder(builder:(context,box){final scale=box.maxWidth/864;
+      Widget at(double x,double y,double w,double h,Widget child)=>Positioned(left:x,top:y,width:w,height:h,child:child);
+      final items=< (String,String,IconData,Color,List<double>,VoidCallback)>[
+        ('Тоннаж\nза смену','${_fmt1(sum('trip'))} кг',Icons.grass,gold,trips.map((r)=>(r['amount'] as num).toDouble()).toList(),()=>_testOpen(context,page:'Рейсы',shiftId:shift?['id'] as String?)),
+        ('Пробег\nза смену','${_fmt1(km)} км',Icons.speed_outlined,gold,[km],()=>_openMetricDetails(context,'Пробег',DateTime.now())),
+        ('Рейсы\nза смену','${trips.length}',Icons.local_shipping_outlined,gold,List.filled(trips.length,1.0),()=>_testOpen(context,page:'Рейсы',shiftId:shift?['id'] as String?)),
+        ('Газ\nза смену','${_fmt1(sum('fuel','Газ'))} л',Icons.local_fire_department,gold,rows.where((r)=>r['kind']=='fuel'&&r['type']=='Газ').map((r)=>(r['amount'] as num).toDouble()).toList(),()=>_testEditor(context,'fuel',initialType:'Газ')),
+        ('Бензин\nза смену','${_fmt1(sum('fuel','Бензин'))} л',Icons.local_gas_station_outlined,gold,rows.where((r)=>r['kind']=='fuel'&&r['type']=='Бензин').map((r)=>(r['amount'] as num).toDouble()).toList(),()=>_testEditor(context,'fuel',initialType:'Бензин')),
+        ('Время смены',clock,Icons.access_time_outlined,gold,const [],()=>_testOpen(context,shiftId:shift?['id'] as String?)),
+      ];
+      final scene=SizedBox(width:864,height:1330,child:Stack(children:[
+        Positioned(top:0,left:0,right:0,child:Image.asset('assets/images/scenes/work_dashboard.png',fit:BoxFit.fitWidth)),
+        at(40,35,75,75,IconButton(tooltip:'Главная',onPressed:()=>go(context,0),icon:const Icon(Icons.arrow_back,color:gold,size:43))),
+        at(288,30,420,70,Row(children:[const Icon(Icons.local_shipping_outlined,color:gold,size:48),const SizedBox(width:30),text('Работа',45)])),
+        at(287,99,460,38,text(shift==null?'Смена закрыта':'Сводка за текущую смену',25,color:const Color(0xFFCBD0D4))),
+        at(73,182,721,302,ClipPath(clipper:_MillMapClip(),child:Transform(
+          alignment:Alignment.center,transform:Matrix4.identity()..setEntry(3,1,.000045)..rotateX(-.04),
+          child:ShiftRouteMap(key:ValueKey(shift?['id']),shiftId:shift?['id'] as String?,paused:shift?['gpsStatus']=='paused',unit:2)))),
+        at(94,400,520,52,IgnorePointer(child:Align(alignment:Alignment.centerLeft,child:Container(
+          padding:const EdgeInsets.symmetric(horizontal:12,vertical:5),decoration:BoxDecoration(color:const Color(0xCF07151D),borderRadius:BorderRadius.circular(12)),
+          child:text(destination.isEmpty?'GPS · пройденный маршрут':'Направление: $destination',19,color:gold))))),
+        for(var i=0;i<6;i++)at(62+(i%3)*263,797+(i~/3)*171,218,133,
+          _GarageTap(label:items[i].$1,onTap:items[i].$6,child:Column(children:[
+            Expanded(child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[Icon(items[i].$3,color:items[i].$4,size:49),const SizedBox(width:13),
+              Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[text(items[i].$1,21,color:const Color(0xFFD1D6D8)),const SizedBox(height:7),
+                FittedBox(fit:BoxFit.scaleDown,child:text(items[i].$2,i==5?29:32))]))])),
+            SizedBox(height:27,width:double.infinity,child:CustomPaint(painter:_MillBars(items[i].$5,i==1||i==3?cyan:gold))),
+          ]))),
+        at(67,1138,728,63,_GarageTap(label:'Примечание к смене',onTap:()=>note(context,shift,rows),child:Row(children:[
+          const Icon(Icons.edit_note,color:gold,size:49),const SizedBox(width:24),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisAlignment:MainAxisAlignment.center,children:[
+            text('Примечание',21,color:const Color(0xFFCBD0D4)),const SizedBox(height:5),text(noteRow?['note']?.toString()??'Добавить примечание',23)])),
+          const Icon(Icons.edit_outlined,color:Colors.white70,size:32)]))),
+        at(66,1240,730,55,_GarageTap(label:'История маршрута',onTap:()=>history(context),child:Row(children:[
+          const Icon(Icons.map_outlined,color:gold,size:48),const SizedBox(width:28),Expanded(child:text('История маршрута',26)),const Icon(Icons.chevron_right,color:Colors.white,size:43)]))),
+      ]));
+      return Stack(children:[
+        const Positioned.fill(child:ColoredBox(color:Color(0xFF071017))),
+        Positioned(top:0,left:0,right:0,child:Image.asset('assets/images/scenes/work_dashboard.png',fit:BoxFit.fitWidth)),
+        Column(children:[Expanded(child:SingleChildScrollView(child:SizedBox(width:box.maxWidth,height:1330*scale,
+          child:FittedBox(alignment:Alignment.topCenter,fit:BoxFit.contain,child:MediaQuery.withClampedTextScaling(minScaleFactor:1,maxScaleFactor:1,child:scene))))),
+          if(showNavigation)SafeArea(top:false,child:Padding(padding:const EdgeInsets.fromLTRB(12,5,12,7),child:Container(height:65,
+            decoration:BoxDecoration(color:const Color(0xC5111920),border:Border.all(color:const Color(0x998F7A5B)),borderRadius:BorderRadius.circular(24)),
+            child:Row(children:[for(var i=0;i<5;i++)Expanded(child:_GarageTap(label:const ['Главная','Работа','Добавить','Статистика','Ещё'][i],
+              onTap:(){if(i==1)return;if(i==2){(onQuickAdd??()=>_showQuickAddMenu(context,session))();}else if(i==4){_openHomeMenu(context,session);}else{go(context,i);}},
+              child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Icon(const [Icons.home_outlined,Icons.local_shipping_outlined,Icons.add_circle_outline,Icons.bar_chart,Icons.grid_view_outlined][i],
+                color:i==1||i==2?gold:Colors.white70,size:i==2?49:27),if(i!=2)...[const SizedBox(height:4),Text(const ['Главная','Работа','','Статистика','Ещё'][i],style:TextStyle(fontSize:10,color:i==1?gold:Colors.white70))]])))])))),
+        ]),
+      ]);
+    });
+  });
+}
+class _MillMapClip extends CustomClipper<Path>{
+  @override Path getClip(Size s)=>Path()..moveTo(0,0)..quadraticBezierTo(s.width*.5,s.height*.055,s.width,0)..lineTo(s.width,s.height*.95)..quadraticBezierTo(s.width*.5,s.height,s.width*.03,s.height*.95)..close();
+  @override bool shouldReclip(covariant _MillMapClip old)=>false;
+}
+class _MillBars extends CustomPainter {
+  final List<double> values;final Color color;const _MillBars(this.values,this.color);
+  @override void paint(Canvas c,Size s){final max=values.fold<double>(0,math.max);final count=math.max(10,values.length);final w=s.width/count;
+    for(var i=0;i<count;i++){final v=i<values.length&&max>0?values[i]/max:0.0;final h=math.max(1.0,s.height*v);
+      c.drawRect(Rect.fromLTWH(i*w,s.height-h,w*.65,h),Paint()..color=v>0?color:color.withOpacity(.12));}}
+  @override bool shouldRepaint(covariant _MillBars old)=>old.values!=values||old.color!=color;
 }
