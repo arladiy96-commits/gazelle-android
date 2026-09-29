@@ -1,7 +1,7 @@
 part of 'app_shell.dart';
 
 Future<void> _openMetricDetails(BuildContext context,String metric,DateTime month) async {
-  await Navigator.of(context).push<void>(_SceneRoute(builder:(_)=>_MetricDetails(metric:metric,month:month)));
+  await Navigator.of(context).push<void>(_SceneRoute(builder:(_)=>metric=='Газ' ? _GasDashboard(month:month) : _MetricDetails(metric:metric,month:month)));
 }
 String _detailDate(DateTime d)=>'${d.day} ${const ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'][d.month-1]}';
 String _detailTime(DateTime d)=>'${d.hour.toString().padLeft(2,'0')}:${d.minute.toString().padLeft(2,'0')}';
@@ -1249,4 +1249,337 @@ class _DayDetailsState extends State<_DayDetails> {
       _detailButton('GPS за день',()=>Navigator.push(context,_SceneRoute<void>(builder:(_)=>_DayGps(day:widget.date))),icon:Icons.route),
     ];
   }
+}
+
+// Gas detail scene. Uses the same shift-accounting dates as the home totals.
+const _gasGold = Color(0xFFD8AC65);
+const _gasBlue = Color(0xFF53B9D2);
+const _gasWhite = Color(0xFFE6E9EA);
+class _GasDashboard extends StatefulWidget {
+  final DateTime month;
+  const _GasDashboard({required this.month});
+  @override State<_GasDashboard> createState() => _GasDashboardState();
+}
+class _GasDashboardState extends State<_GasDashboard> {
+  late DateTime month;
+  TestState? book;
+  String? error;
+  int tab = 0, request = 0;
+  @override void initState() {
+    super.initState(); month = DateTime(widget.month.year, widget.month.month);
+    TestStore.revision.addListener(load); load();
+  }
+  @override void dispose() { request++; TestStore.revision.removeListener(load); super.dispose(); }
+  Future<void> load() async {
+    final id = ++request;
+    try {
+      final value = await TestStore.load();
+      if (mounted && id == request) setState(() { book = value; error = null; });
+    } catch (_) {
+      if (mounted && id == request) setState(() => error = 'Не удалось загрузить выдачи газа');
+    }
+  }
+  DateTime dateOf(Map<String, dynamic> row) => book!.recordDay(row);
+  double amount(Map<String, dynamic> row) => (row['amount'] as num?)?.toDouble() ?? 0;
+  List<Map<String, dynamic>> get rows => (book?.records ?? <Map<String, dynamic>>[])
+    .where((r) => r['kind'] == 'fuel' && r['type'] == 'Газ' &&
+      dateOf(r).year == month.year && dateOf(r).month == month.month).toList()
+    ..sort((a,b) {
+      final day = dateOf(b).compareTo(dateOf(a));
+      return day != 0 ? day : (b['date'] as String).compareTo(a['date'] as String);
+    });
+  Future<void> pickMonth() async {
+    var year = month.year;
+    final selected = await showModalBottomSheet<DateTime>(context: context,
+      backgroundColor: const Color(0xFF101A21), builder: (sheet) =>
+        StatefulBuilder(builder: (sheet, update) => SafeArea(child: SizedBox(height: 340,
+          child: Column(children: [
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              IconButton(tooltip: 'Предыдущий год', onPressed: year > 2000 ? () => update(() => year--) : null,
+                icon: const Icon(Icons.chevron_left, color: _gasGold)),
+              Text('$year', style: const TextStyle(color: _gasWhite, fontSize: 20)),
+              IconButton(tooltip: 'Следующий год', onPressed: year < 2100 ? () => update(() => year++) : null,
+                icon: const Icon(Icons.chevron_right, color: _gasGold)),
+            ]),
+            Expanded(child: GridView.count(crossAxisCount: 3, childAspectRatio: 2.2,
+              children: List.generate(12, (i) => TextButton(
+                onPressed: () => Navigator.pop(sheet, DateTime(year, i + 1)),
+                child: Text(_garageMonths[i], style: TextStyle(
+                  color: year == month.year && i + 1 == month.month ? _gasGold : _gasWhite))))))
+          ])))));
+    if (selected != null && mounted) setState(() => month = selected);
+  }
+  Future<void> add() async { await _testEditor(context, 'fuel', initialType: 'Газ'); }
+  Future<void> openDay(DateTime day) async {
+    await showModalBottomSheet<void>(context: context, isScrollControlled: true,
+      backgroundColor: const Color(0xF00C151C), builder: (sheet) => SafeArea(
+        child: SizedBox(height: MediaQuery.sizeOf(sheet).height * .65,
+          child: _TestLive(builder: (current) {
+            final entries = current.records.where((r) => r['kind'] == 'fuel' && r['type'] == 'Газ' &&
+              TestState.dayKey(current.recordDay(r)) == TestState.dayKey(day)).toList()
+              ..sort((a,b) => (b['date'] as String).compareTo(a['date'] as String));
+            return ListView(padding: const EdgeInsets.all(20), children: [
+              Row(children: [Expanded(child: Text('Газ · ${_detailDate(day)}',
+                style: const TextStyle(color: _gasWhite, fontSize: 20))),
+                IconButton(tooltip: 'Закрыть', onPressed: () => Navigator.pop(sheet),
+                  icon: const Icon(Icons.close, color: _gasWhite))]),
+              const SizedBox(height: 12),
+              if (entries.isEmpty) const Text('Выдач газа за этот день нет', style: TextStyle(color: _gasWhite)),
+              for (final row in entries) _GasJournalRow(row: row, day: day,
+                onTap: () => _testEditor(sheet, 'fuel', entry: row)),
+            ]);
+          }))));
+  }
+  @override Widget build(BuildContext context) {
+    final entries = rows;
+    final total = entries.fold<double>(0, (s,r) => s + amount(r));
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final monday = today.subtract(Duration(days: today.weekday - 1));
+    double since(DateTime first) => entries.where((r) {
+      final d = dateOf(r); return !d.isBefore(first) && d.isBefore(today.add(const Duration(days: 1)));
+    }).fold<double>(0, (s,r) => s + amount(r));
+    final daily = List<double>.filled(DateTime(month.year, month.month + 1, 0).day, 0);
+    final counts = List<double>.filled(daily.length, 0);
+    final groups = <int, List<Map<String, dynamic>>>{};
+    for (final r in entries) {
+      final d = dateOf(r).day; daily[d-1] += amount(r); counts[d-1]++;
+      (groups[d] ??= []).add(r);
+    }
+    final days = groups.keys.toList()..sort((a,b) => b.compareTo(a));
+    final latest = entries.isEmpty ? null : entries.first;
+    final average = entries.isEmpty ? 0.0 : total / entries.length;
+    return Scaffold(backgroundColor: const Color(0xFF050B10), body: SafeArea(
+      child: LayoutBuilder(builder: (context, constraints) {
+        final scale = constraints.maxWidth / 864;
+        Widget at(double x, double y, double w, double h, Widget child) =>
+          Positioned(left: x, top: y, width: w, height: h, child: child);
+        final hero = SizedBox(width: 864, height: 900, child: Stack(children: [
+          at(25, 28, 88, 88, _GasTap(label: 'Назад', onTap: () => Navigator.pop(context),
+            child: Container(decoration: BoxDecoration(shape: BoxShape.circle,
+              color: const Color(0xB0081016), border: Border.all(color: _gasGold, width: 1.5)),
+              child: const Icon(Icons.arrow_back, color: _gasGold, size: 40)))),
+          at(340, 22, 200, 85, const Row(children: [
+            Icon(Icons.local_fire_department_outlined, color: _gasGold, size: 65),
+            SizedBox(width: 16), Text('Газ', style: TextStyle(color: _gasWhite, fontSize: 44, fontWeight: FontWeight.w600))])),
+          at(621, 34, 215,  70, _GasTap(label: 'Выбрать месяц', onTap: pickMonth,
+            child: Container(alignment: Alignment.center, decoration: BoxDecoration(
+              color: const Color(0xCF0A141B), borderRadius: BorderRadius.circular(25),
+              border: Border.all(color: _gasGold)), child: FittedBox(fit: BoxFit.scaleDown,
+              child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Text(
+                '${_garageMonths[month.month-1]} ${month.year} ⌄', style: const TextStyle(color: _gasWhite, fontSize: 20))))))),
+          at(300, 205, 278, 113, Column(children: [
+            const Text('Выдано газа за месяц', style: TextStyle(color: _gasWhite, fontSize: 21)),
+            const SizedBox(height: 8), Expanded(child: FittedBox(fit: BoxFit.scaleDown,
+              child: Text('${_fmt1(total)} л', style: const TextStyle(color: _gasGold,
+                fontSize: 65, fontWeight: FontWeight.w700)))),
+          ])),
+          _GasWall(points: const [Offset(57,162),Offset(235,203),Offset(234,327),Offset(57,287)],
+            title: 'Сегодня', value: '${_fmt1(since(today))} л', icon: Icons.calendar_month_outlined,
+            color: _gasGold, values: daily, onTap: () => openDay(today)),
+          _GasWall(points: const [Offset(58,350),Offset(235,390),Offset(235,506),Offset(57,475)],
+            title: 'За неделю', value: '${_fmt1(since(monday))} л', icon: Icons.calendar_month_outlined,
+            color: _gasBlue, values: daily, onTap: () => setState(() => tab = 1)),
+          _GasWall(points: const [Offset(56,539),Offset(235,570),Offset(235,681),Offset(55,664)],
+            title: 'За месяц', value: '${_fmt1(total)} л', icon: Icons.bar_chart,
+            color: _gasGold, values: daily, onTap: () => setState(() => tab = 1)),
+          _GasWall(points: const [Offset(636,204),Offset(813,165),Offset(813,292),Offset(636,329)],
+            title: 'Средняя выдача', value: '${_fmt1(average)} л', icon: null,
+            color: _gasBlue, values: daily, onTap: () => setState(() => tab = 1)),
+          _GasWall(points: const [Offset(636,389),Offset(813,351),Offset(813,477),Offset(636,509)],
+            title: 'Выдач', value: '${entries.length}', icon: Icons.local_gas_station_outlined,
+            color: _gasBlue, values: counts, onTap: () => setState(() => tab = 2)),
+          _GasWall(points: const [Offset(636,569),Offset(813,541),Offset(813,664),Offset(636,681)],
+            title: 'Последняя выдача', value: latest == null ? '—' : '${_fmt1(amount(latest))} л',
+            icon: Icons.access_time, color: _gasGold, values: daily, line: true,
+            onTap: latest == null ? () => setState(() => tab = 2) : () => _testEditor(context, 'fuel', entry: latest)),
+        ]));
+        return SingleChildScrollView(child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight), child: Stack(children: [
+          Positioned(top: 0, left: 0, right: 0, child: ShaderMask(
+            blendMode: BlendMode.dstIn, shaderCallback: (rect) => const LinearGradient(
+              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+              colors: [Colors.white, Colors.white, Colors.transparent],
+              stops: [0, .78, 1]).createShader(rect),
+            child: Image.asset('assets/images/scenes/gas_dashboard.png', fit: BoxFit.fitWidth,
+              excludeFromSemantics: true, filterQuality: FilterQuality.high))),
+          Column(children: [
+            SizedBox(width: constraints.maxWidth, height: 900 * scale,
+              child: FittedBox(fit: BoxFit.contain, child: MediaQuery.withClampedTextScaling(
+                minScaleFactor: 1, maxScaleFactor: 1, child: hero))),
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Row(children: [
+              for (var i = 0; i < 3; i++) Expanded(child: Padding(
+                padding: EdgeInsets.only(right: i == 2 ? 0 : 4), child: _GasTap(
+                  label: const ['Выдачи','Статистика','Журнал'][i], onTap: () => setState(() => tab = i),
+                  child: Container(height: 48, decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(17),
+                    color: tab == i ? const Color(0xD9453215) : const Color(0xD909131B),
+                    border: Border.all(color: tab == i ? _gasGold : const Color(0xFF45505A))),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Icon(const [Icons.local_gas_station_outlined,Icons.bar_chart,Icons.receipt_long_outlined][i],
+                        color: tab == i ? _gasGold : _gasWhite, size: 21),
+                      const SizedBox(width: 5), Flexible(child: Text(const ['Выдачи','Статистика','Журнал'][i],
+                        maxLines: 1, style: const TextStyle(color: _gasWhite, fontSize: 11))),
+                    ])))))
+            ])),
+            Container(margin: const EdgeInsets.fromLTRB(14, 12, 14, 22), padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: const Color(0xED0B141C), borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: const Color(0xFF655D4B), width: 1),
+                boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 16)]),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [Icon(tab == 0 ? Icons.calendar_month_outlined : tab == 1 ? Icons.bar_chart : Icons.receipt_long,
+                    color: _gasGold, size: 26), const SizedBox(width: 10),
+                  Expanded(child: Text(const ['Газ по дням','Статистика газа','Журнал выдач'][tab],
+                    style: const TextStyle(color: _gasWhite, fontSize: 20))),
+                  IconButton(tooltip: 'Добавить выдачу газа', onPressed: add,
+                    icon: const Icon(Icons.add_circle_outline, color: _gasGold))]),
+                if (error != null) ...[Text(error!, style: const TextStyle(color: _gasWhite)),
+                  TextButton(onPressed: load, child: const Text('Повторить'))]
+                else if (book == null) const Padding(padding: EdgeInsets.all(24),
+                  child: Center(child: CircularProgressIndicator(color: _gasGold)))
+                else if (entries.isEmpty) Padding(padding: const EdgeInsets.symmetric(vertical: 30),
+                  child: Center(child: Column(children: [
+                    const Text('В этом месяце выдач газа нет', style: TextStyle(color: _gasWhite)),
+                    const SizedBox(height: 8), TextButton.icon(onPressed: add,
+                      icon: const Icon(Icons.add, color: _gasGold),
+                      label: const Text('Добавить выдачу', style: TextStyle(color: _gasGold))),
+                  ])))
+                else if (tab == 0) ...[
+                  for (final d in days) _GasDayRow(day: DateTime(month.year, month.month, d),
+                    total: groups[d]!.fold<double>(0,(s,r) => s + amount(r)), count: groups[d]!.length,
+                    onTap: () => openDay(DateTime(month.year, month.month, d))),
+                ] else if (tab == 2) ...[
+                  for (final r in entries) _GasJournalRow(row: r, day: dateOf(r),
+                    onTap: () => _testEditor(context, 'fuel', entry: r)),
+                ] else ...[
+                  Text('${_garageMonths[month.month-1]} ${month.year} · литры по дням',
+                    style: const TextStyle(color: Color(0xFFADB8BF), fontSize: 12)),
+                  const SizedBox(height: 20), SizedBox(height: 150, width: double.infinity,
+                    child: CustomPaint(painter: _GasChart(daily, _gasBlue, labels: true))),
+                  const SizedBox(height: 20),
+                  _GasStatRow('Всего за месяц', '${_fmt1(total)} л'),
+                  _GasStatRow('Количество выдач', '${entries.length}'),
+                  _GasStatRow('Средняя выдача', '${_fmt1(average)} л'),
+                  _GasStatRow('Максимальная выдача', '${_fmt1(entries.map(amount).reduce(math.max))} л'),
+                  _GasStatRow('Дней с выдачами', '${days.length}'),
+                ],
+              ])),
+          ]),
+        ])));
+      })));
+  }
+}
+class _GasTap extends StatelessWidget {
+  final String label; final Widget child; final VoidCallback onTap;
+  const _GasTap({required this.label, required this.child, required this.onTap});
+  @override Widget build(BuildContext context) => Semantics(button: true, label: label,
+    child: GestureDetector(behavior: HitTestBehavior.opaque, onTap: () {
+      HapticFeedback.selectionClick(); onTap();
+    }, child: child));
+}
+class _GasStatRow extends StatelessWidget {
+  final String label, value;
+  const _GasStatRow(this.label, this.value);
+  @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(vertical: 9),
+    child: Row(children: [Expanded(child: Text(label, style: const TextStyle(color: _gasWhite, fontSize: 13))),
+      Text(value, style: const TextStyle(color: _gasGold, fontSize: 17, fontWeight: FontWeight.w600))]));
+}
+class _GasDayRow extends StatelessWidget {
+  final DateTime day; final double total; final int count; final VoidCallback onTap;
+  const _GasDayRow({required this.day, required this.total, required this.count, required this.onTap});
+  @override Widget build(BuildContext context) => _gasRecordFrame(onTap, Row(children: [
+    SizedBox(width: 58, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(day.day.toString().padLeft(2,'0'), style: const TextStyle(color: _gasWhite, fontSize: 27)),
+      Text(_garageMonths[day.month-1], style: const TextStyle(color: Color(0xFFABB8BF), fontSize: 9)),
+    ])), const Icon(Icons.location_on_outlined, color: _gasBlue, size: 27), const SizedBox(width: 12),
+    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Газ · Выдача', style: TextStyle(color: _gasWhite, fontSize: 13)),
+      const SizedBox(height: 4), Text(count == 1 ? 'Выдано водителю' : 'Выдач за день: $count',
+        style: const TextStyle(color: Color(0xFFA3AEB6), fontSize: 11))])),
+    SizedBox(width: 72, child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerRight,
+      child: Text('${_fmt1(total)} л', maxLines: 1,
+        style: const TextStyle(color: _gasWhite, fontSize: 20, fontWeight: FontWeight.w600)))),
+    const Icon(Icons.chevron_right, color: _gasWhite, size: 22),
+  ]));
+}
+class _GasJournalRow extends StatelessWidget {
+  final Map<String,dynamic> row; final DateTime day; final VoidCallback onTap;
+  const _GasJournalRow({required this.row, required this.day, required this.onTap});
+  @override Widget build(BuildContext context) {
+    final time = DateTime.tryParse(row['date']?.toString() ?? '');
+    final note = row['note']?.toString().trim() ?? '';
+    return _gasRecordFrame(onTap, Row(children: [
+      const Icon(Icons.local_gas_station_outlined, color: _gasBlue, size: 25), const SizedBox(width: 10),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('${_detailDate(day)}${time == null ? '' : ' · ${_detailTime(time)}'}',
+          style: const TextStyle(color: _gasWhite, fontSize: 14)),
+        const SizedBox(height: 5), Text(note.isEmpty ? 'Выдано водителю · нажмите для изменения' : note,
+          maxLines: 2, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Color(0xFFA3AEB6), fontSize: 11)),
+      ])), const SizedBox(width: 8),
+      Text('${_fmt1((row['amount'] as num).toDouble())} л',
+        style: const TextStyle(color: _gasWhite, fontSize: 19)),
+      const Icon(Icons.chevron_right, color: _gasGold, size: 20),
+    ]));
+  }
+}
+Widget _gasRecordFrame(VoidCallback tap, Widget child) => Padding(padding: const EdgeInsets.only(top: 7),
+  child: _GasTap(label: 'Открыть выдачи газа', onTap: tap,
+    child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFF424B52)),
+        gradient: const LinearGradient(colors: [Color(0xA5202B32), Color(0xCF08121A)])), child: child)));
+class _GasWall extends StatelessWidget {
+  final List<Offset> points; final String title, value; final IconData? icon;
+  final Color color; final List<double> values; final VoidCallback onTap; final bool line;
+  const _GasWall({required this.points, required this.title, required this.value, required this.icon,
+    required this.color, required this.values, required this.onTap, this.line = false});
+  @override Widget build(BuildContext context) {
+    final p0=points[0],p1=points[1],p2=points[2],p3=points[3];
+    final dx1=p1.dx-p2.dx,dx2=p3.dx-p2.dx,dy1=p1.dy-p2.dy,dy2=p3.dy-p2.dy;
+    final dx3=p0.dx-p1.dx+p2.dx-p3.dx,dy3=p0.dy-p1.dy+p2.dy-p3.dy;
+    final det=dx1*dy2-dx2*dy1;
+    final g=(dx3*dy2-dx2*dy3)/det,h=(dx1*dy3-dx3*dy1)/det;
+    final matrix=Matrix4.identity()
+      ..setEntry(0,0,(p1.dx-p0.dx+g*p1.dx)/220)..setEntry(0,1,(p3.dx-p0.dx+h*p3.dx)/180)..setEntry(0,3,p0.dx)
+      ..setEntry(1,0,(p1.dy-p0.dy+g*p1.dy)/220)..setEntry(1,1,(p3.dy-p0.dy+h*p3.dy)/180)..setEntry(1,3,p0.dy)
+      ..setEntry(3,0,g/220)..setEntry(3,1,h/180);
+    return Positioned.fill(child: Align(alignment: Alignment.topLeft, child: Transform(transform: matrix,
+      child: SizedBox(width: 220,height: 180,child: _GasTap(label: '$title: $value',onTap: onTap,
+        child: Column(children: [Expanded(child: Row(children: [
+          if(icon!=null) ...[Icon(icon,color:color,size:45),const SizedBox(width:12)],
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,mainAxisAlignment:MainAxisAlignment.center,
+            children:[FittedBox(fit:BoxFit.scaleDown,child:Text(title,style:const TextStyle(color:_gasWhite,fontSize:22))),
+              const SizedBox(height:5),FittedBox(fit:BoxFit.scaleDown,child:Text(value,
+                style:const TextStyle(color:_gasWhite,fontSize: 40,fontWeight:FontWeight.w600)))])),
+        ])),SizedBox(height: 60,width:double.infinity,child:CustomPaint(painter:_GasChart(values,color,line:line)))]))))));
+  }
+}
+class _GasChart extends CustomPainter {
+  final List<double> values; final Color color; final bool line, labels;
+  const _GasChart(this.values,this.color,{this.line=false,this.labels=false});
+  @override void paint(Canvas canvas,Size size) {
+    final bottom=size.height-(labels?20:2);final top=labels?12.0:3.0;
+    final peak=values.fold<double>(0,(a,b)=>math.max(a,b));
+    final width=size.width-(labels?30:0);final left=labels?30.0:0.0;
+    final grid=Paint()..color=color.withValues(alpha:.14)..strokeWidth=.6;
+    for(var i=0;i<4;i++){final y=bottom-(bottom-top)*i/3;
+      canvas.drawLine(Offset(left,y),Offset(size.width,y),grid);}
+    if(values.isEmpty)return;
+    final step=width/values.length;final path=Path();
+    for(var i=0;i<values.length;i++){
+      final x=left+(i+.5)*step;final height=peak<=0?0.0:values[i]/peak*(bottom-top);
+      if(line){if(i==0){path.moveTo(x,bottom-height);}else{path.lineTo(x,bottom-height);}}
+      else{canvas.drawRect(Rect.fromLTWH(x-step*.31,top,step*.62,bottom-top),Paint()..color=color.withValues(alpha:.08));
+        if(height>0)canvas.drawRect(Rect.fromLTWH(x-step*.31,bottom-height,step*.62,height),Paint()
+          ..shader=LinearGradient(begin:Alignment.bottomCenter,end:Alignment.topCenter,
+            colors:[color.withValues(alpha:.4),color]).createShader(Offset.zero&size));}
+    }
+    if(line)canvas.drawPath(path,Paint()..color=color..style=PaintingStyle.stroke..strokeWidth=1.8);
+    if(labels){void text(String value,double x,double y){final p=TextPainter(text:TextSpan(text:value,
+        style:const TextStyle(color:Color(0xFF9AABB5),fontSize:10)),textDirection:TextDirection.ltr)..layout();p.paint(canvas,Offset(x,y));}
+      text(_fmt1(peak),0,0);text('0',10,bottom-10);
+      for(var i=0;i<values.length;i++){if(i==0||i==values.length-1||(i+1)%5==0)text('${i+1}',left+i*step,bottom+5);}}
+  }
+  @override bool shouldRepaint(covariant _GasChart old)=>old.values!=values||old.color!=color||old.line!=line||old.labels!=labels;
 }
