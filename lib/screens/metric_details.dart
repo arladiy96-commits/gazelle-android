@@ -1359,17 +1359,21 @@ class _GasDashboardState extends State<_GasDashboard> {
           (constraints.maxHeight - MediaQuery.paddingOf(context).bottom - 160) / 900);
         final sceneWidth = 864 * scale;
         final headerTop = math.max(28.0, MediaQuery.paddingOf(context).top / scale + 8);
+        // Keep the scene's upper frame below the entire safe header row.
+        final sceneTop = math.max(0.0, headerTop + 88 + 16 - 125);
         Widget at(double x, double y, double w, double h, Widget child) =>
           Positioned(left: x, top: y, width: w, height: h, child: child);
-        final hero = SizedBox(width: 864, height: 900, child: Stack(children: [
-          at(25, headerTop, 88, 88, _GasTap(label: 'Назад', onTap: () => Navigator.pop(context),
+        final hero = SizedBox(width: 864, height: 900 + sceneTop,
+          child: Transform.translate(offset: Offset(0, sceneTop),
+            child: Stack(clipBehavior: Clip.none, children: [
+          at(25, headerTop - sceneTop, 88, 88, _GasTap(label: 'Назад', onTap: () => Navigator.pop(context),
             child: Container(decoration: BoxDecoration(shape: BoxShape.circle,
               color: const Color(0xB0081016), border: Border.all(color: _gasGold, width: 1.5)),
               child: const Icon(Icons.arrow_back, color: _gasGold, size: 40)))),
-          at(340, headerTop, 200, 85, const Row(children: [
+          at(340, headerTop - sceneTop, 200, 85, const Row(children: [
             Icon(Icons.local_fire_department_outlined, color: _gasGold, size: 65),
             SizedBox(width: 16), Text('Газ', style: TextStyle(color: _gasWhite, fontSize: 44, fontWeight: FontWeight.w600))])),
-          at(621, headerTop + 6, 215,  70, _GasTap(label: 'Выбрать месяц', onTap: pickMonth,
+          at(621, headerTop + 6 - sceneTop, 215,  70, _GasTap(label: 'Выбрать месяц', onTap: pickMonth,
             child: Container(alignment: Alignment.center, decoration: BoxDecoration(
               color: const Color(0xCF0A141B), borderRadius: BorderRadius.circular(25),
               border: Border.all(color: _gasGold)), child: FittedBox(fit: BoxFit.scaleDown,
@@ -1400,11 +1404,11 @@ class _GasDashboardState extends State<_GasDashboard> {
             title: 'Последняя выдача', value: latest == null ? '—' : '${_fmt1(amount(latest))} л',
             icon: Icons.access_time, color: _gasGold, values: daily, line: true,
             onTap: latest == null ? () => setState(() => tab = 2) : () => _testEditor(context, 'fuel', entry: latest)),
-        ]));
+        ])));
         return Stack(children: [
           Positioned.fill(child: Image.asset('assets/images/scenes/gas_dashboard.png',
             fit: BoxFit.cover, excludeFromSemantics: true)),
-          Positioned(top: 0, left: (constraints.maxWidth - sceneWidth) / 2,
+          Positioned(top: sceneTop * scale, left: (constraints.maxWidth - sceneWidth) / 2,
             width: sceneWidth, child: ShaderMask(blendMode: BlendMode.dstIn,
               shaderCallback: (rect) => const LinearGradient(
                 begin: Alignment.topCenter, end: Alignment.bottomCenter,
@@ -1415,7 +1419,7 @@ class _GasDashboardState extends State<_GasDashboard> {
           Padding(padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom + 6),
             child: Column(children: [
 
-            SizedBox(width: constraints.maxWidth, height: 900 * scale,
+            SizedBox(width: constraints.maxWidth, height: (900 + sceneTop) * scale,
               child: FittedBox(fit: BoxFit.contain, child: MediaQuery.withClampedTextScaling(
                 minScaleFactor: 1, maxScaleFactor: 1, child: hero))),
             Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Row(children: [
