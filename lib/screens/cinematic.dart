@@ -690,18 +690,124 @@ class _SceneTabStageState extends State<_SceneTabStage> with SingleTickerProvide
 }
 
 class _CinematicMore extends StatelessWidget {
-  final AppSession session;const _CinematicMore({required this.session});
-  @override Widget build(BuildContext context)=>_DetailFrame(title:'Ещё',scene:_Scene.cab,children:[
-    _DetailGlass(accent:true,child:_detailRow(session.displayName,session.login,subtitle:'Водитель · тестовый режим')),
-    _DetailGlass(child:Column(children:_separated([
-      _detailRow('Обслуживание','',onTap:()=>_openMaintenance(context,session)),
-      _detailRow('Документы','',onTap:()=>_openGarageSection(context,'Документы',session.login)),
-      _detailRow('Справочник товаров','',onTap:()=>Navigator.push(context,_SceneRoute<void>(builder:(_)=>const _MiniCatalog()))),
-      _detailRow('Расчёт зарплаты','',onTap:()=>_testRun(context,() async{final b=await TestStore.load();if(context.mounted)await Navigator.push(context,_SceneRoute<void>(builder:(_)=>_TestRates(book:b)));})),
-      _detailRow('Тестовые данные','',subtitle:'Заполнить примером или очистить журнал',onTap:()=>_testOpen(context,page:'Тестовые данные')),
-    ]))),
-    _dt('Данные хранятся на этом устройстве. Подключения к основной базе нет.',size:12,color:const Color(0xFFB6C6CD)),
-  ]);
+  final AppSession session;
+  const _CinematicMore({required this.session});
+  static const gold = Color(0xFFCEA15B);
+  static const groups = <(String, IconData, List<(String,String,IconData,Color)>)>[
+    ('РАБОЧЕЕ', Icons.bar_chart, [
+      ('Деньги','Касса и чеки',Icons.payments_outlined,gold),
+      ('Авансовый отчёт','Расходы и архив',Icons.assignment_outlined,gold),
+      ('Отчёт за газ','Выдача и расход',Icons.local_gas_station_outlined,Color(0xFFC96B50)),
+      ('Расчёт газа','Расчёт по своим данным',Icons.calculate_outlined,gold),
+    ]),
+    ('АВТОМОБИЛЬ', Icons.directions_car_outlined, [
+      ('ТО и обслуживание','ТО, масло и история',Icons.handyman_outlined,gold),
+      ('Документы','Страховка и техосмотр',Icons.shield_outlined,gold),
+    ]),
+    ('АДМИНИСТРИРОВАНИЕ', Icons.groups_outlined, [
+      ('Сотрудники','Водители и грузчики',Icons.groups_rounded,gold),
+      ('Направления','Общий список для всех',Icons.signpost_outlined,gold),
+    ]),
+    ('КАРТЫ И КОНТРОЛЬ', Icons.my_location_outlined, [
+      ('GPS и геозоны','Общие точки и территории',Icons.location_on,Color(0xFF44B7D4)),
+      ('Настройки','Интерфейс и ИИ',Icons.settings,gold),
+    ]),
+  ];
+  static Widget backdrop() => Positioned.fill(child: Image.asset(
+    'assets/images/scenes/more_dashboard.png',fit:BoxFit.cover,alignment:Alignment.topCenter));
+  static BoxDecoration panel() => BoxDecoration(
+    borderRadius:BorderRadius.circular(17),
+    border:Border.all(color:const Color(0xFF776044),width:.8),
+    gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
+      colors:[Color(0xEE171C1E),Color(0xF2081015),Color(0xF014181B)]),
+    boxShadow:const [BoxShadow(color:Color(0x66000000),blurRadius:12,offset:Offset(0,5)),
+      BoxShadow(color:Color(0x25C89851),blurRadius:2,spreadRadius:1)]);
+  static Widget badge(IconData icon, Color color) => Container(width:38,height:38,
+    decoration:BoxDecoration(borderRadius:BorderRadius.circular(9),
+      border:Border.all(color:const Color(0xFF60523F),width:.7),
+      gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
+        colors:[Color(0xFF57422B),Color(0xFF20282C),Color(0xFF080D10)]),
+      boxShadow:const [BoxShadow(color:Color(0x66000000),blurRadius:4,offset:Offset(1,3))]),
+    child:Icon(icon,color:color,size:26,shadows:const [Shadow(color:Colors.black,offset:Offset(1,2),blurRadius:3)]));
+  void open(BuildContext context,(String,String,IconData,Color) item) {
+    HapticFeedback.selectionClick();
+    Navigator.push(context,_SceneRoute<void>(builder:(_)=>_MorePlaceholder(item:item)));
+  }
+  void navigate(BuildContext context,int index) {
+    if(index==4)return;
+    if(index==2){_showQuickAddMenu(context,session);return;}
+    if(index==0){Navigator.of(context).popUntil((r)=>r.isFirst);return;}
+    if(index==3){Navigator.push(context,_SceneRoute<void>(builder:(_)=>const _TestHub(page:'Накладные')));return;}
+    Navigator.push(context,_SceneRoute<void>(builder:(page)=>WorkPage(session:session,
+      onNavigate:(i)=>navigate(page,i),onQuickAdd:()=>_showQuickAddMenu(page,session))));
+  }
+  @override Widget build(BuildContext context) => Scaffold(backgroundColor:const Color(0xFF080E12),
+    body:Stack(children:[backdrop(),SafeArea(child:Column(children:[
+      Padding(padding:const EdgeInsets.fromLTRB(18,8,18,8),child:Row(children:[
+        Container(width:38,height:38,decoration:BoxDecoration(shape:BoxShape.circle,
+          color:const Color(0xB010161A),border:Border.all(color:gold)),
+          child:IconButton(padding:EdgeInsets.zero,icon:const Icon(Icons.chevron_left,color:gold),
+            tooltip:'Назад',onPressed:()=>Navigator.pop(context))),
+        const SizedBox(width:17),const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text('Ещё',style:TextStyle(color:Color(0xFFF1EEE6),fontSize:27,fontWeight:FontWeight.w600)),
+          SizedBox(height:3),SizedBox(width:48,child:Divider(color:gold,height:3,thickness:1.5)),
+          SizedBox(height:6),Text('Управление, отчёты и настройки',style:TextStyle(color:Color(0xFFC1C4C5),fontSize:11)),
+        ])),
+      ])),
+      Expanded(child:ListView.builder(padding:const EdgeInsets.fromLTRB(22,2,18,10),
+        itemCount:groups.length,itemBuilder:(context,index){final group=groups[index];
+          return Padding(padding:const EdgeInsets.only(bottom:12),child:Column(children:[
+            Padding(padding:const EdgeInsets.only(bottom:7,top:6),child:Row(children:[
+              Icon(group.$2,color:gold,size:19),const SizedBox(width:12),
+              Text(group.$1,style:const TextStyle(color:Color(0xFF7397A9),fontSize:10,fontWeight:FontWeight.w600)),
+              const SizedBox(width:9),const Expanded(child:Divider(color:Color(0xFF62605A),height:1)),
+            ])),
+            Align(alignment:Alignment.centerLeft,child:FractionallySizedBox(widthFactor:index == 0 ? .80 : 1.0,
+              child:Container(decoration:panel(),padding:const EdgeInsets.symmetric(horizontal:8,vertical:3),
+                child:Column(children:[for(var i=0;i<group.$3.length;i++)...[
+                  if(i>0)const Divider(height:1,color:Color(0xFF353A3D)),
+                  Material(color:Colors.transparent,child:InkWell(borderRadius:BorderRadius.circular(10),
+                    onTap:()=>open(context,group.$3[i]),child:Padding(padding:const EdgeInsets.symmetric(vertical:5),
+                      child:Row(children:[badge(group.$3[i].$3,group.$3[i].$4),const SizedBox(width:13),
+                        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                          Text(group.$3[i].$1,style:const TextStyle(color:Color(0xFFE9EAEB),fontSize:11,fontWeight:FontWeight.w500)),
+                          const SizedBox(height:3),Text(group.$3[i].$2,style:const TextStyle(color:Color(0xFF90999E),fontSize:9)),
+                        ])),const SizedBox(width:4),const Icon(Icons.chevron_right,color:Color(0xFFBDC3C5),size:19),
+                      ])))),
+                ]])))),
+          ]));
+        })),
+      Padding(padding:const EdgeInsets.fromLTRB(16,0,16,7),child:Container(height:58,decoration:panel(),
+        child:Row(children:[for(var i=0;i<5;i++)Expanded(child:Material(color:Colors.transparent,
+          child:InkWell(onTap:()=>navigate(context,i),borderRadius:BorderRadius.circular(17),
+            child:Container(decoration:i==4?BoxDecoration(borderRadius:BorderRadius.circular(17),
+              border:Border.all(color:gold),color:const Color(0x554E3315)):null,
+              child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+                Icon(const [Icons.home_outlined,Icons.local_shipping_outlined,Icons.add_circle_outline,
+                  Icons.receipt_long_outlined,Icons.grid_view_rounded][i],color:i>=2&&i!=3?gold:const Color(0xFFD7DCDF),size:i==2?42:23),
+                if(i!=2)...[const SizedBox(height:3),Text(const ['Главная','Работа','','Накладные','Ещё'][i],
+                  style:TextStyle(color:i==4?gold:const Color(0xFFD7DCDF),fontSize:8))],
+              ])))))]))),
+    ]))]));
+}
+class _MorePlaceholder extends StatelessWidget {
+  final (String,String,IconData,Color) item;
+  const _MorePlaceholder({required this.item});
+  @override Widget build(BuildContext context)=>Scaffold(backgroundColor:const Color(0xFF080E12),
+    body:Stack(children:[_CinematicMore.backdrop(),SafeArea(child:Column(children:[
+      Padding(padding:const EdgeInsets.all(12),child:Row(children:[
+        IconButton(tooltip:'Назад',onPressed:()=>Navigator.pop(context),
+          icon:const Icon(Icons.arrow_back,color:_CinematicMore.gold)),
+        const SizedBox(width:8),Expanded(child:Text(item.$1,
+          style:const TextStyle(color:Color(0xFFEEECE6),fontSize:20))),
+      ])),
+      Padding(padding:const EdgeInsets.all(22),child:Container(width:double.infinity,
+        padding:const EdgeInsets.all(24),decoration:_CinematicMore.panel(),child:Column(children:[
+          _CinematicMore.badge(item.$3,item.$4),const SizedBox(height:16),
+          Text(item.$2,textAlign:TextAlign.center,style:const TextStyle(color:Color(0xFFD3D7D9),fontSize:15)),
+          const SizedBox(height:12),const Text('Раздел в разработке',style:TextStyle(color:Color(0xFF929FA6),fontSize:12)),
+        ]))),
+    ]))]));
 }
 class _TonnageChart extends StatelessWidget {
   final ActivityBook book;final DateTime month;const _TonnageChart({required this.book,required this.month});
