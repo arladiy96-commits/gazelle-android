@@ -121,7 +121,8 @@ class _ReferenceHomeDashboard extends StatelessWidget {
             color: active == null && last != null ? _millCyan : const Color(0xFFAFB7BB),
             key: ValueKey('${active?["id"]}-${last?["id"]}-${last?["currentKm"]}-${last?["hoursWorked"]}'))))),
     ]));
-    final top = math.max(padding.top / scale + 10, 98.0);
+    // Keep the header just below the status bar, without reserving a logo row.
+    final top = padding.top / scale + 8;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light, statusBarBrightness: Brightness.dark,
@@ -154,13 +155,7 @@ class _ReferenceHomeDashboard extends StatelessWidget {
                     children: [_millText(name, 24 * scale, align: TextAlign.left),
                       _millText('Тестовый режим', 17 * scale, color: const Color(0xFFBEC6CB), align: TextAlign.left)])),
                 ]))),
-              SizedBox(width: 12 * scale),
-              SizedBox(width: 328 * scale, child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                SizedBox(width: 35 * scale, height: 54 * scale,
-                  child: const CustomPaint(painter: _MillWheatMark())),
-                SizedBox(width: 10 * scale), _millText('М Е Л Ь Н И Ц А', 24 * scale, weight: FontWeight.w600),
-              ])),
-              SizedBox(width: 112 * scale),
+              SizedBox(width: 452 * scale),
             ]))),
         Positioned(left: 187 * scale + offsetX, top: (top + 92) * scale,
           width: 480 * scale, height: 126 * scale,
@@ -221,33 +216,6 @@ void _openMillPaidRoutes(BuildContext context, DateTime month) {
             onTap: () => _testEditor(pageContext, 'trip', entry: entry))),
       ]);
     })));
-}
-
-class _MillWheatMark extends CustomPainter {
-  const _MillWheatMark();
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.save();
-    canvas.scale(size.width / 35, size.height / 54);
-    final paint = Paint()..color = _millGold;
-    canvas.drawPath(Path()..moveTo(10, 52)..quadraticBezierTo(20, 28, 25, 3),
-      Paint()..color = _millGold..style = PaintingStyle.stroke..strokeWidth = 1.7);
-    for (var i = 0; i < 4; i++) {
-      final y = 15.0 + i * 8;
-      final x = 23.0 - i * 2.5;
-      for (final side in [-1.0, 1.0]) {
-        canvas.save();
-        canvas.translate(x + side * 4, y);
-        canvas.rotate(side * .65);
-        canvas.drawOval(const Rect.fromLTWH(-2.8, -7, 5.6, 13), paint);
-        canvas.restore();
-      }
-    }
-    canvas.drawOval(const Rect.fromLTWH(23, 0, 5, 11), paint);
-    canvas.restore();
-  }
-  @override
-  bool shouldRepaint(covariant _MillWheatMark oldDelegate) => false;
 }
 
 String _millTripUnit(int n) => n % 100 >= 11 && n % 100 <= 14 ? ' рейсов'
