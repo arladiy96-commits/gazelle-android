@@ -1,7 +1,7 @@
 part of 'app_shell.dart';
 
 Future<void> _openMetricDetails(BuildContext context,String metric,DateTime month) async {
-  await Navigator.of(context).push<void>(_SceneRoute(builder:(_)=>metric=='Газ' ? _GasDashboard(month:month) : _MetricDetails(metric:metric,month:month)));
+  await Navigator.of(context).push<void>(_SceneRoute(builder:(_)=>metric=='Газ' ? _GasDashboard(month:month) : metric=='Пробег' ? _MileageReference(month:month) : _MetricDetails(metric:metric,month:month)));
 }
 String _detailDate(DateTime d)=>'${d.day} ${const ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'][d.month-1]}';
 String _detailTime(DateTime d)=>'${d.hour.toString().padLeft(2,'0')}:${d.minute.toString().padLeft(2,'0')}';
@@ -1597,4 +1597,163 @@ class _GasChart extends CustomPainter {
       for(var i=0;i<values.length;i++){if(i==0||i==values.length-1||(i+1)%5==0)text('${i+1}',left+i*step,bottom+5);}}
   }
   @override bool shouldRepaint(covariant _GasChart old)=>old.values!=values||old.color!=color||old.line!=line||old.labels!=labels;
+}
+
+class _MileageReference extends StatefulWidget {
+  final DateTime month;
+  const _MileageReference({required this.month});
+  @override State<_MileageReference> createState()=>_MileageReferenceState();
+}
+class _MileageReferenceState extends State<_MileageReference> {
+  late DateTime month=DateTime(widget.month.year,widget.month.month);
+  int tab=0,request=0;bool reading=false;Timer? timer;
+  final travelSeconds=<String,int>{};
+  static const gold=Color(0xFFE0B16A),blue=Color(0xFF36BADD),white=Color(0xFFE8EDEE);
+  @override void initState(){super.initState();loadTravel();timer=Timer.periodic(const Duration(seconds:15),(_)=>loadTravel());TestStore.revision.addListener(loadTravel);}
+  @override void dispose(){request++;timer?.cancel();TestStore.revision.removeListener(loadTravel);super.dispose();}
+  Future<void> loadTravel()async{
+    if(reading)return;reading=true;final token=++request;final selected=month;
+    try{final b=await TestStore.load();final result=<String,int>{};
+      for(final shift in b.shifts){final date=DateTime.parse(shift['start'] as String);
+        if(date.year!=selected.year||date.month!=selected.month)continue;
+        final pts=await GpsRouteStore.points(shift['id'] as String);var seconds=0;
+        for(var i=1;i<pts.length;i++){
+          final a=DateTime.tryParse(pts[i-1]['time']?.toString()??'');final z=DateTime.tryParse(pts[i]['time']?.toString()??'');
+          if(a==null||z==null)continue;final dt=z.difference(a).inSeconds;
+          if(dt>0&&dt<=120&&((pts[i]['speed'] as num?)?.toDouble()??0)>.5)seconds+=dt;
+        }
+        if(pts.isNotEmpty)result[shift['id'] as String]=seconds;
+      }
+      if(mounted&&token==request&&month==selected)setState((){travelSeconds..clear()..addAll(result);});
+    }catch(_){/* GPS time remains unavailable; do not substitute shift duration. */}
+    finally{reading=false;}
+  }
+  double km(TestState b,Map<String,dynamic> s)=>s['odometerSet']==true?b.mileage(s):(s['gpsKm'] as num?)?.toDouble()??b.mileage(s);
+  String destination(Object? raw){final value=raw?.toString().trim()??'';return value.split(RegExp(r'\s*(?:→|->|—|–)\s*')).last.trim();}
+  List<String> destinations(TestState b,List<Map<String,dynamic>> shifts)=>{
+    for(final s in shifts)for(final r in b.forShift(s['id'] as String))
+      if(r['kind']=='trip'&&destination(r['direction']).isNotEmpty)destination(r['direction'])
+  }.toList();
+  Future<void> pickMonth()async{
+    final date=await showDatePicker(context:context,initialDate:month,firstDate:DateTime(2020),lastDate:DateTime(2100),
+      helpText:'Выберите месяц',initialDatePickerMode:DatePickerMode.year);
+    if(date!=null&&mounted){setState((){month=DateTime(date.year,date.month);travelSeconds.clear();});loadTravel();}
+  }
+  void route(Map<String,dynamic> shift)=>Navigator.push(context,_SceneRoute<void>(builder:(c)=>Scaffold(
+    backgroundColor:const Color(0xFF08131B),appBar:AppBar(backgroundColor:const Color(0xFF101B22),title:const Text('Маршрут смены')),
+    body:SafeArea(child:Column(children:[Padding(padding:const EdgeInsets.all(12),child:Text(_detailDate(DateTime.parse(shift['start'] as String)),style:const TextStyle(color:gold))),
+      Expanded(child:ShiftRouteMap(shiftId:shift['id'] as String,paused:shift['gpsStatus']=='paused'))])))));
+  void day(TestState b,DateTime date,List<Map<String,dynamic>> shifts)=>showModalBottomSheet<void>(
+    context:context,isScrollControlled:true,backgroundColor:const Color(0xFF101A21),
+    shape:const RoundedRectangleBorder(borderRadius:BorderRadius.vertical(top:Radius.circular(22))),
+    builder:(c)=>SafeArea(child:Padding(padding:const EdgeInsets.all(18),child:Column(mainAxisSize:MainAxisSize.min,children:[
+      Text('Пробег · ${_detailDate(date)}',style:const TextStyle(color:white,fontSize:19)),const SizedBox(height:12),
+      ConstrainedBox(constraints:BoxConstraints(maxHeight:MediaQuery.sizeOf(c).height*.65),child:ListView(shrinkWrap:true,children:[
+        for(final s in shifts)Container(margin:const EdgeInsets.only(bottom:10),padding:const EdgeInsets.all(12),decoration:panel(),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text('${_detailTime(DateTime.parse(s['start'] as String))} · ${_fmt1(km(b,s))} км',style:const TextStyle(color:gold,fontSize:17)),
+          const SizedBox(height:6),Text(destinations(b,[s]).join(', ').isEmpty?'Направление не указано':destinations(b,[s]).join(', '),style:const TextStyle(color:white)),
+          const SizedBox(height:5),Text('Одометр: ${s['startKm']} → ${s['currentKm']} км',style:const TextStyle(color:Colors.white60,fontSize:12)),
+          Row(children:[TextButton(onPressed:(){Navigator.pop(c);_testOpen(context,shiftId:s['id'] as String);},child:const Text('Открыть смену')),
+            TextButton(onPressed:(){Navigator.pop(c);route(s);},child:const Text('GPS-маршрут'))]),
+        ])),
+      ])),
+    ]))));
+  BoxDecoration panel()=>BoxDecoration(borderRadius:BorderRadius.circular(19),
+    border:Border.all(color:const Color(0xAA8E754F),width:1),
+    gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xF0192228),Color(0xF5060D13),Color(0xED15222A)]),
+    boxShadow:const [BoxShadow(color:Color(0x66000000),blurRadius:8,offset:Offset(0,4))]);
+  Widget text(String s,double size,{Color color=white})=>Text(s,maxLines:2,overflow:TextOverflow.ellipsis,style:TextStyle(color:color,fontSize:size,height:1.15));
+  @override Widget build(BuildContext context)=>AnnotatedRegion<SystemUiOverlayStyle>(
+    value:const SystemUiOverlayStyle(statusBarColor:Colors.transparent,statusBarIconBrightness:Brightness.light,systemNavigationBarColor:Colors.transparent,systemNavigationBarIconBrightness:Brightness.light),
+    child:Scaffold(backgroundColor:const Color(0xFF060D13),body:_TestLive(builder:(b){
+      final shifts=b.shifts.where((s){final d=DateTime.parse(s['start'] as String);return d.year==month.year&&d.month==month.month;}).toList()
+        ..sort((a,z)=>(z['start'] as String).compareTo(a['start'] as String));
+      final grouped=<DateTime,List<Map<String,dynamic>>>{};
+      for(final s in shifts){final d=DateTime.parse(s['start'] as String);(grouped[DateTime(d.year,d.month,d.day)]??=[]).add(s);}
+      final days=grouped.keys.toList()..sort((a,z)=>z.compareTo(a));
+      double sum(List<Map<String,dynamic>> list)=>list.fold<double>(0,(v,s)=>v+km(b,s));
+      final total=sum(shifts),now=DateTime.now();final today=DateTime(now.year,now.month,now.day);final monday=today.subtract(Duration(days:today.weekday-1));
+      final week=sum(shifts.where((s){final d=DateTime.parse(s['start'] as String);return !d.isBefore(monday)&&d.isBefore(today.add(const Duration(days:1)));}).toList());
+      final daily=List<double>.generate(DateTime(month.year,month.month+1,0).day,(i)=>sum(grouped[DateTime(month.year,month.month,i+1)]??[]));
+      final seconds=travelSeconds.values.fold<int>(0,(a,z)=>a+z);
+      final elapsed=travelSeconds.isEmpty?'—':'${seconds~/3600} ч ${seconds~/60%60} мин';
+      final names=destinations(b,shifts);
+      return LayoutBuilder(builder:(context,box){final scale=box.maxWidth/864;final safe=MediaQuery.paddingOf(context).top;
+        Widget at(double x,double y,double w,double h,Widget child)=>Positioned(left:x,top:y,width:w,height:h,child:child);
+        Widget action(String label,IconData icon,VoidCallback tap,{bool selected=false})=>_GasTap(label:label,onTap:tap,child:Container(
+          decoration:BoxDecoration(borderRadius:BorderRadius.circular(42),border:Border.all(color:selected?gold:const Color(0xFF596C77),width:1.7),
+            gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:selected?const [Color(0xE86F4819),Color(0xF5111515)]:const [Color(0xDD29333A),Color(0xF3050D13)]),
+            boxShadow:selected?const [BoxShadow(color:Color(0x667A4E17),blurRadius:12)]:null),
+          child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[Icon(icon,color:selected?gold:white,size:38),const SizedBox(width:14),text(label,23)])));
+        final scene=SizedBox(width:864,height:1536,child:Stack(children:[
+          at(29,30,68,68,_GasTap(label:'Назад',onTap:()=>Navigator.pop(context),child:Container(decoration:BoxDecoration(shape:BoxShape.circle,color:const Color(0xD0080E13),border:Border.all(color:gold,width:2)),child:const Icon(Icons.arrow_back,color:gold,size:38)))),
+          at(308,22,300,80,Row(children:[const Icon(Icons.add_road,color:gold,size:69),const SizedBox(width:19),text('Пробег',43)])),
+          at(638,32,204,62,_GasTap(label:'Выбрать месяц',onTap:pickMonth,child:Container(decoration:panel(),alignment:Alignment.center,child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[text('${_garageMonths[month.month-1]} ${month.year}',20),const Icon(Icons.expand_more,color:white,size:25)])))),
+          at(286,379,61,40,const CustomPaint(painter:_MileageRestNeedle())),
+          at(337,276,195,28,Center(child:text('Пробег за месяц',23))),
+          at(337,312,195,65,TweenAnimationBuilder<double>(tween:Tween<double>(begin:total,end:total),duration:const Duration(milliseconds:500),builder:(_,v,__)=>CustomPaint(painter:_ReferenceDrum(v.round())))),
+          at(400,382,65,26,Center(child:text('км',21))),
+          _GasWall(points:const [Offset(50,151),Offset(203,183),Offset(203,296),Offset(50,266)],title:'Сегодня',value:'${_fmt1(sum(grouped[today]??[]))} км',icon:Icons.add_road,color:blue,values:daily,onTap:()=>day(b,today,grouped[today]??[])),
+          _GasWall(points:const [Offset(51,336),Offset(203,365),Offset(203,461),Offset(51,442)],title:'За неделю',value:'${_fmt1(week)} км',icon:Icons.add_road,color:blue,values:daily,onTap:()=>setState(()=>tab=2)),
+          _GasWall(points:const [Offset(52,505),Offset(203,526),Offset(203,628),Offset(52,619)],title:'За месяц',value:'${_fmt1(total)} км',icon:Icons.add_road,color:gold,values:daily,onTap:()=>setState(()=>tab=2)),
+          _GasWall(points:const [Offset(661,178),Offset(826,144),Offset(826,283),Offset(661,318)],title:'Средний за день',value:'${_fmt1(days.isEmpty?0:total/days.length)} км',icon:Icons.route,color:blue,values:daily,onTap:()=>setState(()=>tab=2)),
+          _GasWall(points:const [Offset(665,354),Offset(825,328),Offset(825,468),Offset(665,492)],title:'Время в пути',value:elapsed,icon:Icons.access_time,color:blue,values:days.reversed.map((d)=>(grouped[d]??[]).fold<double>(0,(v,s)=>v+(travelSeconds[s['id']]??0)/60)).toList(),line:true,onTap:()=>setState(()=>tab=1)),
+          at(706,585,119,95,_GasTap(label:'Направления',onTap:()=>setState(()=>tab=1),child:Container(padding:const EdgeInsets.all(6),decoration:panel(),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            for(final name in names.take(3))Padding(padding:const EdgeInsets.only(bottom:5),child:Row(children:[const Icon(Icons.location_on_outlined,color:blue,size:14),Expanded(child:text(name,12))])),
+            if(names.isEmpty)text('Нет маршрутов',13,color:Colors.white60),
+          ])))),
+          at(36,806,282,79,action('Добавить пробег',Icons.add_circle_outline,(){setState(()=>tab=0);_showShiftForm(context,shift:b.active);},selected:tab==0)),
+          at(328,806,250,79,action('Маршруты',Icons.add_road,()=>setState(()=>tab=1),selected:tab==1)),
+          at(588,806,240,79,action('Статистика',Icons.show_chart,()=>setState(()=>tab=2),selected:tab==2)),
+          at(35,910,794,520,Container(padding:const EdgeInsets.fromLTRB(16,18,16,14),decoration:panel(),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Padding(padding:const EdgeInsets.only(left:12,bottom:16),child:text(tab==0?'Пробег по дням':tab==1?'Маршруты по дням':'Статистика пробега',30)),
+            Expanded(child:tab==2?Column(children:[Text('${_fmt1(total)} км за месяц',style:const TextStyle(color:gold,fontSize:28)),const SizedBox(height:20),
+              Expanded(child:CustomPaint(size:const Size(double.infinity,300),painter:_GasChart(daily,gold,line:true,labels:true))),const SizedBox(height:14),text('Среднее за день со сменой · ${_fmt1(days.isEmpty?0:total/days.length)} км',20,color:Colors.white70)]):
+              days.isEmpty?Center(child:text('За этот месяц пробег не записан',24,color:Colors.white60)):
+              ListView.separated(padding:EdgeInsets.zero,itemCount:days.length,separatorBuilder:(_,__)=>const SizedBox(height:7),itemBuilder:(c,i){final date=days[i],list=grouped[date]!;final dest=destinations(b,list);
+                final types={for(final s in list)for(final r in b.forShift(s['id'] as String))if(r['kind']=='trip')r['type']?.toString()??''}.where((v)=>v.isNotEmpty).join(' · ');
+                return _GasTap(label:'${_detailDate(date)}, ${dest.join(', ')}, ${_fmt1(sum(list))} км',onTap:()=>day(b,date,list),child:Container(height:79,padding:const EdgeInsets.symmetric(horizontal:14),decoration:panel(),child:Row(children:[
+                  SizedBox(width:45,child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[text('${date.day}'.padLeft(2,'0'),29),text(const ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][date.weekday-1],13,color:Colors.white60)])),
+                  const SizedBox(width:9),SizedBox(width:100,child:text(_garageMonths[date.month-1],20)),
+                  const Icon(Icons.location_on_outlined,color:blue,size:33),const SizedBox(width:15),
+                  Expanded(child:Column(mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.start,children:[text(dest.isEmpty?'Направление не указано':dest.join(', '),22),const SizedBox(height:5),text(types.isEmpty?'Смена':types,17,color:Colors.white54)])),
+                  const SizedBox(width:12),text('${_fmt1(sum(list))} км',27),const SizedBox(width:16),const Icon(Icons.chevron_right,color:white,size:30),
+                ])));
+              })),
+          ]))),
+        ]));
+        return SingleChildScrollView(child:SizedBox(width:box.maxWidth,height:1536*scale+safe+MediaQuery.paddingOf(context).bottom,
+          child:Stack(children:[Positioned.fill(child:_ExtendedArtwork(asset:'assets/images/scenes/mileage_dashboard.png',topInset:safe)),
+            Positioned(top:safe,left:0,width:box.maxWidth,height:1536*scale,child:FittedBox(fit:BoxFit.contain,child:MediaQuery.withClampedTextScaling(minScaleFactor:1,maxScaleFactor:1,child:scene))),
+          ])));
+      });
+    })));
+}
+class _ReferenceDrum extends CustomPainter {
+  final int value;const _ReferenceDrum(this.value);
+  @override void paint(Canvas c,Size s){
+    final digits=value.toString().padLeft(5,'0');final n=digits.length;final width=s.width/n;
+    final frame=RRect.fromRectAndRadius(Offset.zero&s,const Radius.circular(5));
+    c.drawRRect(frame,Paint()..color=const Color(0xFF09121A));
+    for(var i=0;i<n;i++){
+      final r=Rect.fromLTWH(i*width+2,3,width-4,s.height-6);
+      c.drawRect(r,Paint()..shader=const LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,
+        colors:[Color(0xFF101A21),Color(0xFF416071),Color(0xFF0A1219),Color(0xFF263842),Color(0xFF080D11)],stops:[0,.3,.52,.8,1]).createShader(r));
+      final tp=TextPainter(text:TextSpan(text:digits[i],style:TextStyle(fontFamily:'monospace',fontSize:s.height*.71,fontWeight:FontWeight.w600,color:const Color(0xFFDEE9EA))),textDirection:TextDirection.ltr)..layout();
+      tp.paint(c,Offset(r.center.dx-tp.width/2,r.center.dy-tp.height/2));
+      c.drawLine(Offset(r.left,r.center.dy),Offset(r.right,r.center.dy),Paint()..color=const Color(0xAA04090D)..strokeWidth=1);
+    }
+    c.drawRRect(frame,Paint()..style=PaintingStyle.stroke..strokeWidth=2..color=const Color(0xFF678190));
+  }
+  @override bool shouldRepaint(covariant _ReferenceDrum old)=>old.value!=value;
+}
+
+class _MileageRestNeedle extends CustomPainter {
+  const _MileageRestNeedle();
+  @override void paint(Canvas c,Size s){
+    final a=Offset(2,s.height-3),b=Offset(s.width-3,2);
+    c.drawLine(a,b,Paint()..strokeWidth=7..color=const Color(0xAAEFA84C)..maskFilter=const MaskFilter.blur(BlurStyle.normal,5));
+    c.drawLine(a,b,Paint()..strokeWidth=2.5..strokeCap=StrokeCap.round..color=const Color(0xFFFFDA9A));
+  }
+  @override bool shouldRepaint(covariant _MileageRestNeedle old)=>false;
 }
