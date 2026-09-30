@@ -114,15 +114,21 @@ class _AppShellState extends State<AppShell> {
     return [
       HomePage(
         session: widget.session,
-        onNavigate: (index) => setState(() => _index = index),
+        onNavigate: _selectTab,
         onQuickAdd: _openQuickAdd,
       ),
       if (_index == 1) WorkPage(session: widget.session,
-        onNavigate: (index) => setState(() => _index = index), onQuickAdd: _openQuickAdd) else const SizedBox.shrink(),
+        onNavigate: _selectTab, onQuickAdd: _openQuickAdd) else const SizedBox.shrink(),
       const SizedBox.shrink(),
       _MillStatistics(session:widget.session,onHome:()=>setState(()=>_index=0)),
-      StatisticsPage(session: widget.session),
+      _CinematicMore(session:widget.session,onNavigate:_selectTab,showNavigation:false),
     ];
+  }
+
+  void _selectTab(int index) {
+    if(index==2){_openQuickAdd();return;}
+    if(index<0||index>4||index==_index)return;
+    setState(()=>_index=index);
   }
 
   void _openQuickAdd() {
@@ -153,17 +159,18 @@ class _AppShellState extends State<AppShell> {
       _index = 0;
     }
 
-    return Scaffold(
+    return PopScope(
+      canPop:widget.session.role==AppRole.loader||_index==0,
+      onPopInvokedWithResult:(didPop,result){if(!didPop)_selectTab(0);},
+      child:Scaffold(
       body: Stack(
         children: [
-          if (widget.session.role != AppRole.loader && _index == 0)
-            Positioned.fill(child: Image.asset('assets/images/garage_approved.png', fit: BoxFit.fill))
-          else if (widget.session.role != AppRole.loader && _index == 1)
+          if (widget.session.role != AppRole.loader)
             const Positioned.fill(child: ColoredBox(color: Color(0xFF071017)))
           else
             const _AppBackground(),
           SafeArea(
-            top: !(widget.session.role != AppRole.loader && _index == 1),
+            top: !(widget.session.role != AppRole.loader && (_index == 1 || _index == 4)),
             bottom: false,
             child: _SceneTabStage(
               index: _index,
@@ -183,7 +190,7 @@ class _AppShellState extends State<AppShell> {
             return;
           }
           if (widget.session.role != AppRole.loader && value == 4) {
-            _openHomeMenu(context, widget.session);
+            _selectTab(4);
             return;
           }
           HapticFeedback.selectionClick();
@@ -191,7 +198,7 @@ class _AppShellState extends State<AppShell> {
         },
         onLongPressLogo: _logout,
       ),
-    );
+    ));
   }
 }
 
@@ -2214,6 +2221,8 @@ BoxDecoration _homePanelDecoration({
 }
 
 Future<void> _openHomeMenu(BuildContext context,AppSession session) async {
+  final shell=context.findAncestorStateOfType<_AppShellState>();
+  if(shell!=null){shell._selectTab(4);return;}
   await Navigator.push(context,_SceneRoute<void>(builder:(_)=>_CinematicMore(session:session)));
 }
 

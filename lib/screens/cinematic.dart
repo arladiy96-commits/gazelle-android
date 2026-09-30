@@ -675,23 +675,20 @@ Future<void> _dayActions(BuildContext context,DateTime day) async=>_testRun(cont
   else if(choice=='Удалить смену'&&await _testConfirm(context,'Удалить смену и все её записи?')&&context.mounted){await TestStore.deleteShift(shift['id'] as String);}
 });
 
-// Keep every tab mounted: switching does not reset scroll, month or drafts.
-class _SceneTabStage extends StatefulWidget {
+// Tab changes are opaque and never create Navigator routes.
+// Disable timers/animations in hidden pages while retaining their UI state.
+class _SceneTabStage extends StatelessWidget {
   final int index;final List<Widget> children;
   const _SceneTabStage({required this.index,required this.children});
-  @override State<_SceneTabStage> createState()=>_SceneTabStageState();
-}
-class _SceneTabStageState extends State<_SceneTabStage> with SingleTickerProviderStateMixin {
-  late final controller=AnimationController(vsync:this,duration:const Duration(milliseconds:420),value:1);
-  late final curve=CurvedAnimation(parent:controller,curve:Curves.easeOutCubic);
-  @override void didUpdateWidget(covariant _SceneTabStage oldWidget){super.didUpdateWidget(oldWidget);if(oldWidget.index!=widget.index){if(MediaQuery.disableAnimationsOf(context)){controller.value=1;}else{controller.forward(from:0);}}}
-  @override void dispose(){curve.dispose();controller.dispose();super.dispose();}
-  @override Widget build(BuildContext context)=>FadeTransition(opacity:Tween<double>(begin:.2,end:1).animate(curve),child:ScaleTransition(scale:Tween<double>(begin:.985,end:1).animate(curve),child:IndexedStack(index:widget.index,children:widget.children)));
+  @override Widget build(BuildContext context)=>IndexedStack(index:index,
+    children:[for(var i=0;i<children.length;i++)TickerMode(enabled:i==index,child:children[i])]);
 }
 
 class _CinematicMore extends StatelessWidget {
   final AppSession session;
-  const _CinematicMore({required this.session});
+  final ValueChanged<int>? onNavigate;
+  final bool showNavigation;
+  const _CinematicMore({required this.session,this.onNavigate,this.showNavigation=true});
   static const gold = Color(0xFFCEA15B);
   static const groups = <(String, IconData, List<(String,String,IconData,Color)>)>[
     ('РАБОЧЕЕ', Icons.bar_chart, [
@@ -734,6 +731,9 @@ class _CinematicMore extends StatelessWidget {
     Navigator.push(context,_SceneRoute<void>(builder:(_)=>_MorePlaceholder(item:item)));
   }
   void navigate(BuildContext context,int index) {
+    if(onNavigate!=null){onNavigate!(index);return;}
+    final shell=context.findAncestorStateOfType<_AppShellState>();
+    if(shell!=null){shell._selectTab(index);return;}
     if(index==4)return;
     if(index==2){_showQuickAddMenu(context,session);return;}
     if(index==0){Navigator.of(context).popUntil((r)=>r.isFirst);return;}
@@ -747,7 +747,7 @@ class _CinematicMore extends StatelessWidget {
         Container(width:38,height:38,decoration:BoxDecoration(shape:BoxShape.circle,
           color:const Color(0xB010161A),border:Border.all(color:gold)),
           child:IconButton(padding:EdgeInsets.zero,icon:const Icon(Icons.chevron_left,color:gold),
-            tooltip:'Назад',onPressed:()=>Navigator.pop(context))),
+            tooltip:'Назад',onPressed:()=>navigate(context,0))),
         const SizedBox(width:17),const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           Text('Ещё',style:TextStyle(color:Color(0xFFF1EEE6),fontSize:27,fontWeight:FontWeight.w600)),
           SizedBox(height:3),SizedBox(width:48,child:Divider(color:gold,height:3,thickness:1.5)),
@@ -777,7 +777,7 @@ class _CinematicMore extends StatelessWidget {
                 ]])))),
           ]));
         })),
-      Padding(padding:const EdgeInsets.fromLTRB(8,4,8,3),
+      if(showNavigation)Padding(padding:const EdgeInsets.fromLTRB(8,4,8,3),
         child:_MillDock(index:4,onChanged:(i)=>navigate(context,i))),
     ]))]));
 }
