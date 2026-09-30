@@ -1406,16 +1406,8 @@ class _GasDashboardState extends State<_GasDashboard> {
             onTap: latest == null ? () => setState(() => tab = 2) : () => _testEditor(context, 'fuel', entry: latest)),
         ])));
         return Stack(children: [
-          Positioned.fill(child: Image.asset('assets/images/scenes/gas_dashboard.png',
-            fit: BoxFit.cover, excludeFromSemantics: true)),
-          Positioned(top: sceneTop * scale, left: (constraints.maxWidth - sceneWidth) / 2,
-            width: sceneWidth, child: ShaderMask(blendMode: BlendMode.dstIn,
-              shaderCallback: (rect) => const LinearGradient(
-                begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                colors: [Colors.white, Colors.white, Colors.transparent],
-                stops: [0, .88, 1]).createShader(rect),
-              child: Image.asset('assets/images/scenes/gas_dashboard.png',
-                fit: BoxFit.fitWidth, excludeFromSemantics: true))),
+          Positioned.fill(child:_ExtendedArtwork(asset:'assets/images/scenes/gas_dashboard.png',
+            topInset:sceneTop*scale,imageWidth:sceneWidth)),
           Padding(padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom + 6),
             child: Column(children: [
 

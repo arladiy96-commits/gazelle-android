@@ -61,9 +61,6 @@ class _ReferenceHomeDashboard extends StatelessWidget {
     Widget place(double x, double y, double w, double h, Widget child) =>
         Positioned(left: x, top: y, width: w, height: h, child: child);
     final scene = SizedBox(width: 853, height: 1844, child: Stack(children: [
-      Positioned.fill(child: RepaintBoundary(child: Image.asset(
-        'assets/images/scenes/mill_home.png', fit: BoxFit.contain,
-        filterQuality: FilterQuality.high, excludeFromSemantics: true))),
       // All display faces use the wall perspective, not independent offsets.
       _MillWallDisplay(points: const [Offset(69, 291), Offset(256, 364), Offset(255, 526), Offset(66, 454)],
         number: 1,
@@ -137,7 +134,7 @@ class _ReferenceHomeDashboard extends StatelessWidget {
           physics: const ClampingScrollPhysics(),
           child: SizedBox(width: size.width, height: viewportHeight,
           child: ClipRect(child: Stack(children: [
-        const Positioned.fill(child: ColoredBox(color: Color(0xFF040A10))),
+
         Positioned(left: offsetX, top: 0, width: 853 * scale, height: 1844 * scale,
           child: FittedBox(fit: BoxFit.contain, child: MediaQuery.withClampedTextScaling(
             minScaleFactor: 1, maxScaleFactor: 1, child: scene))),

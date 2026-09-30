@@ -165,7 +165,12 @@ class _AppShellState extends State<AppShell> {
       child:Scaffold(
       body: Stack(
         children: [
-          if (widget.session.role != AppRole.loader)
+          if (widget.session.role != AppRole.loader && (_index==0||_index==3))
+            Positioned.fill(child:_ExtendedArtwork(
+              asset:_index==0?'assets/images/scenes/mill_home.png':'assets/images/scenes/statistics_dashboard.png',
+              topInset:MediaQuery.paddingOf(context).top,
+              fit:_index==0?BoxFit.fitWidth:BoxFit.cover))
+          else if (widget.session.role != AppRole.loader)
             const Positioned.fill(child: ColoredBox(color: Color(0xFF071017)))
           else
             const _AppBackground(),
@@ -6542,4 +6547,43 @@ class _MillDock extends StatelessWidget {
                       borderRadius:BorderRadius.circular(2),boxShadow:const [BoxShadow(color:Color(0x887A5426),blurRadius:6)])),
                 ]))))
         ]]))));
+}
+
+// Extend only the empty ceiling into the system inset. All content below
+// the ceiling keeps its original image coordinates and scale.
+class _ExtendedArtwork extends StatefulWidget {
+  final String asset;final double topInset;final BoxFit fit;final double? imageWidth;
+  const _ExtendedArtwork({required this.asset,required this.topInset,this.fit=BoxFit.fitWidth,this.imageWidth});
+  @override State<_ExtendedArtwork> createState()=>_ExtendedArtworkState();
+}
+class _ExtendedArtworkState extends State<_ExtendedArtwork> {
+  ImageStream? stream;ImageInfo? info;
+  late final ImageStreamListener listener=ImageStreamListener((image,synchronous){
+    final previous=info;if(mounted)setState(()=>info=image);else image.dispose();previous?.dispose();
+  });
+  void resolve(){stream?.removeListener(listener);stream=AssetImage(widget.asset).resolve(createLocalImageConfiguration(context));stream!.addListener(listener);}
+  @override void didChangeDependencies(){super.didChangeDependencies();resolve();}
+  @override void didUpdateWidget(covariant _ExtendedArtwork old){super.didUpdateWidget(old);if(old.asset!=widget.asset)resolve();}
+  @override void dispose(){stream?.removeListener(listener);info?.dispose();super.dispose();}
+  @override Widget build(BuildContext context)=>CustomPaint(painter:info==null?null:_ExtendedArtworkPainter(info!,widget.topInset,widget.fit,widget.imageWidth));
+}
+class _ExtendedArtworkPainter extends CustomPainter {
+  final ImageInfo info;final double inset;final BoxFit fit;final double? imageWidth;
+  _ExtendedArtworkPainter(this.info,this.inset,this.fit,this.imageWidth);
+  @override void paint(Canvas canvas,Size size){
+    final image=info.image;final source=Size(image.width.toDouble(),image.height.toDouble());
+    final target=Size(size.width,math.max(1.0,size.height-inset));
+    final fitted=applyBoxFit(fit,source,target);
+    final src=fit==BoxFit.fitWidth?Offset.zero&source:Alignment.center.inscribe(fitted.source,Offset.zero&source);
+    final width=imageWidth??size.width;
+    final dst=fit==BoxFit.fitWidth?Rect.fromLTWH((size.width-width)/2,0,width,source.height*width/source.width):Alignment.topCenter.inscribe(fitted.destination,Offset.zero&target);
+    final band=math.min(48.0,dst.height*.08);
+    final sourceBand=band*src.height/dst.height;
+    final paint=Paint()..filterQuality=FilterQuality.high;
+    canvas.drawImageRect(image,Rect.fromLTWH(src.left,src.top,src.width,sourceBand),
+      Rect.fromLTWH(dst.left,0,dst.width,inset+band),paint);
+    canvas.drawImageRect(image,Rect.fromLTWH(src.left,src.top+sourceBand,src.width,src.height-sourceBand),
+      Rect.fromLTWH(dst.left,inset+band,dst.width,dst.height-band),paint);
+  }
+  @override bool shouldRepaint(covariant _ExtendedArtworkPainter old)=>old.info!=info||old.inset!=inset||old.fit!=fit||old.imageWidth!=imageWidth;
 }

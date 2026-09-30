@@ -82,7 +82,7 @@ class _MillStatisticsState extends State<_MillStatistics> {
         border:Border.all(color:selected?gold:const Color(0xFF694829))),
       child:Text(label,style:TextStyle(color:selected?gold:const Color(0xFFB4BABE),fontSize:11))))));
   @override Widget build(BuildContext context)=>Stack(children:[
-    Positioned.fill(child:Image.asset('assets/images/scenes/statistics_dashboard.png',fit:BoxFit.cover)),
+
     _TestLive(builder:(b){
       final rows=data(b,range);final shown=rows.where((d)=>!onlyActive||d.active).toList();
       final previous=period==2?DateTimeRange(start:DateTime(range.start.year,range.start.month,range.start.day-rows.length),end:DateTime(range.start.year,range.start.month,range.start.day-1)):
@@ -166,7 +166,9 @@ class _MillStatisticsRoute extends StatelessWidget {
   final AppSession session;
   const _MillStatisticsRoute({required this.session});
   @override Widget build(BuildContext context)=>Scaffold(
-    body:SafeArea(child:_MillStatistics(session:session)),
+    body:Stack(children:[
+      Positioned.fill(child:_ExtendedArtwork(asset:'assets/images/scenes/statistics_dashboard.png',topInset:MediaQuery.paddingOf(context).top,fit:BoxFit.cover)),
+      SafeArea(child:_MillStatistics(session:session))]),
     bottomNavigationBar:_BottomNavigation(index:3,items:const [
       _NavItem(label:'Главная',icon:Icons.home_outlined,activeIcon:Icons.home_rounded),
       _NavItem(label:'Работа',icon:Icons.local_shipping_outlined,activeIcon:Icons.local_shipping_rounded),
