@@ -1722,7 +1722,7 @@ class _MileageReferenceState extends State<_MileageReference> {
               })),
           ]))),
         ]));
-        return SingleChildScrollView(child:SizedBox(width:box.maxWidth,height:1536*scale+safe+MediaQuery.paddingOf(context).bottom,
+        return SingleChildScrollView(child:SizedBox(width:box.maxWidth,height:math.max(box.maxHeight,1536*scale+safe+MediaQuery.paddingOf(context).bottom),
           child:Stack(children:[Positioned.fill(child:_ExtendedArtwork(asset:'assets/images/scenes/mileage_dashboard.png',topInset:safe)),
             Positioned(top:safe,left:0,width:box.maxWidth,height:1536*scale,child:FittedBox(fit:BoxFit.contain,child:MediaQuery.withClampedTextScaling(minScaleFactor:1,maxScaleFactor:1,child:scene))),
           ])));

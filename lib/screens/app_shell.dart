@@ -154,6 +154,8 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final items = _items;
     final pages = _pages;
+    final extendDock=widget.session.role!=AppRole.loader&&(_index==3||_index==4);
+    final dockExtent=extendDock?83.0+MediaQuery.viewPaddingOf(context).bottom:0.0;
 
     if (_index >= pages.length) {
       _index = 0;
@@ -163,25 +165,27 @@ class _AppShellState extends State<AppShell> {
       canPop:widget.session.role==AppRole.loader||_index==0,
       onPopInvokedWithResult:(didPop,result){if(!didPop)_selectTab(0);},
       child:Scaffold(
+      extendBody:extendDock,
       body: Stack(
         children: [
-          if (widget.session.role != AppRole.loader && (_index==0||_index==3))
+          if (widget.session.role != AppRole.loader && (_index==0||_index==3||_index==4))
             Positioned.fill(child:_ExtendedArtwork(
-              asset:_index==0?'assets/images/scenes/mill_home.png':'assets/images/scenes/statistics_dashboard.png',
-              topInset:MediaQuery.paddingOf(context).top,
+              asset:_index==0?'assets/images/scenes/mill_home.png':_index==3?'assets/images/scenes/statistics_dashboard.png':'assets/images/scenes/more_dashboard.png',
+              topInset:_index==4?0:MediaQuery.paddingOf(context).top,bottomInset:dockExtent,
               fit:_index==0?BoxFit.fitWidth:BoxFit.cover))
           else if (widget.session.role != AppRole.loader)
             const Positioned.fill(child: ColoredBox(color: Color(0xFF071017)))
           else
             const _AppBackground(),
-          SafeArea(
+          Padding(padding:EdgeInsets.only(bottom:dockExtent),
+            child:MediaQuery.removePadding(context:context,removeBottom:extendDock,child:SafeArea(
             top: !(widget.session.role != AppRole.loader && (_index == 1 || _index == 4)),
             bottom: false,
             child: _SceneTabStage(
               index: _index,
               children: pages,
             ),
-          ),
+          ))),
         ],
       ),
       bottomNavigationBar: widget.session.role != AppRole.loader && _index <= 1
@@ -6552,8 +6556,8 @@ class _MillDock extends StatelessWidget {
 // Extend only the empty ceiling into the system inset. All content below
 // the ceiling keeps its original image coordinates and scale.
 class _ExtendedArtwork extends StatefulWidget {
-  final String asset;final double topInset;final BoxFit fit;final double? imageWidth;
-  const _ExtendedArtwork({required this.asset,required this.topInset,this.fit=BoxFit.fitWidth,this.imageWidth});
+  final String asset;final double topInset;final BoxFit fit;final double? imageWidth;final double bottomInset;
+  const _ExtendedArtwork({required this.asset,required this.topInset,this.fit=BoxFit.fitWidth,this.imageWidth,this.bottomInset=0});
   @override State<_ExtendedArtwork> createState()=>_ExtendedArtworkState();
 }
 class _ExtendedArtworkState extends State<_ExtendedArtwork> {
@@ -6565,14 +6569,14 @@ class _ExtendedArtworkState extends State<_ExtendedArtwork> {
   @override void didChangeDependencies(){super.didChangeDependencies();resolve();}
   @override void didUpdateWidget(covariant _ExtendedArtwork old){super.didUpdateWidget(old);if(old.asset!=widget.asset)resolve();}
   @override void dispose(){stream?.removeListener(listener);info?.dispose();super.dispose();}
-  @override Widget build(BuildContext context)=>CustomPaint(painter:info==null?null:_ExtendedArtworkPainter(info!,widget.topInset,widget.fit,widget.imageWidth));
+  @override Widget build(BuildContext context)=>CustomPaint(painter:info==null?null:_ExtendedArtworkPainter(info!,widget.topInset,widget.fit,widget.imageWidth,widget.bottomInset));
 }
 class _ExtendedArtworkPainter extends CustomPainter {
-  final ImageInfo info;final double inset;final BoxFit fit;final double? imageWidth;
-  _ExtendedArtworkPainter(this.info,this.inset,this.fit,this.imageWidth);
+  final ImageInfo info;final double inset;final BoxFit fit;final double? imageWidth;final double bottomInset;
+  _ExtendedArtworkPainter(this.info,this.inset,this.fit,this.imageWidth,this.bottomInset);
   @override void paint(Canvas canvas,Size size){
     final image=info.image;final source=Size(image.width.toDouble(),image.height.toDouble());
-    final target=Size(size.width,math.max(1.0,size.height-inset));
+    final target=Size(size.width,math.max(1.0,size.height-inset-bottomInset));
     final fitted=applyBoxFit(fit,source,target);
     final src=fit==BoxFit.fitWidth?Offset.zero&source:Alignment.center.inscribe(fitted.source,Offset.zero&source);
     final width=imageWidth??size.width;
@@ -6582,8 +6586,14 @@ class _ExtendedArtworkPainter extends CustomPainter {
     final paint=Paint()..filterQuality=FilterQuality.high;
     canvas.drawImageRect(image,Rect.fromLTWH(src.left,src.top,src.width,sourceBand),
       Rect.fromLTWH(dst.left,0,dst.width,inset+band),paint);
-    canvas.drawImageRect(image,Rect.fromLTWH(src.left,src.top+sourceBand,src.width,src.height-sourceBand),
-      Rect.fromLTWH(dst.left,inset+band,dst.width,dst.height-band),paint);
+    final extra=math.max(0.0,size.height-(inset+dst.height));
+    final floorBand=extra>0?math.min(dst.height*.15,100.0):0.0;
+    final sourceFloor=floorBand*src.height/dst.height;
+    canvas.drawImageRect(image,Rect.fromLTWH(src.left,src.top+sourceBand,src.width,src.height-sourceBand-sourceFloor),
+      Rect.fromLTWH(dst.left,inset+band,dst.width,dst.height-band-floorBand),paint);
+    if(extra>0)canvas.drawImageRect(image,
+      Rect.fromLTWH(src.left,src.bottom-sourceFloor,src.width,sourceFloor),
+      Rect.fromLTWH(dst.left,inset+dst.height-floorBand,dst.width,floorBand+extra),paint);
   }
-  @override bool shouldRepaint(covariant _ExtendedArtworkPainter old)=>old.info!=info||old.inset!=inset||old.fit!=fit||old.imageWidth!=imageWidth;
+  @override bool shouldRepaint(covariant _ExtendedArtworkPainter old)=>old.info!=info||old.inset!=inset||old.fit!=fit||old.imageWidth!=imageWidth||old.bottomInset!=bottomInset;
 }

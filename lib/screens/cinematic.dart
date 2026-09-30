@@ -741,8 +741,8 @@ class _CinematicMore extends StatelessWidget {
     Navigator.push(context,_SceneRoute<void>(builder:(page)=>WorkPage(session:session,
       onNavigate:(i)=>navigate(page,i),onQuickAdd:()=>_showQuickAddMenu(page,session))));
   }
-  @override Widget build(BuildContext context) => Scaffold(backgroundColor:const Color(0xFF080E12),
-    body:Stack(children:[backdrop(),SafeArea(child:Column(children:[
+  @override Widget build(BuildContext context) => Scaffold(backgroundColor:showNavigation?const Color(0xFF080E12):Colors.transparent,
+    body:Stack(children:[if(showNavigation)backdrop(),SafeArea(child:Column(children:[
       Padding(padding:const EdgeInsets.fromLTRB(18,8,18,8),child:Row(children:[
         Container(width:38,height:38,decoration:BoxDecoration(shape:BoxShape.circle,
           color:const Color(0xB010161A),border:Border.all(color:gold)),
