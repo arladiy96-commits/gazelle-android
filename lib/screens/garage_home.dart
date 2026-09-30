@@ -106,19 +106,19 @@ class _ReferenceHomeDashboard extends StatelessWidget {
         child: _MillClock(start: active?['start'] as String?))),
       place(250, 1305, 158, 120, _MillStatus(icon: Icons.local_shipping_outlined,
         title: 'Рейсы', onTap: () => records('Рейсы'),
-        child: _MillValue(value: trips.toDouble(), unit: _millTripUnit(trips), size: 25, color: _millCyan))),
+        child: _MillValue(value: trips.toDouble(), unit: _millTripUnit(trips), size: 25, color: _millGold))),
       place(447, 1305, 165, 120, _MillStatus(icon: Icons.local_gas_station_outlined,
         title: 'Топливо', onTap: () => records('Топливо'),
         child: Column(children: [
-          _MillValue(value: fuel('Газ'), prefix: 'Газ ', unit: ' л', size: 19, color: _millCyan),
-          _MillValue(value: fuel('Бензин'), prefix: 'Бензин ', unit: ' л', size: 19, color: _millCyan),
+          _MillValue(value: fuel('Газ'), prefix: 'Газ ', unit: ' л', size: 19, color: _millGold),
+          _MillValue(value: fuel('Бензин'), prefix: 'Бензин ', unit: ' л', size: 19, color: _millGold),
         ]))),
       place(642, 1305, 144, 120, _MillStatus(icon: Icons.flag_outlined,
         title: 'Завершение', onTap: summary,
         child: AnimatedSwitcher(duration: const Duration(milliseconds: 220), child:
           _millText(active != null ? 'Ожидание' : last == null ? 'Нет итогов' :
             '${_fmt1(book.mileage(last))} км\n${_fmt1(book.hours(last))} ч', 23,
-            color: active == null && last != null ? _millCyan : const Color(0xFFAFB7BB),
+            color: active == null && last != null ? _millGold : const Color(0xFFAFB7BB),
             key: ValueKey('${active?["id"]}-${last?["id"]}-${last?["currentKm"]}-${last?["hoursWorked"]}'))))),
     ]));
     // Keep the header just below the status bar, without reserving a logo row.
@@ -513,15 +513,40 @@ class _MillStatus extends StatelessWidget {
   final VoidCallback onTap;
   const _MillStatus({required this.icon, required this.title, required this.child, required this.onTap});
   @override
-  Widget build(BuildContext context) => _MillPress(label: title, onTap: onTap,
-    child: Column(children: [
-      Container(width: 43, height: 43,
-        decoration: BoxDecoration(shape: BoxShape.circle,
-          border: Border.all(color: _millGold, width: 2),
-          boxShadow: const [BoxShadow(color: Color(0x187A633D), blurRadius: 12)],
-          color: const Color(0x770B1015)),
-        child: Icon(icon, color: _millGold, size: 28)), const SizedBox(height: 6),
-      FittedBox(fit: BoxFit.scaleDown, child: _millText(title, 18)), const SizedBox(height: 4), Expanded(child: Center(child: child))]));
+  Widget build(BuildContext context) => _MillPress(label:title,onTap:onTap,
+    child:CustomPaint(painter:const _MillInsetPlate(),child:Padding(
+      padding:const EdgeInsets.fromLTRB(8,7,8,7),child:Column(children:[
+        Container(width:34,height:34,decoration:BoxDecoration(shape:BoxShape.circle,
+          color:const Color(0x990B1013),border:Border.all(color:_millGold,width:1.3)),
+          child:Icon(icon,color:_millGold,size:23)),
+        const SizedBox(height:3),Container(width:double.infinity,padding:const EdgeInsets.symmetric(vertical:3),
+          decoration:BoxDecoration(color:const Color(0x990A0D0F),borderRadius:BorderRadius.circular(5)),
+          child:FittedBox(fit:BoxFit.scaleDown,child:_millText(title,15,color:const Color(0xFFD5D6D2)))),
+        const SizedBox(height:3),Expanded(child:Container(width:double.infinity,
+          padding:const EdgeInsets.symmetric(horizontal:3,vertical:2),
+          decoration:BoxDecoration(borderRadius:BorderRadius.circular(7),
+            border:Border.all(color:const Color(0xAA756044),width:1),
+            gradient:const LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,
+              colors:[Color(0xFF030608),Color(0xFF15191A)])),
+          child:Center(child:child))),
+      ]))));
+}
+class _MillInsetPlate extends CustomPainter {
+  const _MillInsetPlate();
+  @override void paint(Canvas c,Size s){
+    final rect=Offset.zero&s;
+    final shape=RRect.fromRectAndRadius(rect,const Radius.circular(7));
+    c.drawRRect(shape,Paint()..shader=const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
+      colors:[Color(0xC252432F),Color(0xC4192023),Color(0xDB080E11),Color(0xBB50402B)]).createShader(rect));
+    c.drawRRect(shape,Paint()..style=PaintingStyle.stroke..strokeWidth=1..color=const Color(0xB69F8052));
+    c.drawLine(const Offset(6,2),Offset(s.width-6,2),Paint()..color=const Color(0x99C5AA7B)..strokeWidth=1);
+    for(final x in [5.0,s.width-5])for(final y in [6.0,s.height-6]){
+      c.drawCircle(Offset(x,y),2.3,Paint()..color=const Color(0xFF06090A));
+      c.drawCircle(Offset(x-.4,y-.4),1.6,Paint()..color=const Color(0xFF8D7859));
+      c.drawLine(Offset(x-1,y+1),Offset(x+1,y-1),Paint()..color=const Color(0xFF252421)..strokeWidth=.7);
+    }
+  }
+  @override bool shouldRepaint(covariant _MillInsetPlate old)=>false;
 }
 
 class _MillClock extends StatefulWidget {
@@ -551,7 +576,7 @@ class _MillClockState extends State<_MillClock> {
     if (widget.start == null) return _millText('—', 25, color: const Color(0xFFAFB7BB));
     final seconds = math.max(0, DateTime.now().difference(DateTime.parse(widget.start!)).inSeconds);
     String pad(int n) => n.toString().padLeft(2, '0');
-    return _millText('${pad(seconds ~/ 3600)}:${pad(seconds ~/ 60 % 60)}:${pad(seconds % 60)}', 25, color: _millCyan);
+    return _millText('${pad(seconds ~/ 3600)}:${pad(seconds ~/ 60 % 60)}:${pad(seconds % 60)}', 25, color: _millGold);
   }
 }
 
@@ -559,30 +584,9 @@ class _MillNavigation extends StatelessWidget {
   final VoidCallback onWork, onAdd, onInvoices, onMore;
   const _MillNavigation({required this.onWork, required this.onAdd, required this.onInvoices, required this.onMore});
   @override
-  Widget build(BuildContext context) => ClipRRect(borderRadius: BorderRadius.circular(25),
-    child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-      child: Container(height: 72, decoration: BoxDecoration(
-        color: const Color(0x800A1117), borderRadius: BorderRadius.circular(25),
-        border: Border.all(color: const Color(0x667B817F), width: .7)),
-        child: Row(children: [
-          item('Главная', Icons.home_outlined, () {}, active: true),
-          item('Работа', Icons.local_shipping_outlined, onWork),
-          Expanded(child: _MillPress(label: 'Добавить рейс или топливо', onTap: onAdd,
-            child: Center(child: Container(width: 54, height: 54,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0x282D261B),
-                border: Border.all(color: _millGold, width: 1.5),
-                boxShadow: const [BoxShadow(color: Color(0x227A633D), blurRadius: 12)]),
-              child: const Icon(Icons.add, color: _millGold, size: 37))))),
-          item('Статистика', Icons.bar_chart_rounded, onInvoices),
-          item('Ещё', Icons.grid_view_outlined, onMore),
-        ]))));
-  Widget item(String title, IconData icon, VoidCallback tap, {bool active = false}) => Expanded(
-    child: _MillPress(label: title, onTap: tap, child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Icon(icon, size: 25, color: active ? _millGold : _millWhite,
-        shadows: active ? const [Shadow(color: Color(0x387A633D), blurRadius: 12)] : null),
-      const SizedBox(height: 5), FittedBox(fit: BoxFit.scaleDown,
-        child: _millText(title, 10, color: active ? _millGold : _millWhite)),
-    ])));
+  Widget build(BuildContext context)=>_MillDock(index:0,onChanged:(i){
+    if(i==1)onWork();else if(i==2)onAdd();else if(i==3)onInvoices();else if(i==4)onMore();
+  });
 }
 
 Widget _garageText(String value, double size, {Color color = _paper,

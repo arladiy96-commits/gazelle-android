@@ -328,12 +328,12 @@ class _MillWorkScreen extends StatelessWidget {
         
         Column(children:[Expanded(child:SingleChildScrollView(child:SizedBox(width:box.maxWidth,height:sceneHeight*scale,
           child:FittedBox(alignment:Alignment.topCenter,fit:BoxFit.contain,child:MediaQuery.withClampedTextScaling(minScaleFactor:1,maxScaleFactor:1,child:scene))))),
-          if(showNavigation)SafeArea(top:false,child:Padding(padding:const EdgeInsets.fromLTRB(12,5,12,7),child:Container(height:65,
-            decoration:BoxDecoration(color:const Color(0xC5111920),border:Border.all(color:const Color(0x998F7A5B)),borderRadius:BorderRadius.circular(24)),
-            child:Row(children:[for(var i=0;i<5;i++)Expanded(child:_GarageTap(label:const ['Главная','Работа','Добавить','Статистика','Ещё'][i],
-              onTap:(){if(i==1)return;if(i==2){(onQuickAdd??()=>_showQuickAddMenu(context,session))();}else if(i==4){_openHomeMenu(context,session);}else{go(context,i);}},
-              child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Icon(const [Icons.home_outlined,Icons.local_shipping_outlined,Icons.add_circle_outline,Icons.bar_chart,Icons.grid_view_outlined][i],
-                color:i==1||i==2?gold:Colors.white70,size:i==2?49:27),if(i!=2)...[const SizedBox(height:4),Text(const ['Главная','Работа','','Статистика','Ещё'][i],style:TextStyle(fontSize:10,color:i==1?gold:Colors.white70))]])))])))),
+          if(showNavigation)SafeArea(top:false,child:Padding(padding:const EdgeInsets.fromLTRB(8,4,8,3),
+            child:_MillDock(index:1,onChanged:(i){
+              if(i==1)return;
+              if(i==2){(onQuickAdd??()=>_showQuickAddMenu(context,session))();}
+              else if(i==4){_openHomeMenu(context,session);}else{go(context,i);}
+            }))),
         ]),
       ]);
     });

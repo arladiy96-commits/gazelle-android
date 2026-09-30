@@ -777,17 +777,8 @@ class _CinematicMore extends StatelessWidget {
                 ]])))),
           ]));
         })),
-      Padding(padding:const EdgeInsets.fromLTRB(16,0,16,7),child:Container(height:58,decoration:panel(),
-        child:Row(children:[for(var i=0;i<5;i++)Expanded(child:Material(color:Colors.transparent,
-          child:InkWell(onTap:()=>navigate(context,i),borderRadius:BorderRadius.circular(17),
-            child:Container(decoration:i==4?BoxDecoration(borderRadius:BorderRadius.circular(17),
-              border:Border.all(color:gold),color:const Color(0x554E3315)):null,
-              child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-                Icon(const [Icons.home_outlined,Icons.local_shipping_outlined,Icons.add_circle_outline,
-                  Icons.bar_chart_rounded,Icons.grid_view_rounded][i],color:i>=2&&i!=3?gold:const Color(0xFFD7DCDF),size:i==2?42:23),
-                if(i!=2)...[const SizedBox(height:3),Text(const ['Главная','Работа','','Статистика','Ещё'][i],
-                  style:TextStyle(color:i==4?gold:const Color(0xFFD7DCDF),fontSize:8))],
-              ])))))]))),
+      Padding(padding:const EdgeInsets.fromLTRB(8,4,8,3),
+        child:_MillDock(index:4,onChanged:(i)=>navigate(context,i))),
     ]))]));
 }
 class _MorePlaceholder extends StatelessWidget {

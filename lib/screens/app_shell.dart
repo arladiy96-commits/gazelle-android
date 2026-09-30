@@ -224,6 +224,9 @@ class _BottomNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasAdd = items.length == 5 && items[2].label == 'Добавить';
+    if(hasAdd)return SafeArea(top:false,child:Padding(
+      padding:const EdgeInsets.fromLTRB(8,4,8,3),
+      child:_MillDock(index:index,onChanged:onChanged,onLongPressHome:onLongPressLogo)));
 
     return ClipRect(
       child: BackdropFilter(
@@ -6484,4 +6487,50 @@ void _showEmployees(BuildContext context) {
       );
     },
   );
+}
+
+// Shared by Home, Work, Statistics and More. Keep all driver tabs on this dock.
+class _MillDock extends StatelessWidget {
+  final int index;
+  final ValueChanged<int> onChanged;
+  final VoidCallback? onLongPressHome;
+  const _MillDock({required this.index,required this.onChanged,this.onLongPressHome});
+  static const gold=Color(0xFFE3B86F);
+  @override Widget build(BuildContext context)=>ClipRRect(
+    borderRadius:BorderRadius.circular(24),
+    child:BackdropFilter(filter:ImageFilter.blur(sigmaX:9,sigmaY:9),
+      child:Container(height:76,decoration:BoxDecoration(
+        borderRadius:BorderRadius.circular(24),border:Border.all(color:const Color(0x997F898C),width:.8),
+        gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
+          colors:[Color(0xBA222A2F),Color(0xC9091016),Color(0xB421282C)])),
+        child:Row(children:[for(var i=0;i<5;i++)...[
+          if(i>0)Container(width:.6,height:47,decoration:const BoxDecoration(
+            gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,
+              colors:[Colors.transparent,Color(0x556C777D),Colors.transparent]))),
+          Expanded(child:Semantics(button:true,selected:i==index,label:const ['Главная','Работа','Добавить','Статистика','Ещё'][i],
+            child:GestureDetector(behavior:HitTestBehavior.opaque,
+              onLongPress:i==0?onLongPressHome:null,
+              onTap:(){HapticFeedback.selectionClick();onChanged(i);},
+              child:i==2?Center(child:Container(width:65,height:65,
+                padding:const EdgeInsets.all(3),decoration:const BoxDecoration(shape:BoxShape.circle,
+                  gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
+                    colors:[Color(0xFF755025),Color(0xFFFFD991),Color(0xFF9B652C),Color(0xFFFFD493)]),
+                  boxShadow:[BoxShadow(color:Color(0x557E4F19),blurRadius:12)]),
+                child:Container(decoration:BoxDecoration(shape:BoxShape.circle,
+                  border:Border.all(color:const Color(0xFFEBC180),width:1),
+                  gradient:const RadialGradient(center:Alignment(-.3,-.4),colors:[Color(0xFF453825),Color(0xFF0B1216)])),
+                  child:const Icon(Icons.add_rounded,color:gold,size:40)))):
+                Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+                  Icon(const [Icons.home_outlined,Icons.local_shipping_outlined,Icons.add,
+                    Icons.bar_chart_rounded,Icons.grid_view_outlined][i],size:28,
+                    color:i==index?gold:const Color(0xFFDDE0DE),
+                    shadows:i==index?const [Shadow(color:Color(0x887F521F),blurRadius:10)]:null),
+                  const SizedBox(height:5),FittedBox(fit:BoxFit.scaleDown,child:Text(
+                    const ['Главная','Работа','','Статистика','Ещё'][i],
+                    style:TextStyle(fontSize:10.5,color:i==index?gold:const Color(0xFFDDE0DE)))),
+                  const SizedBox(height:5),AnimatedContainer(duration:const Duration(milliseconds:180),
+                    width:i==index?34:0,height:2,decoration:BoxDecoration(color:gold,
+                      borderRadius:BorderRadius.circular(2),boxShadow:const [BoxShadow(color:Color(0x887A5426),blurRadius:6)])),
+                ]))))
+        ]]))));
 }
