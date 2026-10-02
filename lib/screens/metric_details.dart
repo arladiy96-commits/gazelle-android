@@ -1,7 +1,7 @@
 part of 'app_shell.dart';
 
 Future<void> _openMetricDetails(BuildContext context,String metric,DateTime month) async {
-  await Navigator.of(context).push<void>(_SceneRoute(builder:(_)=>(metric=='Газ'||metric=='Бензин') ? _GasDashboard(month:month,petrol:metric=='Бензин') : metric=='Город' ? _DistrictDashboard(month:month,city:true) : metric=='Район' ? _DistrictDashboard(month:month) : metric=='Пробег' ? _MileageReference(month:month) : _MetricDetails(metric:metric,month:month)));
+  await Navigator.of(context).push<void>(_SceneRoute(builder:(_)=>metric=='Зарплата' ? _SalaryDashboard(month:month) : (metric=='Газ'||metric=='Бензин') ? _GasDashboard(month:month,petrol:metric=='Бензин') : metric=='Город' ? _DistrictDashboard(month:month,city:true) : metric=='Район' ? _DistrictDashboard(month:month) : metric=='Пробег' ? _MileageReference(month:month) : _MetricDetails(metric:metric,month:month)));
 }
 String _detailDate(DateTime d)=>'${d.day} ${const ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'][d.month-1]}';
 String _detailTime(DateTime d)=>'${d.hour.toString().padLeft(2,'0')}:${d.minute.toString().padLeft(2,'0')}';
@@ -1896,4 +1896,84 @@ class _DistrictDashboardState extends State<_DistrictDashboard> {
               child:MediaQuery.withClampedTextScaling(minScaleFactor:1,maxScaleFactor:1,child:scene)))])));
       });
     })));
+}
+
+class _SalaryDashboard extends StatefulWidget {
+  final DateTime month;
+  const _SalaryDashboard({required this.month});
+  @override State<_SalaryDashboard> createState()=>_SalaryDashboardState();
+}
+class _SalaryDashboardState extends State<_SalaryDashboard> {
+  late DateTime month=DateTime(widget.month.year,widget.month.month);
+  static const gold=Color(0xFFE0B16A),white=Color(0xFFE8EDEE);
+  static const parts=[('base_salary','Основной оклад'),('weekend_pay','Выходные'),('holiday_pay','Праздники'),
+    ('paid_routes_pay','Платные рейсы'),('city_pay','Городской вес'),('region_pay','Районный вес')];
+  Widget text(String s,double size,{Color color=white})=>Text(s,style:TextStyle(color:color,fontSize:size,height:1.12));
+  String money(double n)=>'${_fmtInt(n)} ₸';
+  Widget fitted(String s,double size,{Color color=white})=>FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,child:text(s,size,color:color));
+  void explain(Map<String,double> stats)=>showDialog<void>(context:context,builder:(c)=>AlertDialog(backgroundColor:const Color(0xFF101A21),
+    title:text('Расчёт за ${_garageMonths[month.month-1]}',20),content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+      text('Оклад — до 190 000 ₸ пропорционально часам в рабочие дни и норме месяца. Выходной и праздничный день — по 10 000 ₸. Платный рейс — 3 000 ₸. Городской вес — 1 ₸/кг, районный — 1,9 ₸/кг.',14),
+      const SizedBox(height:16),for(final part in parts)Padding(padding:const EdgeInsets.only(bottom:8),child:text('${part.$2}: ${money(stats[part.$1]??0)}',14)),
+      const SizedBox(height:8),text('Итого: ${money(stats['salary']??0)}',20,color:gold)])),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Понятно'))]));
+  void days()=>showModalBottomSheet<void>(context:context,isScrollControlled:true,backgroundColor:const Color(0xFF101A21),builder:(sheet)=>SafeArea(
+    child:SizedBox(height:MediaQuery.sizeOf(sheet).height*.75,child:_TestLive(builder:(b){
+      final groups=<DateTime,List<Map<String,dynamic>>>{};
+      for(final s in b.shifts){final d=DateTime.parse(s['start'] as String);if(d.year==month.year&&d.month==month.month)(groups[DateTime(d.year,d.month,d.day)]??=[]).add(s);}
+      final dates=groups.keys.toList()..sort((a,z)=>z.compareTo(a));
+      return Column(children:[Padding(padding:const EdgeInsets.all(16),child:Row(children:[Expanded(child:text('Зарплата по дням',20)),IconButton(onPressed:()=>Navigator.pop(sheet),icon:const Icon(Icons.close,color:white))])),
+        Expanded(child:dates.isEmpty?Center(child:text('В этом месяце смен нет',16)):ListView(children:[for(final date in dates)
+          ExpansionTile(iconColor:gold,collapsedIconColor:gold,title:text(_detailDate(date),16),trailing:text(money(b.statistics(month,day:date)['salary']??0),17,color:gold),
+            children:[for(final part in parts)Padding(padding:const EdgeInsets.symmetric(horizontal:20,vertical:6),child:Row(children:[Expanded(child:text(part.$2,13)),text(money(b.statistics(month,day:date)[part.$1]??0),13)])),
+              for(final shift in groups[date]!)ListTile(title:text('Смена · ${_detailTime(DateTime.parse(shift['start'] as String))}',15),trailing:const Icon(Icons.chevron_right,color:gold),onTap:()=>_testOpen(sheet,shiftId:shift['id'] as String))])]))]);
+    }))));
+  @override Widget build(BuildContext context)=>AnnotatedRegion<SystemUiOverlayStyle>(value:const SystemUiOverlayStyle(
+    statusBarColor:Colors.transparent,statusBarIconBrightness:Brightness.light,systemNavigationBarColor:Colors.transparent,systemNavigationBarIconBrightness:Brightness.light),
+    child:Scaffold(backgroundColor:const Color(0xFF071017),body:_TestLive(builder:(b){final stats=b.statistics(month);
+      String val(String key,{String unit='₸'})=>unit=='₸'?money(stats[key]??0):'${_fmt1(stats[key]??0)} $unit';
+      return LayoutBuilder(builder:(context,box){final scale=box.maxWidth/864,safe=MediaQuery.paddingOf(context).top;
+        Widget at(double x,double y,double w,double h,Widget child)=>Positioned(left:x,top:y,width:w,height:h,child:child);
+        Widget side(String title,String value,IconData icon,double angle)=>Transform.rotate(angle:angle,child:Row(children:[Icon(icon,color:gold,size:31),const SizedBox(width:14),
+          Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisAlignment:MainAxisAlignment.center,children:[fitted(title,21),const SizedBox(height:9),SizedBox(height:32,child:fitted(value,30))]))]));
+        Widget tap(String label,VoidCallback action,Widget child)=>_GasTap(label:label,onTap:action,child:child);
+        final scene=SizedBox(width:864,height:1536,child:Stack(children:[
+          at(43,40,68,60,tap('Назад',()=>Navigator.pop(context),Container(decoration:BoxDecoration(color:const Color(0xE511171B),borderRadius:BorderRadius.circular(13),border:Border.all(color:const Color(0xFF6B695F))),child:const Icon(Icons.chevron_left,color:white,size:50)))),
+          at(314,40,253,60,Row(children:[const Icon(Icons.account_balance_wallet_outlined,color:gold,size:44),const SizedBox(width:17),text('Зарплата',40)])),
+          at(595,40,226,60,tap('Выбрать месяц',pickMonth,Container(decoration:BoxDecoration(color:const Color(0xEB11171B),borderRadius:BorderRadius.circular(15),border:Border.all(color:const Color(0xFF6B695F))),
+            child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[text('${_garageMonths[month.month-1]} ${month.year}',24),const Icon(Icons.expand_more,color:gold,size:27)])))),
+          at(79,196,166,74,side('Основной оклад',val('base_salary'),Icons.toll_outlined,.17)),
+          at(79,309,166,70,side('Выходные',val('weekend_pay'),Icons.calendar_month_outlined,.15)),
+          at(79,421,166,71,side('Праздники',val('holiday_pay'),Icons.card_giftcard,.12)),
+          at(624,207,171,76,side('Платные рейсы',val('paid_routes_pay'),Icons.local_shipping_outlined,-.17)),
+          at(624,321,171,76,side('Отработано',val('all_hours',unit:'ч'),Icons.access_time,-.15)),
+          at(624,438,171,70,side('Норма',val('norm_hours',unit:'ч'),Icons.bar_chart,-.12)),
+          at(324,285,226,34,Center(child:fitted('Заработано за месяц',22,color:gold))),
+          at(315,325,240,66,Center(child:FittedBox(fit:BoxFit.scaleDown,child:Text(val('salary'),maxLines:1,style:const TextStyle(color:gold,fontSize:55,fontWeight:FontWeight.w700))))),
+          at(100,816,659,46,Row(children:[const Icon(Icons.receipt_long_outlined,color:gold,size:33),const SizedBox(width:22),text('Состав зарплаты',29)])),
+          for(var i=0;i<parts.length;i++)at(111,872+i*43,649,36,Row(children:[Expanded(child:text(parts[i].$2,22)),const SizedBox(width:20),SizedBox(width:220,child:Align(alignment:Alignment.centerRight,child:fitted(val(parts[i].$1),23)))])),
+          at(130,1160,274,63,Row(children:[const Icon(Icons.access_time,color:gold,size:34),const SizedBox(width:30),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[text('Отработано',20,color:Colors.white70),const SizedBox(height:8),Expanded(child:fitted(val('all_hours',unit:'ч'),32))]))])),
+          at(473,1160,272,63,Row(children:[const Icon(Icons.bar_chart,color:gold,size:36),const SizedBox(width:30),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[text('Норма',20,color:Colors.white70),const SizedBox(height:8),Expanded(child:fitted(val('norm_hours',unit:'ч'),32))]))])),
+          at(104,1255,661,68,tap('Посмотреть по дням',days,Row(children:[const SizedBox(width:24),const Icon(Icons.calendar_month_outlined,color:gold,size:35),const SizedBox(width:30),Expanded(child:text('Посмотреть по дням',25)),const Icon(Icons.chevron_right,color:gold,size:38),const SizedBox(width:18)]))),
+          at(105,1347,287,53,tap('Пример расчёта',()=>explain(stats),Row(children:[const Icon(Icons.info_outline,color:Colors.white60,size:33),const SizedBox(width:22),Expanded(child:text('Пример расчёта',22)),const Icon(Icons.chevron_right,color:white,size:32)]))),
+          at(487,1347,272,53,tap('К показателям',()=>_openGarageSection(context,'Статистика',''),Row(children:[const Icon(Icons.bar_chart,color:gold,size:35),const SizedBox(width:22),Expanded(child:text('К показателям',23,color:gold)),const Icon(Icons.chevron_right,color:gold,size:32)]))),
+        ]));
+        return SingleChildScrollView(child:SizedBox(width:box.maxWidth,height:math.max(box.maxHeight,1536*scale+safe+MediaQuery.paddingOf(context).bottom),child:Stack(children:[
+          Positioned.fill(child:_ExtendedArtwork(asset:'assets/images/scenes/salary_dashboard.png',topInset:safe)),
+          Positioned(top:safe,left:0,width:box.maxWidth,height:1536*scale,child:FittedBox(fit:BoxFit.contain,child:MediaQuery.withClampedTextScaling(minScaleFactor:1,maxScaleFactor:1,child:scene)))])));
+      });
+    })));
+
+  Future<void> pickMonth()async{
+    var year=month.year;
+    final selected=await showModalBottomSheet<DateTime>(context:context,backgroundColor:const Color(0xFF101A21),
+      builder:(sheet)=>StatefulBuilder(builder:(sheet,update)=>SafeArea(child:SizedBox(height:340,child:Column(children:[
+        Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+          IconButton(onPressed:year>2000?()=>update(()=>year--):null,icon:const Icon(Icons.chevron_left,color:gold)),
+          Text('$year',style:const TextStyle(color:white,fontSize:20)),
+          IconButton(onPressed:year<2100?()=>update(()=>year++):null,icon:const Icon(Icons.chevron_right,color:gold))]),
+        Expanded(child:GridView.count(crossAxisCount:3,childAspectRatio:2.2,children:List.generate(12,(i)=>TextButton(
+          onPressed:()=>Navigator.pop(sheet,DateTime(year,i+1)),child:Text(_garageMonths[i],style:TextStyle(color:year==month.year&&i+1==month.month?gold:white))))))
+      ])))));
+    if(selected!=null&&mounted)setState(()=>month=selected);
+  }
 }
