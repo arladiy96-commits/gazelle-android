@@ -101,7 +101,8 @@ Future<void> _showShiftForm(BuildContext context,{Map<String,dynamic>? shift,boo
   final gps=(shift?['gpsKm'] as num?)?.toDouble()??0;
   final initial=shift==null?_actualOdometer(b)?.round():close&&gps>0?(shift['startKm'] as num).toInt()+gps.round():(shift['currentKm'] as num).toInt();
   final controller=TextEditingController(text:initial?.toString()??'');
-  final route=_SceneRoute<void>(builder:(_)=>_SceneForm(scene:_Scene.instruments,
+  final route=_SceneRoute<void>(builder:(_)=>shift==null&&!close
+    ? _OpenShiftDashboard(controller:controller) : _SceneForm(scene:_Scene.instruments,
     odometerController:controller,
     child:_TestOdometer(controller:controller,shift:shift,close:close)));
   await Navigator.of(context).push<void>(route);await route.completed;controller.dispose();
@@ -825,4 +826,83 @@ class _DayGps extends StatelessWidget {
       _dt('В тестовом режиме сохраняется расстояние. Координаты, скорость и остановки не записываются.',size:12,color:const Color(0xFFB6C6CD)),
     ]);
   });
+}
+
+class _OpenShiftDashboard extends StatefulWidget {
+  final TextEditingController controller;
+  const _OpenShiftDashboard({required this.controller});
+  @override State<_OpenShiftDashboard> createState()=>_OpenShiftDashboardState();
+}
+class _OpenShiftDashboardState extends State<_OpenShiftDashboard> {
+  static const gold=Color(0xFFE8BD7B),white=Color(0xFFE6E9E9);
+  bool busy=false;
+  String? error;
+  Future<void> edit()async{
+    if(busy)return;
+    final draft=TextEditingController(text:widget.controller.text);
+    draft.selection=TextSelection(baseOffset:0,extentOffset:draft.text.length);
+    String? validation;
+    final route=showModalBottomSheet<String>(context:context,isScrollControlled:true,backgroundColor:const Color(0xFF111A20),
+      shape:const RoundedRectangleBorder(borderRadius:BorderRadius.vertical(top:Radius.circular(22))),builder:(sheet)=>
+        StatefulBuilder(builder:(sheet,update){
+          void accept(){if(int.tryParse(draft.text)==null){update(()=>validation='Введите показание одометра');return;}Navigator.pop(sheet,draft.text);}
+          return Padding(padding:EdgeInsets.fromLTRB(22,22,22,MediaQuery.viewInsetsOf(sheet).bottom+20),child:SafeArea(top:false,
+            child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+              const Text('Показание одометра',style:TextStyle(color:white,fontSize:20)),const SizedBox(height:16),
+              TextField(controller:draft,autofocus:true,keyboardType:TextInputType.number,textInputAction:TextInputAction.done,
+                inputFormatters:[FilteringTextInputFormatter.digitsOnly,LengthLimitingTextInputFormatter(9)],
+                style:const TextStyle(color:gold,fontSize:32,letterSpacing:3),cursorColor:gold,
+                decoration:InputDecoration(suffixText:'км',hintText:'Введите показание',hintStyle:const TextStyle(fontSize:18,color:Colors.white38),
+                  errorText:validation,filled:true,fillColor:const Color(0xFF080F14),border:OutlineInputBorder(borderRadius:BorderRadius.circular(12))),
+                onSubmitted:(_)=>accept()),const SizedBox(height:16),SizedBox(width:double.infinity,child:OutlinedButton(
+                  style:OutlinedButton.styleFrom(foregroundColor:gold,side:const BorderSide(color:gold),padding:const EdgeInsets.all(14)),onPressed:accept,child:const Text('Готово')))
+            ])));}));
+    final value=await route;
+    if(mounted&&value!=null)setState((){widget.controller.text=value;error=null;});
+    // The closing sheet may still render its TextField during its transition.
+    Future<void>.delayed(const Duration(seconds:1),draft.dispose);
+  }
+  Future<void> submit()async{
+    if(busy)return;
+    final km=int.tryParse(widget.controller.text);
+    if(km==null){setState(()=>error='Нажмите на одометр и введите показание');await edit();return;}
+    setState((){busy=true;error=null;});
+    try{await TestStore.open(km);if(mounted)Navigator.pop(context);}
+    catch(e){if(mounted)setState((){busy=false;error=_testError(e);});}
+  }
+  Widget drum(String value){
+    final digits=value.isEmpty?'------':value.padLeft(6,'0');
+    return Semantics(button:true,label:value.isEmpty?'Ввести показание одометра':'Показание одометра $value километров. Нажмите для изменения',
+      child:GestureDetector(behavior:HitTestBehavior.opaque,onTap:busy?null:edit,child:Row(children:[
+        for(var i=0;i<digits.length;i++)Expanded(child:Container(margin:const EdgeInsets.symmetric(horizontal:3),
+          decoration:BoxDecoration(borderRadius:BorderRadius.circular(13),border:Border.all(color:const Color(0xFF37414A),width:1.5),
+            gradient:const LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,
+              colors:[Color(0xFF03080B),Color(0xFF38424A),Color(0xFF101316),Color(0xFF24211B),Color(0xFF020507)],stops:[0,.2,.49,.72,1])),
+          child:Center(child:FittedBox(fit:BoxFit.scaleDown,child:Text(digits[i],style:const TextStyle(fontFamily:'monospace',fontSize:75,color:gold,fontWeight:FontWeight.w600))))))
+      ])));
+  }
+  @override Widget build(BuildContext context)=>AnnotatedRegion<SystemUiOverlayStyle>(value:const SystemUiOverlayStyle(
+    statusBarColor:Colors.transparent,statusBarIconBrightness:Brightness.light,systemNavigationBarColor:Colors.transparent,systemNavigationBarIconBrightness:Brightness.light),
+    child:PopScope(canPop:!busy,child:Scaffold(backgroundColor:const Color(0xFF050B10),body:LayoutBuilder(builder:(context,box){
+      final scale=box.maxWidth/864,safe=MediaQuery.paddingOf(context).top;
+      Widget at(double x,double y,double w,double h,Widget child)=>Positioned(left:x,top:y,width:w,height:h,child:child);
+      final scene=SizedBox(width:864,height:1536,child:Stack(children:[
+        at(46,72,88,88,_GasTap(label:'Назад',onTap:(){if(!busy)Navigator.pop(context);},child:Container(decoration:BoxDecoration(shape:BoxShape.circle,
+          color:const Color(0xB8091117),border:Border.all(color:gold,width:1.5)),child:const Icon(Icons.arrow_back,color:gold,size:45)))),
+        at(171,88,580,63,Row(children:[const Icon(Icons.speed,color:gold,size:60),const SizedBox(width:24),
+          const Expanded(child:FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,child:Text('Открыть смену',style:TextStyle(color:white,fontSize:44))))])),
+        at(173,157,372,2,Container(color:gold.withValues(alpha:.65))),
+        at(182,757,510,40,const Center(child:FittedBox(fit:BoxFit.scaleDown,child:Text('Текущее показание одометра',style:TextStyle(color:white,fontSize:29))))),
+        at(183,851,485,131,ValueListenableBuilder<TextEditingValue>(valueListenable:widget.controller,builder:(_,v,__)=>drum(v.text))),
+        at(697,911,52,42,const Text('км',style:TextStyle(color:gold,fontSize:32))),
+        at(134,1047,604,102,_GasTap(label:'Открыть смену',onTap:submit,child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+          if(busy)const SizedBox(width:35,height:35,child:CircularProgressIndicator(color:gold,strokeWidth:3))else const Icon(Icons.play_arrow_rounded,color:gold,size:59),
+          const SizedBox(width:22),Text(busy?'Сохранение…':'Открыть смену',style:const TextStyle(color:gold,fontSize:39,fontWeight:FontWeight.w500))]))),
+        if(error!=null)at(135,1190,607,108,Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:const Color(0xEC10171C),borderRadius:BorderRadius.circular(14)),
+          child:Center(child:Text(error!,textAlign:TextAlign.center,style:const TextStyle(color:gold,fontSize:23))))),
+      ]));
+      return SingleChildScrollView(child:SizedBox(width:box.maxWidth,height:math.max(box.maxHeight,1536*scale+safe+MediaQuery.paddingOf(context).bottom),child:Stack(children:[
+        Positioned.fill(child:_ExtendedArtwork(asset:'assets/images/scenes/open_shift.png',topInset:safe)),
+        Positioned(top:safe,left:0,width:box.maxWidth,height:1536*scale,child:FittedBox(fit:BoxFit.contain,child:MediaQuery.withClampedTextScaling(minScaleFactor:1,maxScaleFactor:1,child:scene)))])));
+    }))));
 }
