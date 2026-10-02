@@ -3069,8 +3069,18 @@ class _HomeSheetRow extends StatelessWidget {
 
 
 Future<void> _showQuickAddMenu(BuildContext context,AppSession session) async {
-  final choice=await Navigator.of(context).push<String>(_SceneRoute<String>(builder:(c)=>_QuickAddMenu(
-    onTrip:()=>Navigator.pop(c,'trip'),onFuel:()=>Navigator.pop(c,'fuel'),onInvoice:()=>Navigator.pop(c,'invoice'))));
+  var selected=false;
+  final route=PageRouteBuilder<String>(
+    transitionDuration:const Duration(milliseconds:180),reverseTransitionDuration:const Duration(milliseconds:140),
+    pageBuilder:(c,animation,secondary){
+      void choose(String value){if(selected)return;selected=true;Navigator.pop(c,value);}
+      return _QuickAddMenu(onTrip:()=>choose('trip'),onFuel:()=>choose('fuel'),onInvoice:()=>choose('invoice'));
+    },
+    transitionsBuilder:(c,animation,secondary,child)=>MediaQuery.disableAnimationsOf(c)?child:
+      SlideTransition(position:Tween<Offset>(begin:const Offset(0,1),end:Offset.zero)
+        .animate(CurvedAnimation(parent:animation,curve:Curves.easeOutCubic,reverseCurve:Curves.easeInCubic)),child:child));
+  final choice=await Navigator.of(context).push<String>(route);
+  await route.completed;
   if(choice!=null&&context.mounted)await _testEditor(context,choice);
 }
 
@@ -3078,19 +3088,42 @@ class _QuickAddMenu extends StatelessWidget {
   final VoidCallback onTrip,onFuel,onInvoice;
   const _QuickAddMenu({required this.onTrip,required this.onFuel,required this.onInvoice});
   @override
-  Widget build(BuildContext context)=>Material(color:const Color(0xFF030B10),child:Stack(children:[
-    Positioned.fill(child:_SceneBackdrop(dim:false)),
-    const Positioned.fill(child:ColoredBox(color:Color(0x5900070D))),
-    SafeArea(child:LayoutBuilder(builder:(context,box)=>SingleChildScrollView(child:ConstrainedBox(
-      constraints:BoxConstraints(minHeight:box.maxHeight),child:Padding(padding:const EdgeInsets.fromLTRB(20,8,20,24),child:Column(children:[
-        Row(children:[IconButton(tooltip:'Закрыть',onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close,color:_paper)),
-          Expanded(child:_dt('Новое действие',size:18,weight:FontWeight.w500))]),
-        const SizedBox(height:20),_dt('Добавить',size:18,weight:FontWeight.w500),const SizedBox(height:6),
-        _dt('Выберите действие',size:13,color:const Color(0xFFADC0CC)),const SizedBox(height:18),
-        _QuickActionOrb(icon:Icons.local_shipping_outlined,title:'Рейс',subtitle:'Город или район',onTap:onTrip),const SizedBox(height:16),
-        _QuickActionOrb(icon:Icons.local_gas_station_outlined,title:'Топливо',subtitle:'Газ или бензин',onTap:onFuel),const SizedBox(height:16),
-        _QuickActionOrb(icon:Icons.receipt_long_outlined,title:'Накладная',subtitle:'Создать накладную',onTap:onInvoice),
-      ]))))))]));
+  Widget build(BuildContext context)=>AnnotatedRegion<SystemUiOverlayStyle>(
+    value:const SystemUiOverlayStyle(statusBarColor:Colors.transparent,statusBarIconBrightness:Brightness.light,
+      systemNavigationBarColor:Colors.transparent,systemNavigationBarIconBrightness:Brightness.light),
+    child:Scaffold(resizeToAvoidBottomInset:false,backgroundColor:const Color(0xFF071016),
+      body:LayoutBuilder(builder:(context,box){
+        final scale=box.maxWidth/864;
+        final top=math.max(0.0,MediaQuery.viewPaddingOf(context).top-75*scale);
+        Widget at(double x,double y,double w,double h,Widget child)=>Positioned(left:x,top:y,width:w,height:h,child:child);
+        Widget label(String value,double size,Color color)=>Text(value,maxLines:1,overflow:TextOverflow.ellipsis,
+          style:TextStyle(color:color,fontSize:size,height:1.15,fontWeight:FontWeight.w500));
+        Widget action(double y,String title,String subtitle,VoidCallback tap)=>at(96,y,670,255,
+          Semantics(button:true,label:'$title. $subtitle',child:Material(color:Colors.transparent,
+            child:InkWell(onTap:(){HapticFeedback.selectionClick();tap();},borderRadius:BorderRadius.circular(54),
+              splashColor:const Color(0x22E6B668),highlightColor:const Color(0x0FE6B668),
+              child:Padding(padding:const EdgeInsets.only(left:288,right:73),child:Column(
+                mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  label(title,42,const Color(0xFFEAEDEF)),const SizedBox(height:15),
+                  label(subtitle,29,const Color(0xFFB1C1CA)),
+                ]))))));
+        final controls=SizedBox(width:864,height:1536,child:Stack(children:[
+          at(44,123,68,68,IconButton(tooltip:'Закрыть',onPressed:()=>Navigator.pop(context),
+            padding:EdgeInsets.zero,icon:const Icon(Icons.close,color:Color(0xFFEAEDEF),size:48))),
+          at(137,135,650,61,label('Новое действие',44,const Color(0xFFEAEDEF))),
+          at(140,252,584,61,Center(child:label('Добавить',47,const Color(0xFFEAEDEF)))),
+          at(140,318,584,47,Center(child:label('Выберите действие',31,const Color(0xFFB1C1CA)))),
+          action(438,'Рейс','Город или район',onTrip),
+          action(750,'Топливо','Газ или бензин',onFuel),
+          action(1059,'Накладная','Создать накладную',onInvoice),
+        ]));
+        return SingleChildScrollView(child:SizedBox(width:box.maxWidth,
+          height:math.max(box.maxHeight,1536*scale+top),child:Stack(children:[
+            Positioned.fill(child:RepaintBoundary(child:_ExtendedArtwork(asset:'assets/images/scenes/quick_add.png',topInset:top))),
+            Positioned(top:top,left:0,width:box.maxWidth,height:1536*scale,
+              child:FittedBox(fit:BoxFit.contain,child:MediaQuery.withClampedTextScaling(minScaleFactor:1,maxScaleFactor:1,child:controls))),
+          ])));
+      })));
 }
 
 class _QuickActionOrb extends StatefulWidget {
