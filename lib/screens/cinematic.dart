@@ -843,6 +843,7 @@ class _OpenShiftDashboardState extends State<_OpenShiftDashboard> {
     draft.selection=TextSelection(baseOffset:0,extentOffset:draft.text.length);
     String? validation;
     final route=showModalBottomSheet<String>(context:context,isScrollControlled:true,backgroundColor:const Color(0xFF111A20),
+      sheetAnimationStyle:const AnimationStyle(duration:Duration(milliseconds:180),reverseDuration:Duration(milliseconds:140)),
       shape:const RoundedRectangleBorder(borderRadius:BorderRadius.vertical(top:Radius.circular(22))),builder:(sheet)=>
         StatefulBuilder(builder:(sheet,update){
           void accept(){if(int.tryParse(draft.text)==null){update(()=>validation='Введите показание одометра');return;}Navigator.pop(sheet,draft.text);}
@@ -883,8 +884,8 @@ class _OpenShiftDashboardState extends State<_OpenShiftDashboard> {
   }
   @override Widget build(BuildContext context)=>AnnotatedRegion<SystemUiOverlayStyle>(value:const SystemUiOverlayStyle(
     statusBarColor:Colors.transparent,statusBarIconBrightness:Brightness.light,systemNavigationBarColor:Colors.transparent,systemNavigationBarIconBrightness:Brightness.light),
-    child:PopScope(canPop:!busy,child:Scaffold(backgroundColor:const Color(0xFF050B10),body:LayoutBuilder(builder:(context,box){
-      final scale=box.maxWidth/864,safe=MediaQuery.paddingOf(context).top;
+    child:PopScope(canPop:!busy,child:Scaffold(resizeToAvoidBottomInset:false,backgroundColor:const Color(0xFF050B10),body:LayoutBuilder(builder:(context,box){
+      final scale=box.maxWidth/864,safe=MediaQuery.viewPaddingOf(context).top;
       Widget at(double x,double y,double w,double h,Widget child)=>Positioned(left:x,top:y,width:w,height:h,child:child);
       final scene=SizedBox(width:864,height:1536,child:Stack(children:[
         at(46,72,88,88,_GasTap(label:'Назад',onTap:(){if(!busy)Navigator.pop(context);},child:Container(decoration:BoxDecoration(shape:BoxShape.circle,
@@ -901,8 +902,8 @@ class _OpenShiftDashboardState extends State<_OpenShiftDashboard> {
         if(error!=null)at(135,1190,607,108,Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:const Color(0xEC10171C),borderRadius:BorderRadius.circular(14)),
           child:Center(child:Text(error!,textAlign:TextAlign.center,style:const TextStyle(color:gold,fontSize:23))))),
       ]));
-      return SingleChildScrollView(child:SizedBox(width:box.maxWidth,height:math.max(box.maxHeight,1536*scale+safe+MediaQuery.paddingOf(context).bottom),child:Stack(children:[
-        Positioned.fill(child:_ExtendedArtwork(asset:'assets/images/scenes/open_shift.png',topInset:safe)),
+      return SingleChildScrollView(child:SizedBox(width:box.maxWidth,height:math.max(box.maxHeight,1536*scale+safe+MediaQuery.viewPaddingOf(context).bottom),child:Stack(children:[
+        Positioned.fill(child:RepaintBoundary(child:_ExtendedArtwork(asset:'assets/images/scenes/open_shift.png',topInset:safe))),
         Positioned(top:safe,left:0,width:box.maxWidth,height:1536*scale,child:FittedBox(fit:BoxFit.contain,child:MediaQuery.withClampedTextScaling(minScaleFactor:1,maxScaleFactor:1,child:scene)))])));
     }))));
 }
