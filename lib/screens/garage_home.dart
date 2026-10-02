@@ -198,21 +198,7 @@ List<Map<String, dynamic>> _millPaidRows(TestState book, DateTime month) {
 }
 
 void _openMillPaidRoutes(BuildContext context, DateTime month) {
-  Navigator.of(context).push<void>(_SceneRoute<void>(builder: (pageContext) =>
-    _TestLive(builder: (book) {
-      final rows = _millPaidRows(book, month);
-      return _DetailFrame(title: 'Платные направления', children: [
-        _DetailGlass(accent: true, child: _dt(
-          '${_garageMonths[month.month - 1]} ${month.year} · ${rows.length}${_millTripUnit(rows.length)}')),
-        if (rows.isEmpty) _DetailGlass(child: _dt('В этом месяце платных рейсов нет.')),
-        for (final entry in rows)
-          _DetailGlass(child: _detailRow(
-            '${entry['direction'] ?? 'Направление'}',
-            '${_fmt1((entry['amount'] as num).toDouble())} кг',
-            subtitle: _detailDate(DateTime.parse(entry['date'] as String)),
-            onTap: () => _testEditor(pageContext, 'trip', entry: entry))),
-      ]);
-    })));
+  Navigator.of(context).push<void>(_SceneRoute<void>(builder: (_) => _PaidRoutesDashboard(month:month)));
 }
 
 String _millTripUnit(int n) => n % 100 >= 11 && n % 100 <= 14 ? ' рейсов'
@@ -968,4 +954,102 @@ class _GarageIconPainter extends CustomPainter {
   }
   @override
   bool shouldRepaint(_GarageIconPainter old)=>old.kind!=kind||old.color!=color;
+}
+
+class _PaidRoutesDashboard extends StatefulWidget {
+  final DateTime month;
+  const _PaidRoutesDashboard({required this.month});
+  @override State<_PaidRoutesDashboard> createState()=>_PaidRoutesDashboardState();
+}
+class _PaidRoutesDashboardState extends State<_PaidRoutesDashboard> {
+  late DateTime month=DateTime(widget.month.year,widget.month.month);
+  bool newestFirst=true;
+  static const gold=Color(0xFFE5B269),white=Color(0xFFE7ECEF),blue=Color(0xFF35BADD);
+  double weight(Iterable<Map<String,dynamic>> rows)=>rows.fold<double>(0,(v,r)=>v+((r['amount'] as num?)?.toDouble()??0));
+  String names(Iterable<Map<String,dynamic>> rows){
+    final found=<String,String>{};
+    for(final r in rows){final last=(r['direction']?.toString()??'').split(RegExp(r'\s*(?:→|->|—|–)\s*')).last;
+      for(final part in last.split(',')){final name=part.trim();if(name.isNotEmpty)found.putIfAbsent(name.toLowerCase(),()=>name);}}
+    return found.isEmpty?'Направление не указано':found.values.join(', ');
+  }
+  Widget text(String s,double size,{Color color=white,FontWeight bold=FontWeight.w400})=>Text(s,style:TextStyle(color:color,fontSize:size,fontWeight:bold,height:1.15));
+  Future<void> pickMonth()async{
+    var year=month.year;
+    final selected=await showModalBottomSheet<DateTime>(context:context,backgroundColor:const Color(0xFF101A21),builder:(sheet)=>
+      StatefulBuilder(builder:(sheet,update)=>SafeArea(child:SizedBox(height:340,child:Column(children:[
+        Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+          IconButton(onPressed:year>2000?()=>update(()=>year--):null,icon:const Icon(Icons.chevron_left,color:gold)),
+          text('$year',20),IconButton(onPressed:year<2100?()=>update(()=>year++):null,icon:const Icon(Icons.chevron_right,color:gold))]),
+        Expanded(child:GridView.count(crossAxisCount:3,childAspectRatio:2.2,children:List.generate(12,(i)=>TextButton(
+          onPressed:()=>Navigator.pop(sheet,DateTime(year,i+1)),child:Text(_garageMonths[i],style:TextStyle(color:year==month.year&&i+1==month.month?gold:white))))))
+      ])))));
+    if(selected!=null&&mounted)setState(()=>month=selected);
+  }
+  void openDay(DateTime date)=>showModalBottomSheet<void>(context:context,isScrollControlled:true,
+    backgroundColor:const Color(0xFF101A21),builder:(sheet)=>SafeArea(child:SizedBox(height:MediaQuery.sizeOf(sheet).height*.65,
+      child:_TestLive(builder:(b){final rows=_millPaidRows(b,DateTime(date.year,date.month)).where((r)=>TestState.dayKey(b.recordDay(r))==TestState.dayKey(date)).toList();
+        return Column(children:[Padding(padding:const EdgeInsets.all(16),child:Row(children:[Expanded(child:text('Платные рейсы · ${_detailDate(date)}',19)),
+          IconButton(onPressed:()=>Navigator.pop(sheet),icon:const Icon(Icons.close,color:white))])),
+          Expanded(child:rows.isEmpty?Center(child:text('Платных рейсов за этот день нет',15)):ListView(children:[for(final r in rows)
+            ListTile(leading:const Icon(Icons.location_on_outlined,color:blue),title:text(names([r]),16),
+              subtitle:text(_detailTime(DateTime.parse(r['date'] as String)),12,color:Colors.white60),
+              trailing:text('${_fmt1(weight([r]))} кг',16,color:gold),onTap:()=>_testEditor(sheet,'trip',entry:r))])),
+          Padding(padding:const EdgeInsets.all(16),child:text('Всего: ${_fmt1(weight(rows))} кг',20,color:gold))]);
+      }))));
+  @override Widget build(BuildContext context)=>AnnotatedRegion<SystemUiOverlayStyle>(
+    value:const SystemUiOverlayStyle(statusBarColor:Colors.transparent,statusBarIconBrightness:Brightness.light,
+      systemNavigationBarColor:Colors.transparent,systemNavigationBarIconBrightness:Brightness.light),
+    child:Scaffold(backgroundColor:const Color(0xFF061018),body:_TestLive(builder:(b){
+      final rows=_millPaidRows(b,month),groups=<DateTime,List<Map<String,dynamic>>>{};
+      for(final r in rows){final d=b.recordDay(r);(groups[DateTime(d.year,d.month,d.day)]??=[]).add(r);}
+      final days=groups.keys.toList()..sort((a,z)=>newestFirst?z.compareTo(a):a.compareTo(z));
+      final counts=List<double>.generate(DateTime(month.year,month.month+1,0).day,(i)=>(groups[DateTime(month.year,month.month,i+1)]??[]).length.toDouble());
+      return LayoutBuilder(builder:(context,box){final scale=box.maxWidth/864,safe=MediaQuery.paddingOf(context).top;
+        Widget at(double x,double y,double w,double h,Widget child)=>Positioned(left:x,top:y,width:w,height:h,child:child);
+        final scene=SizedBox(width:864,height:1536,child:Stack(children:[
+          at(30,27,68,68,_GasTap(label:'Назад',onTap:()=>Navigator.pop(context),child:Container(decoration:BoxDecoration(shape:BoxShape.circle,
+            color:const Color(0xCE071016),border:Border.all(color:gold,width:2)),child:const Icon(Icons.arrow_back,color:gold,size:38)))),
+          at(242,27,353,65,Row(children:[const Icon(Icons.toll_outlined,color:gold,size:52),const SizedBox(width:18),
+            Expanded(child:FittedBox(fit:BoxFit.scaleDown,child:text('Платные направления',30)))])),
+          at(310,84,112,2,Container(color:gold)),
+          at(635,29,201,65,_GasTap(label:'Выбрать месяц',onTap:pickMonth,child:Container(alignment:Alignment.center,
+            decoration:BoxDecoration(color:const Color(0xDD08131A),borderRadius:BorderRadius.circular(33),border:Border.all(color:gold,width:1.5)),
+            child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[text('${_garageMonths[month.month-1]} ${month.year}',20),const Icon(Icons.expand_more,color:gold,size:28)])))),
+          at(75,151,255,61,text('Платные направления\nза месяц',25)),
+          at(73,212,153,71,FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,child:text('${rows.length}',70,color:gold,bold:FontWeight.w700))),
+          at(239,223,85,59,CustomPaint(painter:_GasChart(counts,gold))),
+          at(638,143,32,38,const Icon(Icons.toll_outlined,color:gold,size:33)),
+          at(685,144,130,40,text('Средний за день',17,color:Colors.white70)),
+          at(685,183,123,36,text(_fmt1(days.isEmpty?0:rows.length/days.length),34,bold:FontWeight.w600)),
+          at(637,257,35,39,const Icon(Icons.local_shipping_outlined,color:gold,size:34)),
+          at(685,255,123,44,text('Всего веса\n(платные)',17,color:Colors.white70)),
+          at(685,301,124,29,FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,child:text('${_fmt1(weight(rows))} кг',29,bold:FontWeight.w600))),
+          at(47,392,770,985,Column(children:[
+            Row(children:[const Icon(Icons.calendar_month_outlined,color:gold,size:39),const SizedBox(width:22),Expanded(child:text('Список по дням',30)),
+              IconButton(tooltip:newestFirst?'Сначала ранние даты':'Сначала новые даты',onPressed:()=>setState(()=>newestFirst=!newestFirst),
+                icon:Icon(newestFirst?Icons.sort:Icons.vertical_align_top,color:white,size:32))]),
+            const SizedBox(height:16),
+            Expanded(child:days.isEmpty?Center(child:text('В этом месяце платных рейсов нет',24,color:Colors.white60)):
+              ListView.separated(padding:EdgeInsets.zero,itemCount:days.length,separatorBuilder:(_,__)=>const SizedBox(height:7),itemBuilder:(c,i){final day=days[i],items=groups[day]!;
+                return _GasTap(label:'${_detailDate(day)}, ${names(items)}, ${_fmt1(weight(items))} кг',onTap:()=>openDay(day),child:Container(
+                  constraints:const BoxConstraints(minHeight:73),padding:const EdgeInsets.symmetric(horizontal:14,vertical:10),
+                  decoration:BoxDecoration(borderRadius:BorderRadius.circular(17),border:Border.all(color:const Color(0xFF596268)),
+                    gradient:const LinearGradient(colors:[Color(0xED1C252B),Color(0xF2051017)])),
+                  child:Row(children:[SizedBox(width:74,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[text('${day.day}'.padLeft(2,'0'),34),text(_garageMonths[day.month-1],14,color:Colors.white70)])),
+                    Container(width:1,height:49,color:const Color(0x334E6570)),const SizedBox(width:15),
+                    SizedBox(width:65,child:text(const ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][day.weekday-1],20,color:Colors.white70)),
+                    const Icon(Icons.location_on_outlined,color:blue,size:37),const SizedBox(width:17),
+                    Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[text(names(items),23),const SizedBox(height:8),
+                      Row(children:[const Icon(Icons.local_shipping_outlined,color:Colors.white54,size:22),const SizedBox(width:8),Flexible(child:text('Платное направление',16,color:Colors.white54))])])),
+                    const SizedBox(width:10),SizedBox(width:153,child:FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerRight,child:text('${_fmt1(weight(items))} кг',28,color:gold,bold:FontWeight.w600))),
+                    const SizedBox(width:14),const Icon(Icons.chevron_right,color:white,size:30)])));
+              })),
+          ])),
+        ]));
+        return SingleChildScrollView(child:SizedBox(width:box.maxWidth,height:math.max(box.maxHeight,1536*scale+safe+MediaQuery.paddingOf(context).bottom),
+          child:Stack(children:[Positioned.fill(child:_ExtendedArtwork(asset:'assets/images/scenes/paid_dashboard.png',topInset:safe)),
+            Positioned(top:safe,left:0,width:box.maxWidth,height:1536*scale,child:FittedBox(fit:BoxFit.contain,
+              child:MediaQuery.withClampedTextScaling(minScaleFactor:1,maxScaleFactor:1,child:scene)))])));
+      });
+    })));
 }
