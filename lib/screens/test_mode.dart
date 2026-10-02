@@ -35,8 +35,94 @@ class _TestRecordEditorState extends State<_TestRecordEditor> {
       'amount':double.tryParse(amount.text.replaceAll(',','.'))??(widget.kind=='invoice'||widget.kind=='other'?0:double.nan),'direction':direction.text.trim(),
       'note':note.text.trim(),'number':number.text.trim(),'loaded':loaded,'isPaid':paid,'date':date.toIso8601String()});if(mounted)Navigator.pop(context);}
     catch(e){if(mounted)setState((){error=_testError(e);busy=false;});}}
+  Future<void> tripInput({bool weight=false})async{
+    if(busy)return;
+    final target=weight?amount:direction;
+    final draft=TextEditingController(text:target.text);
+    draft.selection=TextSelection(baseOffset:0,extentOffset:draft.text.length);
+    final choices=type=='Город'?const ['Султан','Петрокондитер','Великанова','Визави','Казконд','Крылова']:const ['Саумалколь','Щучинск','Новоишимское','Бишкуль','Пресновка'];
+    final value=await showModalBottomSheet<String>(context:context,isScrollControlled:true,
+      backgroundColor:const Color(0xFF0D1920),
+      sheetAnimationStyle:const AnimationStyle(duration:Duration(milliseconds:180),reverseDuration:Duration(milliseconds:140)),
+      shape:const RoundedRectangleBorder(borderRadius:BorderRadius.vertical(top:Radius.circular(22))),
+      builder:(c)=>Padding(padding:EdgeInsets.fromLTRB(20,20,20,MediaQuery.viewInsetsOf(c).bottom+16),
+        child:SafeArea(top:false,child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+          Text(weight?'Вес, кг':'Выберите направление',style:const TextStyle(color:_paper,fontSize:20)),const SizedBox(height:14),
+          TextField(controller:draft,autofocus:weight,keyboardType:weight?const TextInputType.numberWithOptions(decimal:true):TextInputType.text,
+            textInputAction:TextInputAction.done,style:const TextStyle(color:_paper,fontSize:20),
+            decoration:InputDecoration(hintText:weight?'Введите вес':'Введите своё направление',border:const OutlineInputBorder()),
+            onSubmitted:(v)=>Navigator.pop(c,v)),
+          if(!weight)ConstrainedBox(constraints:BoxConstraints(maxHeight:MediaQuery.sizeOf(c).height*.3),
+            child:ListView(shrinkWrap:true,children:[for(final name in choices)ListTile(title:Text(name),
+              leading:const Icon(Icons.location_on_outlined,color:_amber),onTap:()=>Navigator.pop(c,name))])),
+          const SizedBox(height:12),SizedBox(width:double.infinity,child:OutlinedButton(onPressed:()=>Navigator.pop(c,draft.text),child:const Text('Готово'))),
+        ])))));
+    if(mounted&&value!=null)setState((){target.text=value.trim();if(!weight)paid=TestState.paidDirection(value);error=null;});
+    Future<void>.delayed(const Duration(seconds:1),draft.dispose);
+  }
+  Widget tripScreen(){
+    const gold=Color(0xFFE6B46B),white=Color(0xFFEAEDEF),muted=Color(0xFFABB8C0);
+    Widget text(String s,double size,{Color color=white})=>Text(s,maxLines:2,overflow:TextOverflow.ellipsis,
+      style:TextStyle(color:color,fontSize:size,height:1.15,fontWeight:FontWeight.w400));
+    BoxDecoration panel({bool active=false})=>BoxDecoration(borderRadius:BorderRadius.circular(24),
+      border:Border.all(color:active?gold:const Color(0xFF52616A),width:2),
+      gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
+        colors:active?const [Color(0xDB553416),Color(0xE00B1014),Color(0xDB492908)]:const [Color(0xC0101D25),Color(0xDB080F14)]),
+      boxShadow:active?const [BoxShadow(color:Color(0x508F561E),blurRadius:14,spreadRadius:2),BoxShadow(color:Color(0x60FFC275),blurRadius:3)]:null);
+    Widget tap(Widget child,VoidCallback fn,String label)=>Semantics(button:true,label:label,child:GestureDetector(
+      behavior:HitTestBehavior.opaque,onTap:busy?null:fn,child:child));
+    Widget heading(IconData icon,String label)=>Row(children:[Icon(icon,color:gold,size:47),const SizedBox(width:28),text(label,31)]);
+    return AnnotatedRegion<SystemUiOverlayStyle>(value:const SystemUiOverlayStyle(statusBarColor:Colors.transparent,
+      statusBarIconBrightness:Brightness.light,systemNavigationBarColor:Colors.transparent,systemNavigationBarIconBrightness:Brightness.light),
+      child:PopScope(canPop:!busy,child:Scaffold(resizeToAvoidBottomInset:false,backgroundColor:const Color(0xFF061016),
+        body:LayoutBuilder(builder:(context,box){final scale=box.maxWidth/864;
+          final top=math.max(0.0,MediaQuery.viewPaddingOf(context).top-35*scale);
+          Widget at(double x,double y,double w,double h,Widget child)=>Positioned(left:x,top:y,width:w,height:h,child:child);
+          Widget segment(String value,IconData icon)=>Expanded(child:tap(Container(decoration:panel(active:type==value),
+            child:Center(child:Row(mainAxisSize:MainAxisSize.min,children:[Icon(icon,size:46,color:type==value?gold:white),const SizedBox(width:24),text(value,32,color:type==value?gold:white)]))),
+            (){if(type!=value)setState((){type=value;direction.clear();paid=false;});},value));
+          final controls=SizedBox(width:864,height:1536,child:Stack(children:[
+            at(47,60,113,113,tap(Container(decoration:BoxDecoration(shape:BoxShape.circle,color:const Color(0xD5081117),border:Border.all(color:gold,width:2)),
+              child:const Icon(Icons.arrow_back,color:gold,size:52)),()=>Navigator.pop(context),'Назад')),
+            at(198,94,585,76,Row(children:[const Icon(Icons.local_shipping_outlined,color:gold,size:78),const SizedBox(width:27),
+              Expanded(child:FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,child:text(widget.entry==null?'Добавить рейс':'Изменить рейс',43)))])),
+            at(302,168,300,2,Container(color:gold)),
+            at(77,538,690,58,heading(Icons.local_shipping_outlined,'Тип рейса')),
+            at(74,609,720,88,Row(children:[segment('Город',Icons.location_city),const SizedBox(width:18),segment('Район',Icons.terrain)])),
+            at(78,721,690,52,heading(Icons.location_on,'Направление')),
+            at(74,778,720,80,tap(Container(decoration:panel(),padding:const EdgeInsets.symmetric(horizontal:29),
+              child:Row(children:[Expanded(child:text(direction.text.isEmpty?'Выберите направление':direction.text,31,color:direction.text.isEmpty?muted:white)),
+                const Icon(Icons.expand_more,color:gold,size:43)])),()=>tripInput(),'Выбрать направление')),
+            at(78,879,690,52,heading(Icons.scale,'Вес, кг')),
+            at(74,934,720,79,tap(Container(decoration:panel(),padding:const EdgeInsets.symmetric(horizontal:29),
+              child:Row(children:[Expanded(child:text(amount.text.isEmpty?'Введите вес':amount.text,36,color:amount.text.isEmpty?muted:white)),text('кг',28,color:muted)])),()=>tripInput(weight:true),'Ввести вес')),
+            at(77,1037,596,50,heading(Icons.account_balance_wallet,'Платное направление')),
+            at(158,1084,450,38,text('+3 000 ₸',28,color:muted)),
+            at(681,1047,112,61,Semantics(toggled:paid,label:'Платное направление',child:tap(Container(decoration:panel(active:paid),padding:const EdgeInsets.all(5),
+              child:Align(alignment:paid?Alignment.centerRight:Alignment.centerLeft,child:Container(width:48,decoration:BoxDecoration(color:paid?gold:muted,borderRadius:BorderRadius.circular(17)),
+                child:Icon(paid?Icons.check:Icons.remove,color:const Color(0xFF5C350D),size:37)))),()=>setState(()=>paid=!paid),'Платное направление'))),
+            at(78,1133,690,54,heading(Icons.calendar_month,'Дата и время')),
+            at(74,1192,720,82,tap(Container(decoration:panel(),padding:const EdgeInsets.symmetric(horizontal:32),child:Row(children:[
+              const Icon(Icons.calendar_month,color:white,size:43),const SizedBox(width:47),Expanded(child:text('${_detailDate(date)} ${date.year} · ${_detailTime(date)}',31))])),
+              ()async{final d=await _testDate(context,date);if(d!=null&&mounted)setState(()=>date=d);},'Изменить дату и время')),
+            at(74,1301,720,84,tap(Container(decoration:panel(active:true),child:Center(child:Row(mainAxisSize:MainAxisSize.min,children:[
+              if(busy)const SizedBox(width:35,height:35,child:CircularProgressIndicator(color:gold,strokeWidth:3))else const Icon(Icons.check,color:gold,size:52),
+              const SizedBox(width:35),text(busy?'Сохранение…':'Сохранить',38,color:gold)]))),save,'Сохранить рейс')),
+            if(error!=null)at(65,1425,734,91,Container(padding:const EdgeInsets.all(12),color:const Color(0xEE07131A),child:Center(child:text(error!,25,color:gold)))),
+            if(widget.entry!=null&&error==null)at(200,1431,464,65,TextButton(onPressed:busy?null:()async{
+              if(await _testConfirm(context,'Удалить запись? Итоги пересчитаются.')&&mounted)await _testRun(context,()async{
+                await TestStore.deleteRecord(widget.entry!['id'] as String);if(mounted)Navigator.pop(context);
+              });},child:text('Удалить рейс',27,color:gold))),
+          ]));
+          return SingleChildScrollView(child:SizedBox(width:box.maxWidth,height:math.max(box.maxHeight,1536*scale+top),child:Stack(children:[
+            Positioned.fill(child:RepaintBoundary(child:_ExtendedArtwork(asset:'assets/images/scenes/trip_entry.png',topInset:top))),
+            Positioned(top:top,left:0,width:box.maxWidth,height:1536*scale,child:FittedBox(fit:BoxFit.contain,
+              child:MediaQuery.withClampedTextScaling(minScaleFactor:1,maxScaleFactor:1,child:controls))),
+          ])));
+        }))));
+  }
   @override
-  Widget build(BuildContext context){final kind=widget.kind;return _SceneForm(scene:kind=='trip'?_Scene.cargo:kind=='fuel'?(type=='Газ'?_Scene.gas:_Scene.petrol):_Scene.cab,child:_QuickEntryShell(title:'${widget.entry==null?'Добавить':'Изменить'} · ${_testKind(kind)}',icon:Icons.edit_outlined,
+  Widget build(BuildContext context){final kind=widget.kind;if(kind=='trip')return tripScreen();return _SceneForm(scene:kind=='trip'?_Scene.cargo:kind=='fuel'?(type=='Газ'?_Scene.gas:_Scene.petrol):_Scene.cab,child:_QuickEntryShell(title:'${widget.entry==null?'Добавить':'Изменить'} · ${_testKind(kind)}',icon:Icons.edit_outlined,
     child:Column(children:[if(['trip','fuel'].contains(kind))...[_QuickSegment(values:kind=='trip'?const ['Город','Район']:const ['Газ','Бензин'],selected:type,onChanged:(v)=>setState(()=>type=v)),const SizedBox(height:12)],
       if(['trip','invoice'].contains(kind))Row(crossAxisAlignment:CrossAxisAlignment.start,children:[Expanded(child:_testField(direction,'Направление')),
         IconButton(tooltip:'Выбрать направление',icon:const Icon(Icons.expand_more,color:_amber),onPressed:() async{final v=await _pickQuickValue(context,'Направление',type=='Город'?const ['Султан','Петрокондитер','Великанова','Визави','Казконд','Крылова']:const ['Саумалколь','Щучинск','Новоишимское','Бишкуль','Пресновка']);if(v!=null&&mounted)setState((){direction.text=v;paid=TestState.paidDirection(v);});})]),
