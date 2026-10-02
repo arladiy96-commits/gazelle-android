@@ -102,7 +102,9 @@ Future<void> _showShiftForm(BuildContext context,{Map<String,dynamic>? shift,boo
   final initial=shift==null?_actualOdometer(b)?.round():close&&gps>0?(shift['startKm'] as num).toInt()+gps.round():(shift['currentKm'] as num).toInt();
   final controller=TextEditingController(text:initial?.toString()??'');
   final route=_SceneRoute<void>(builder:(_)=>shift==null&&!close
-    ? _OpenShiftDashboard(controller:controller) : _SceneForm(scene:_Scene.instruments,
+    ? _OpenShiftDashboard(controller:controller)
+    : close&&shift!=null ? _CloseShiftDashboard(controller:controller,shift:shift)
+    : _SceneForm(scene:_Scene.instruments,
     odometerController:controller,
     child:_TestOdometer(controller:controller,shift:shift,close:close)));
   await Navigator.of(context).push<void>(route);await route.completed;controller.dispose();
@@ -904,6 +906,129 @@ class _OpenShiftDashboardState extends State<_OpenShiftDashboard> {
       ]));
       return SingleChildScrollView(child:SizedBox(width:box.maxWidth,height:math.max(box.maxHeight,1536*scale+safe+MediaQuery.viewPaddingOf(context).bottom),child:Stack(children:[
         Positioned.fill(child:RepaintBoundary(child:_ExtendedArtwork(asset:'assets/images/scenes/open_shift.png',topInset:safe))),
+        Positioned(top:safe,left:0,width:box.maxWidth,height:1536*scale,child:FittedBox(fit:BoxFit.contain,child:MediaQuery.withClampedTextScaling(minScaleFactor:1,maxScaleFactor:1,child:scene)))])));
+    }))));
+}
+
+class _CloseShiftDashboard extends StatefulWidget {
+  final TextEditingController controller;
+  final Map<String,dynamic> shift;
+  const _CloseShiftDashboard({required this.controller,required this.shift});
+  @override State<_CloseShiftDashboard> createState()=>_CloseShiftDashboardState();
+}
+class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
+  static const gold=Color(0xFFE8BD7B),white=Color(0xFFE6E9E9);
+  bool busy=false;
+  String? error;
+  late int? workedMinutes=widget.shift['hoursWorked']==null?null:((widget.shift['hoursWorked'] as num)*60).round();
+  Future<void> edit()async{
+    if(busy)return;
+    final draft=TextEditingController(text:widget.controller.text);
+    draft.selection=TextSelection(baseOffset:0,extentOffset:draft.text.length);
+    String? validation;
+    final route=showModalBottomSheet<String>(context:context,isScrollControlled:true,backgroundColor:const Color(0xFF111A20),
+      sheetAnimationStyle:const AnimationStyle(duration:Duration(milliseconds:180),reverseDuration:Duration(milliseconds:140)),
+      shape:const RoundedRectangleBorder(borderRadius:BorderRadius.vertical(top:Radius.circular(22))),builder:(sheet)=>
+        StatefulBuilder(builder:(sheet,update){
+          void accept(){if(int.tryParse(draft.text)==null){update(()=>validation='Введите показание одометра');return;}Navigator.pop(sheet,draft.text);}
+          return Padding(padding:EdgeInsets.fromLTRB(22,22,22,MediaQuery.viewInsetsOf(sheet).bottom+20),child:SafeArea(top:false,
+            child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+              const Text('Показание одометра',style:TextStyle(color:white,fontSize:20)),const SizedBox(height:16),
+              TextField(controller:draft,autofocus:true,keyboardType:TextInputType.number,textInputAction:TextInputAction.done,
+                inputFormatters:[FilteringTextInputFormatter.digitsOnly,LengthLimitingTextInputFormatter(9)],
+                style:const TextStyle(color:gold,fontSize:32,letterSpacing:3),cursorColor:gold,
+                decoration:InputDecoration(suffixText:'км',hintText:'Введите показание',hintStyle:const TextStyle(fontSize:18,color:Colors.white38),
+                  errorText:validation,filled:true,fillColor:const Color(0xFF080F14),border:OutlineInputBorder(borderRadius:BorderRadius.circular(12))),
+                onSubmitted:(_)=>accept()),const SizedBox(height:16),SizedBox(width:double.infinity,child:OutlinedButton(
+                  style:OutlinedButton.styleFrom(foregroundColor:gold,side:const BorderSide(color:gold),padding:const EdgeInsets.all(14)),onPressed:accept,child:const Text('Готово')))
+            ])));}));
+    final value=await route;
+    if(mounted&&value!=null)setState((){widget.controller.text=value;error=null;});
+    // The closing sheet may still render its TextField during its transition.
+    Future<void>.delayed(const Duration(seconds:1),draft.dispose);
+  }
+  Future<void> editHours()async{
+    if(busy)return;
+    final hour=TextEditingController(text:workedMinutes==null?'':'${workedMinutes!~/60}');
+    final minute=TextEditingController(text:workedMinutes==null?'00':'${workedMinutes!%60}'.padLeft(2,'0'));
+    String? validation;
+    final result=await showModalBottomSheet<int>(context:context,isScrollControlled:true,
+      backgroundColor:const Color(0xFF111A20),
+      sheetAnimationStyle:const AnimationStyle(duration:Duration(milliseconds:180),reverseDuration:Duration(milliseconds:140)),
+      shape:const RoundedRectangleBorder(borderRadius:BorderRadius.vertical(top:Radius.circular(22))),
+      builder:(sheet)=>StatefulBuilder(builder:(sheet,update){
+        void accept(){final h=int.tryParse(hour.text),m=int.tryParse(minute.text);
+          if(h==null||m==null||m>59){update(()=>validation='Введите часы и минуты от 00 до 59');return;}
+          Navigator.pop(sheet,h*60+m);
+        }
+        Widget field(TextEditingController c,String label,bool focus)=>Expanded(child:TextField(controller:c,
+          autofocus:focus,keyboardType:TextInputType.number,textInputAction:focus?TextInputAction.next:TextInputAction.done,
+          inputFormatters:[FilteringTextInputFormatter.digitsOnly,LengthLimitingTextInputFormatter(focus?3:2)],
+          style:const TextStyle(color:gold,fontSize:32),cursorColor:gold,
+          decoration:InputDecoration(labelText:label,filled:true,fillColor:const Color(0xFF080F14),border:const OutlineInputBorder()),
+          onSubmitted:focus?null:(_)=>accept()));
+        return Padding(padding:EdgeInsets.fromLTRB(22,22,22,MediaQuery.viewInsetsOf(sheet).bottom+20),child:SafeArea(top:false,
+          child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+            const Text('Отработанные часы',style:TextStyle(color:white,fontSize:20)),const SizedBox(height:16),
+            Row(children:[field(hour,'Часы',true),const SizedBox(width:16),field(minute,'Минуты',false)]),
+            if(validation!=null)Padding(padding:const EdgeInsets.only(top:8),child:Text(validation!,style:const TextStyle(color:gold))),
+            const SizedBox(height:16),SizedBox(width:double.infinity,child:OutlinedButton(onPressed:accept,
+              style:OutlinedButton.styleFrom(foregroundColor:gold,side:const BorderSide(color:gold),padding:const EdgeInsets.all(14)),child:const Text('Готово')))
+          ])));
+      }));
+    if(mounted&&result!=null)setState((){workedMinutes=result;error=null;});
+    Future<void>.delayed(const Duration(seconds:1),(){hour.dispose();minute.dispose();});
+  }
+  Future<void> submit()async{
+    if(busy)return;
+    final km=int.tryParse(widget.controller.text);
+    if(km==null){setState(()=>error='Введите показание одометра');await edit();return;}
+    if(km<(widget.shift['startKm'] as num)){setState(()=>error='Показание не может быть меньше одометра начала смены');return;}
+    if(workedMinutes==null){setState(()=>error='Укажите отработанные часы');await editHours();return;}
+    setState((){busy=true;error=null;});
+    try{
+      final hours='${workedMinutes!~/60} ч ${workedMinutes!%60} мин';
+      final confirmed=await _testConfirm(context,'Завершить смену? Одометр: $km км. Отработано: $hours.');
+      if(!mounted)return;
+      if(!confirmed){setState(()=>busy=false);return;}
+      await TestStore.odometer(widget.shift['id'] as String,km,close:true,hours:workedMinutes!/60);
+      if(mounted)Navigator.pop(context);
+    }catch(e){if(mounted)setState((){busy=false;error=_testError(e);});}
+  }
+  Widget digits(String value)=>Row(children:[for(final char in value.split(''))Expanded(child:Center(
+    child:FittedBox(fit:BoxFit.scaleDown,child:Text(char,style:const TextStyle(fontFamily:'monospace',fontSize:74,color:gold,fontWeight:FontWeight.w600)))))]);
+  Widget drum(String value)=>Semantics(button:true,label:'Изменить показание одометра',child:GestureDetector(
+    behavior:HitTestBehavior.opaque,onTap:busy?null:edit,child:digits(value.isEmpty?'------':value.padLeft(6,'0'))));
+  Widget hoursDrum()=>Semantics(button:true,label:'Изменить отработанные часы',child:GestureDetector(
+    behavior:HitTestBehavior.opaque,onTap:busy?null:editHours,child:Row(children:[
+      Expanded(child:digits(workedMinutes==null?'--':'${workedMinutes!~/60}'.padLeft(2,'0'))),
+      const SizedBox(width:43,child:Center(child:Text(':',style:TextStyle(fontSize:66,color:gold)))),
+      Expanded(child:digits(workedMinutes==null?'--':'${workedMinutes!%60}'.padLeft(2,'0'))),
+    ])));
+  @override Widget build(BuildContext context)=>AnnotatedRegion<SystemUiOverlayStyle>(value:const SystemUiOverlayStyle(
+    statusBarColor:Colors.transparent,statusBarIconBrightness:Brightness.light,systemNavigationBarColor:Colors.transparent,systemNavigationBarIconBrightness:Brightness.light),
+    child:PopScope(canPop:!busy,child:Scaffold(resizeToAvoidBottomInset:false,backgroundColor:const Color(0xFF050B10),body:LayoutBuilder(builder:(context,box){
+      final scale=box.maxWidth/864,safe=MediaQuery.viewPaddingOf(context).top;
+      Widget at(double x,double y,double w,double h,Widget child)=>Positioned(left:x,top:y,width:w,height:h,child:child);
+      final scene=SizedBox(width:864,height:1536,child:Stack(children:[
+        at(46,72,88,88,_GasTap(label:'Назад',onTap:(){if(!busy)Navigator.pop(context);},child:Container(decoration:BoxDecoration(shape:BoxShape.circle,
+          color:const Color(0xB8091117),border:Border.all(color:gold,width:1.5)),child:const Icon(Icons.arrow_back,color:gold,size:45)))),
+        at(173,88,580,63,const Align(alignment:Alignment.centerLeft,child:FittedBox(fit:BoxFit.scaleDown,child:Text('Завершить смену',style:TextStyle(color:white,fontSize:44))))),
+        at(173,157,372,2,Container(color:gold.withValues(alpha:.65))),
+        at(182,699,510,40,const Center(child:FittedBox(fit:BoxFit.scaleDown,child:Text('Текущее показание одометра',style:TextStyle(color:white,fontSize:29))))),
+        at(211,790,449,108,ValueListenableBuilder<TextEditingValue>(valueListenable:widget.controller,builder:(_,v,__)=>drum(v.text))),
+        at(689,839,52,42,const Text('км',style:TextStyle(color:gold,fontSize:32))),
+        at(225,960,440,40,const Center(child:Text('Отработанные часы',style:TextStyle(color:white,fontSize:29)))),
+        at(253,1038,355,101,hoursDrum()),
+        at(641,1070,42,42,const Text('ч',style:TextStyle(color:gold,fontSize:32))),
+        at(140,1190,610,86,_GasTap(label:'Завершить смену',onTap:submit,child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+          if(busy)const SizedBox(width:35,height:35,child:CircularProgressIndicator(color:gold,strokeWidth:3))else const Icon(Icons.play_arrow_rounded,color:gold,size:59),
+          const SizedBox(width:22),Text(busy?'Сохранение…':'Завершить смену',style:const TextStyle(color:gold,fontSize:36,fontWeight:FontWeight.w500))]))),
+        if(error!=null)at(135,1310,607,108,Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:const Color(0xEC10171C),borderRadius:BorderRadius.circular(14)),
+          child:Center(child:Text(error!,textAlign:TextAlign.center,style:const TextStyle(color:gold,fontSize:23))))),
+      ]));
+      return SingleChildScrollView(child:SizedBox(width:box.maxWidth,height:math.max(box.maxHeight,1536*scale+safe+MediaQuery.viewPaddingOf(context).bottom),child:Stack(children:[
+        Positioned.fill(child:RepaintBoundary(child:_ExtendedArtwork(asset:'assets/images/scenes/close_shift.png',topInset:safe))),
         Positioned(top:safe,left:0,width:box.maxWidth,height:1536*scale,child:FittedBox(fit:BoxFit.contain,child:MediaQuery.withClampedTextScaling(minScaleFactor:1,maxScaleFactor:1,child:scene)))])));
     }))));
 }
