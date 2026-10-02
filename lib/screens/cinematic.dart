@@ -10,29 +10,21 @@ _Scene _sceneFor(String title){
   if(title=='Пробег'||title=='Смена'||title.contains('Одометр'))return _Scene.instruments;
   return _Scene.cab;
 }
+// Move the whole page once; keep the outgoing artwork stationary.
 class _SceneRoute<T> extends PageRouteBuilder<T> {
   _SceneRoute({required WidgetBuilder builder}) : super(
-    transitionDuration:const Duration(milliseconds:560),
-    reverseTransitionDuration:const Duration(milliseconds:400),
-    pageBuilder:(context,animation,secondary)=>builder(context),
+    transitionDuration:const Duration(milliseconds:180),
+    reverseTransitionDuration:const Duration(milliseconds:140),
+    pageBuilder:(context,animation,secondary)=>RepaintBoundary(child:builder(context)),
     transitionsBuilder:(context,animation,secondary,child){
       if(MediaQuery.disableAnimationsOf(context))return child;
-      final enter=animation.drive(CurveTween(curve:Curves.easeInOutCubic));
-      return FadeTransition(opacity:enter,child:ScaleTransition(
-        alignment:const Alignment(0,-.35),
-        scale:Tween<double>(begin:.94,end:1).animate(enter),
-        child:AnimatedBuilder(animation:secondary,child:child,builder:(context,child)=>
-          Transform.scale(scale:1+secondary.value*.045,alignment:const Alignment(0,-.35),child:child))));
+      return SlideTransition(position:Tween<Offset>(begin:const Offset(.08,0),end:Offset.zero)
+        .animate(CurvedAnimation(parent:animation,curve:Curves.easeOutCubic,reverseCurve:Curves.easeInCubic)),child:child);
     });
 }
 class _SceneReveal extends StatelessWidget {
   final Widget child;const _SceneReveal({required this.child});
-  @override Widget build(BuildContext context){
-    final animation=ModalRoute.of(context)?.animation;
-    if(animation==null||MediaQuery.disableAnimationsOf(context))return child;
-    final curve=animation.drive(CurveTween(curve:const Interval(.18,1,curve:Curves.easeOutCubic)));
-    return FadeTransition(opacity:curve,child:SlideTransition(position:Tween<Offset>(begin:const Offset(0,.035),end:Offset.zero).animate(curve),child:child));
-  }
+  @override Widget build(BuildContext context)=>child;
 }
 // Exactly one full-screen image per scene. Data is painted over that same image.
 class _SceneBackdrop extends StatelessWidget {

@@ -91,7 +91,7 @@ class _ReferenceHomeDashboard extends StatelessWidget {
       place(369, 1092, 112, 112, _MillPress(
         label: active == null ? 'Начать смену' : 'Завершить смену',
         onTap: () => _openShiftAction(context),
-        child: AnimatedSwitcher(duration: const Duration(milliseconds: 220), child: Column(
+        child: AnimatedSwitcher(duration: const Duration(milliseconds: 120), child: Column(
           key: ValueKey(active != null), mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(active == null ? Icons.play_arrow_rounded : Icons.stop_rounded,
                 color: _millGold, size: 38), const SizedBox(height: 5),
@@ -112,7 +112,7 @@ class _ReferenceHomeDashboard extends StatelessWidget {
         ]))),
       place(642, 1305, 144, 120, _MillStatus(icon: Icons.flag_outlined,
         title: 'Завершение', onTap: summary,
-        child: AnimatedSwitcher(duration: const Duration(milliseconds: 220), child:
+        child: AnimatedSwitcher(duration: const Duration(milliseconds: 120), child:
           _millText(active != null ? 'Ожидание' : last == null ? 'Нет итогов' :
             '${_fmt1(book.mileage(last))} км\n${_fmt1(book.hours(last))} ч', 23,
             color: active == null && last != null ? _millGold : const Color(0xFFAFB7BB),
@@ -127,9 +127,7 @@ class _ReferenceHomeDashboard extends StatelessWidget {
         systemNavigationBarColor: Colors.transparent,
         systemNavigationBarIconBrightness: Brightness.light,
         systemNavigationBarContrastEnforced: false),
-      child: TweenAnimationBuilder<double>(
-        tween: Tween<double>(begin: 0, end: 1), duration: const Duration(milliseconds: 320),
-        builder: (_, opacity, child) => Opacity(opacity: opacity, child: child),
+      child: RepaintBoundary(
         child: SingleChildScrollView(
           physics: const ClampingScrollPhysics(),
           child: SizedBox(width: size.width, height: viewportHeight,
@@ -167,7 +165,7 @@ class _ReferenceHomeDashboard extends StatelessWidget {
                 child: const Icon(Icons.chevron_right, color: _millWhite))),
             ])),
             _MillPress(label: 'Выбрать месяц', onTap: () => _chooseMonth(context),
-              child: AnimatedSwitcher(duration: const Duration(milliseconds: 200), child:
+              child: AnimatedSwitcher(duration: const Duration(milliseconds: 120), child:
                 _millText('${_garageMonths[month.month - 1]} ${month.year} ⌄', 23 * scale, key: ValueKey(month)))),
           ])),
         Positioned(left: 8, right: 8, bottom: padding.bottom + 3,
@@ -217,7 +215,7 @@ class _MillValue extends StatelessWidget {
   const _MillValue({required this.value, this.unit = '', this.prefix = '', this.size = 40, this.color = _millWhite});
   @override
   Widget build(BuildContext context) => TweenAnimationBuilder<double>(
-    tween: Tween<double>(begin: value, end: value), duration: const Duration(milliseconds: 320),
+    tween: Tween<double>(begin: value, end: value), duration: const Duration(milliseconds: 160),
     curve: Curves.easeOutCubic, builder: (_, v, __) => FittedBox(fit: BoxFit.scaleDown,
       child: _millText('$prefix${v == v.roundToDouble() ? _fmtInt(v) : _fmt1(v)}$unit', size,
         color: color, weight: FontWeight.w600)));

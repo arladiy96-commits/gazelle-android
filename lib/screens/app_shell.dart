@@ -2383,7 +2383,7 @@ Future<void> _showHomeSheet(
     barrierDismissible: true,
     barrierLabel: 'Закрыть',
     barrierColor: Colors.transparent,
-    transitionDuration: const Duration(milliseconds: 260),
+    transitionDuration: const Duration(milliseconds: 180),
     pageBuilder: (dialogContext, animation, secondaryAnimation) {
       final height = MediaQuery.sizeOf(dialogContext).height;
 
@@ -2396,8 +2396,8 @@ Future<void> _showHomeSheet(
                 onTap: () => Navigator.of(dialogContext).pop(),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(
-                    sigmaX: 7,
-                    sigmaY: 7,
+                    sigmaX: 3,
+                    sigmaY: 3,
                   ),
                   child: Container(
                     color: Colors.black.withValues(alpha: 0.66),
@@ -3494,7 +3494,7 @@ class _QuickEntryShell extends StatelessWidget {
   final String title;final IconData icon;final Widget child;
   const _QuickEntryShell({required this.title,required this.icon,required this.child});
   @override Widget build(BuildContext context){final mq=MediaQuery.of(context);
-    return AnimatedPadding(duration:const Duration(milliseconds:220),curve:Curves.easeOutCubic,padding:EdgeInsets.only(bottom:mq.viewInsets.bottom),
+    return Padding(padding:EdgeInsets.only(bottom:mq.viewInsets.bottom),
       child:ConstrainedBox(constraints:BoxConstraints(maxHeight:math.max(140,mq.size.height-mq.viewInsets.bottom-mq.padding.top-24)),
         child:SingleChildScrollView(padding:const EdgeInsets.fromLTRB(12,8,12,12),child:_DetailGlass(accent:true,padding:const EdgeInsets.all(14),child:Column(mainAxisSize:MainAxisSize.min,children:[
           Container(width:32,height:3,decoration:BoxDecoration(color:const Color(0xFF67747B),borderRadius:BorderRadius.circular(3))),const SizedBox(height:4),
@@ -6549,7 +6549,7 @@ class _MillDock extends StatelessWidget {
   static const gold=Color(0xFFE3B86F);
   @override Widget build(BuildContext context)=>ClipRRect(
     borderRadius:BorderRadius.circular(24),
-    child:BackdropFilter(filter:ImageFilter.blur(sigmaX:9,sigmaY:9),
+    child:BackdropFilter(filter:ImageFilter.blur(sigmaX:4,sigmaY:4),
       child:Container(height:76,decoration:BoxDecoration(
         borderRadius:BorderRadius.circular(24),border:Border.all(color:const Color(0x997F898C),width:.8),
         gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
@@ -6598,11 +6598,15 @@ class _ExtendedArtworkState extends State<_ExtendedArtwork> {
   late final ImageStreamListener listener=ImageStreamListener((image,synchronous){
     final previous=info;if(mounted)setState(()=>info=image);else image.dispose();previous?.dispose();
   });
-  void resolve(){stream?.removeListener(listener);stream=AssetImage(widget.asset).resolve(createLocalImageConfiguration(context));stream!.addListener(listener);}
+  void resolve(){
+    final next=AssetImage(widget.asset).resolve(createLocalImageConfiguration(context));
+    if(stream?.key==next.key)return;
+    stream?.removeListener(listener);stream=next;stream!.addListener(listener);
+  }
   @override void didChangeDependencies(){super.didChangeDependencies();resolve();}
   @override void didUpdateWidget(covariant _ExtendedArtwork old){super.didUpdateWidget(old);if(old.asset!=widget.asset)resolve();}
   @override void dispose(){stream?.removeListener(listener);info?.dispose();super.dispose();}
-  @override Widget build(BuildContext context)=>CustomPaint(painter:info==null?null:_ExtendedArtworkPainter(info!,widget.topInset,widget.fit,widget.imageWidth,widget.bottomInset));
+  @override Widget build(BuildContext context)=>RepaintBoundary(child:CustomPaint(painter:info==null?null:_ExtendedArtworkPainter(info!,widget.topInset,widget.fit,widget.imageWidth,widget.bottomInset)));
 }
 class _ExtendedArtworkPainter extends CustomPainter {
   final ImageInfo info;final double inset;final BoxFit fit;final double? imageWidth;final double bottomInset;
