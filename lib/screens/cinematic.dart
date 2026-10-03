@@ -13,8 +13,8 @@ _Scene _sceneFor(String title){
 // Move the whole page once; keep the outgoing artwork stationary.
 class _SceneRoute<T> extends PageRouteBuilder<T> {
   _SceneRoute({required WidgetBuilder builder}) : super(
-    transitionDuration:const Duration(milliseconds:180),
-    reverseTransitionDuration:const Duration(milliseconds:140),
+    transitionDuration:const Duration(milliseconds:220),
+    reverseTransitionDuration:const Duration(milliseconds:180),
     pageBuilder:(context,animation,secondary)=>RepaintBoundary(child:builder(context)),
     transitionsBuilder:(context,animation,secondary,child){
       if(MediaQuery.disableAnimationsOf(context))return child;
@@ -837,7 +837,7 @@ class _OpenShiftDashboardState extends State<_OpenShiftDashboard> {
     draft.selection=TextSelection(baseOffset:0,extentOffset:draft.text.length);
     String? validation;
     final route=showModalBottomSheet<String>(context:context,isScrollControlled:true,backgroundColor:const Color(0xFF111A20),
-      sheetAnimationStyle:const AnimationStyle(duration:Duration(milliseconds:180),reverseDuration:Duration(milliseconds:140)),
+      sheetAnimationStyle:AnimationStyle.noAnimation,
       shape:const RoundedRectangleBorder(borderRadius:BorderRadius.vertical(top:Radius.circular(22))),builder:(sheet)=>
         StatefulBuilder(builder:(sheet,update){
           void accept(){if(int.tryParse(draft.text)==null){update(()=>validation='Введите показание одометра');return;}Navigator.pop(sheet,draft.text);}
@@ -919,7 +919,7 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
     draft.selection=TextSelection(baseOffset:0,extentOffset:draft.text.length);
     String? validation;
     final route=showModalBottomSheet<String>(context:context,isScrollControlled:true,backgroundColor:const Color(0xFF111A20),
-      sheetAnimationStyle:const AnimationStyle(duration:Duration(milliseconds:180),reverseDuration:Duration(milliseconds:140)),
+      sheetAnimationStyle:AnimationStyle.noAnimation,
       shape:const RoundedRectangleBorder(borderRadius:BorderRadius.vertical(top:Radius.circular(22))),builder:(sheet)=>
         StatefulBuilder(builder:(sheet,update){
           void accept(){if(int.tryParse(draft.text)==null){update(()=>validation='Введите показание одометра');return;}Navigator.pop(sheet,draft.text);}
@@ -946,7 +946,7 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
     String? validation;
     final result=await showModalBottomSheet<int>(context:context,isScrollControlled:true,
       backgroundColor:const Color(0xFF111A20),
-      sheetAnimationStyle:const AnimationStyle(duration:Duration(milliseconds:180),reverseDuration:Duration(milliseconds:140)),
+      sheetAnimationStyle:AnimationStyle.noAnimation,
       shape:const RoundedRectangleBorder(borderRadius:BorderRadius.vertical(top:Radius.circular(22))),
       builder:(sheet)=>StatefulBuilder(builder:(sheet,update){
         void accept(){final h=int.tryParse(hour.text),m=int.tryParse(minute.text);

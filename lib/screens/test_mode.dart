@@ -43,7 +43,7 @@ class _TestRecordEditorState extends State<_TestRecordEditor> {
     final choices=type=='Город'?const ['Султан','Петрокондитер','Великанова','Визави','Казконд','Крылова']:const ['Саумалколь','Щучинск','Новоишимское','Бишкуль','Пресновка'];
     final value=await showModalBottomSheet<String>(context:context,isScrollControlled:true,
       backgroundColor:const Color(0xFF0D1920),
-      sheetAnimationStyle:const AnimationStyle(duration:Duration(milliseconds:180),reverseDuration:Duration(milliseconds:140)),
+      sheetAnimationStyle:weight?AnimationStyle.noAnimation:const AnimationStyle(duration:Duration(milliseconds:220),reverseDuration:Duration(milliseconds:180)),
       shape:const RoundedRectangleBorder(borderRadius:BorderRadius.vertical(top:Radius.circular(22))),
       builder:(c)=>Padding(padding:EdgeInsets.fromLTRB(20,20,20,MediaQuery.viewInsetsOf(c).bottom+16),
         child:SafeArea(top:false,child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
@@ -260,12 +260,27 @@ class _TestLive extends StatefulWidget {
   const _TestLive({required this.builder});
   @override State<_TestLive> createState()=>_TestLiveState();
 }
-class _TestLiveState extends State<_TestLive>{TestState? b;String? error;Timer? timer;int request=0;
-  @override void initState(){super.initState();TestStore.revision.addListener(load);load();timer=Timer.periodic(const Duration(seconds:1),(_){if(mounted&&b?.active!=null)setState((){});});}
-  Future<void> load() async{final id=++request;try{final value=await TestStore.load();if(mounted&&id==request)setState((){b=value;error=null;});}catch(e){if(mounted&&id==request)setState(()=>error=_testError(e));}}
+class _TestLiveState extends State<_TestLive>{
+  TestState? b;String? error;Timer? timer;int request=0;
+  bool get visible{
+    if(!mounted||!TickerMode.of(context))return false;
+    final route=ModalRoute.of(context);
+    if(route!=null&&(!route.isCurrent||(route.animation!=null&&route.animation!.status!=AnimationStatus.completed)))return false;
+    return MediaQuery.viewInsetsOf(context).bottom==0;
+  }
+  @override void initState(){super.initState();TestStore.revision.addListener(load);load();
+    timer=Timer.periodic(const Duration(seconds:1),(_){if(mounted&&b?.active!=null&&visible)setState((){});});}
+  Future<void> load()async{
+    final id=++request;
+    try{final value=await TestStore.load();if(!mounted||id!=request)return;
+      // Cache current data while covered; avoid rebuilding a hidden heavy scene.
+      if(b==null||visible){setState((){b=value;error=null;});}else{b=value;error=null;}
+    }catch(e){if(mounted&&id==request){if(b==null||visible){setState(()=>error=_testError(e));}else{error=_testError(e);}}}
+  }
   @override void dispose(){request++;timer?.cancel();TestStore.revision.removeListener(load);super.dispose();}
   @override Widget build(BuildContext context)=>error!=null?_DetailGlass(child:Column(mainAxisSize:MainAxisSize.min,children:[_dt(error!),_detailButton('Повторить',load)])):b==null?const Center(child:CircularProgressIndicator(color:_amber)):widget.builder(b!);
 }
+
 class _TestHomeStatus extends StatelessWidget {
   const _TestHomeStatus();
   @override Widget build(BuildContext context)=>_TestLive(builder:(b){final s=b.active;final seconds=s==null?0:(b.elapsed(s)*3600).round();
