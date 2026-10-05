@@ -9,17 +9,18 @@ import '../services/gps_tracker.dart';
 class ShiftRouteMap extends StatefulWidget {
   final String? shiftId;
   final bool paused;
+  final bool satellite;
   final double unit;
-  const ShiftRouteMap({super.key,required this.shiftId,this.paused=false,this.unit=1});
+  const ShiftRouteMap({super.key,required this.shiftId,this.paused=false,this.unit=1,this.satellite=false});
   @override State<ShiftRouteMap> createState()=>_ShiftRouteMapState();
 }
 class _ShiftRouteMapState extends State<ShiftRouteMap> {
   List<Map<String,dynamic>> points=[];Timer? timer;bool loading=false;String? error;
   int zoomDelta=0,generation=0;Offset pan=Offset.zero;
-  @override void initState(){super.initState();refresh();timer=Timer.periodic(const Duration(seconds:3),(_)=>refresh());}
+  @override void initState(){super.initState();refresh();timer=Timer.periodic(const Duration(seconds:3),(_){if(mounted&&TickerMode.of(context))refresh();});}
   @override void didUpdateWidget(covariant ShiftRouteMap old){super.didUpdateWidget(old);if(old.shiftId!=widget.shiftId){generation++;points=[];pan=Offset.zero;zoomDelta=0;refresh();}}
   Future<void> refresh()async{
-    if(loading)return;final id=widget.shiftId;if(id==null)return;loading=true;final token=generation;
+    if(loading||!mounted)return;final id=widget.shiftId;if(id==null)return;loading=true;final token=generation;
     try{final rows=await GpsRouteStore.points(id);if(mounted&&token==generation)setState((){points=rows.where((p)=>p['lat'] is num&&p['lng'] is num&&(p['lat'] as num).isFinite&&(p['lng'] as num).isFinite).toList();error=null;});}
     catch(_){if(mounted)setState(()=>error='Не удалось прочитать GPS-трек');}finally{loading=false;}
   }
@@ -28,17 +29,12 @@ class _ShiftRouteMapState extends State<ShiftRouteMap> {
     return Offset(((p['lng'] as num).toDouble()+180)/360,(1-math.log(math.tan(lat)+1/math.cos(lat))/math.pi)/2);}
   @override Widget build(BuildContext context)=>LayoutBuilder(builder:(context,box){
     final u=widget.unit;
-    if(points.isEmpty)return ColoredBox(color:const Color(0xFF101F29),child:Center(child:Column(mainAxisSize:MainAxisSize.min,children:[
-      Icon(Icons.satellite_alt,color:const Color(0xFFE4B264),size:28*u),SizedBox(height:8*u),
-      Text(error??(widget.shiftId==null?'Откройте смену для записи маршрута':widget.paused?'GPS на паузе':'Ожидание координат GPS'),
-        textAlign:TextAlign.center,style:TextStyle(color:Colors.white70,fontSize:13*u)),
-      if(widget.shiftId!=null)TextButton(onPressed:()async{await GpsTrackerController.instance.syncWithJournal();await refresh();},
-        child:Text('Обновить GPS',style:TextStyle(color:const Color(0xFFE4B264),fontSize:12*u))),
-    ])));
+    // Default viewport is a regional overview, never presented as a GPS fix.
     final projected=points.map(project).toList();
-    var minX=projected.first.dx,maxX=minX,minY=projected.first.dy,maxY=minY;
-    for(final p in projected){minX=math.min(minX,p.dx);maxX=math.max(maxX,p.dx);minY=math.min(minY,p.dy);maxY=math.max(maxY,p.dy);}
-    final tileSize=256*u;final fit=math.min((box.maxWidth-50*u)/(math.max(maxX-minX,.0003)*tileSize),(box.maxHeight-60*u)/(math.max(maxY-minY,.0003)*tileSize));
+    final bounds=projected.isEmpty?[project({'lat':53.3,'lng':69.4})]:projected;
+    var minX=bounds.first.dx,maxX=minX,minY=bounds.first.dy,maxY=minY;
+    for(final p in bounds){minX=math.min(minX,p.dx);maxX=math.max(maxX,p.dx);minY=math.min(minY,p.dy);maxY=math.max(maxY,p.dy);}
+    final tileSize=256*u;final fit=math.min((box.maxWidth-50*u)/(math.max(maxX-minX,projected.isEmpty ? .006 : .0003)*tileSize),(box.maxHeight-60*u)/(math.max(maxY-minY,projected.isEmpty ? .006 : .0003)*tileSize));
     final z=((math.log(math.max(1,fit))/math.ln2).floor()+zoomDelta).clamp(3,17);final n=1<<z;final world=tileSize*n;
     final center=Offset((minX+maxX)/2,(minY+maxY)/2)*world;
     final origin=center-Offset(box.maxWidth/2,box.maxHeight/2)-pan;
@@ -49,14 +45,15 @@ class _ShiftRouteMapState extends State<ShiftRouteMap> {
       const Positioned.fill(child:ColoredBox(color:Color(0xFF10202B))),
       for(var y=firstY;y<=lastY;y++)for(var x=firstX;x<=lastX;x++)if(y>=0&&y<n)
         Positioned(left:x*tileSize-origin.dx,top:y*tileSize-origin.dy,width:tileSize+.5,height:tileSize+.5,
-          child:_RouteTile(z:z,x:x%n,y:y)),
+          child:_RouteTile(z:z,x:x%n,y:y,satellite:widget.satellite)),
       Positioned.fill(child:IgnorePointer(child:CustomPaint(painter:_RouteStroke(offsets,points,u)))),
       Positioned(right:8*u,top:8*u,child:Column(children:[control(Icons.add,()=>setState(()=>zoomDelta=(zoomDelta+1).clamp(-10,10)),u),
         control(Icons.remove,()=>setState(()=>zoomDelta=(zoomDelta-1).clamp(-10,10)),u),
         control(Icons.my_location,()=>setState((){zoomDelta=0;pan=Offset.zero;}),u)])),
-      Positioned(left:5*u,bottom:3*u,child:GestureDetector(onTap:()=>showAboutDialog(context:context,applicationName:'Карта OpenStreetMap',
-        children:const [Text('© OpenStreetMap contributors · ODbL\nhttps://www.openstreetmap.org/copyright')]),
-        child:Container(color:const Color(0xCC09141D),padding:EdgeInsets.all(3*u),child:Text('© OpenStreetMap contributors',style:TextStyle(color:Colors.white70,fontSize:9*u))))),
+      Positioned(left:5*u,bottom:3*u,child:GestureDetector(onTap:()=>showAboutDialog(context:context,applicationName:'Источники карты',
+        children:const [Text('Снимки: Esri, Vantor, Earthstar Geographics, GIS User Community.\nhttps://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer\nКарта: © OpenStreetMap contributors · ODbL\nhttps://www.openstreetmap.org/copyright')]),
+        child:Container(color:const Color(0xCC09141D),padding:EdgeInsets.all(3*u),child:Text(widget.satellite?'Esri, Vantor, Earthstar Geographics · © OSM':'© OpenStreetMap contributors',style:TextStyle(color:Colors.white70,fontSize:9*u))))),
+      if(points.isEmpty)Positioned(left:8*u,right:48*u,bottom:25*u,child:Container(padding:EdgeInsets.all(7*u),color:const Color(0xDD09141D),child:Text(error??(widget.shiftId==null?'Откройте смену для записи маршрута':'Ожидание координат GPS'),style:TextStyle(color:Colors.white70,fontSize:11*u)))),
       if(widget.paused)Positioned(left:8*u,top:8*u,child:Text('GPS на паузе',style:TextStyle(color:Colors.amber,fontSize:11*u))),
     ])));
   });
@@ -80,27 +77,33 @@ class _RouteStroke extends CustomPainter {
   @override bool shouldRepaint(covariant _RouteStroke old)=>true;
 }
 class _RouteTile extends StatefulWidget {
-  final int z,x,y;const _RouteTile({required this.z,required this.x,required this.y});
+  final int z,x,y;final bool satellite;const _RouteTile({required this.z,required this.x,required this.y,this.satellite=false});
   @override State<_RouteTile> createState()=>_RouteTileState();
 }
 class _RouteTileState extends State<_RouteTile>{
-  late Future<Uint8List> bytes;
-  static final pending=<String,Future<Uint8List>>{};
+  late Future<Uint8List> bytes;bool imagery=false;
   static final client=HttpClient()..userAgent='MelnitsaDriver/1.1 (Android shift route map)'..connectionTimeout=const Duration(seconds:12);
-  Future<Uint8List> fetch(){final key='${widget.z}_${widget.x}_${widget.y}';return pending.putIfAbsent(key,()async{
+  Future<Uint8List> fetch(){final satellite=widget.satellite;imagery=satellite;final key='${satellite?'imagery':'osm'}_${widget.z}_${widget.x}_${widget.y}';return (()async{
     final dir=Directory('${Directory.systemTemp.path}/melnitsa_map_tiles');await dir.create(recursive:true);final file=File('${dir.path}/$key.png');
-    try{if(await file.exists()&&DateTime.now().difference(await file.lastModified()).inDays<7)return await file.readAsBytes();final request=await client.getUrl(Uri.parse('https://tile.openstreetmap.org/${widget.z}/${widget.x}/${widget.y}.png'));
+    try{if(await file.exists()&&DateTime.now().difference(await file.lastModified()).inDays<7)return await file.readAsBytes();final request=await client.getUrl(Uri.parse(satellite?'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${widget.z}/${widget.y}/${widget.x}':'https://tile.openstreetmap.org/${widget.z}/${widget.x}/${widget.y}.png'));
       final response=await request.close().timeout(const Duration(seconds:15));if(response.statusCode!=200)throw HttpException('Карта недоступна');
       final builder=BytesBuilder();await for(final chunk in response.timeout(const Duration(seconds:15))){builder.add(chunk);}
       final data=builder.takeBytes();await file.writeAsBytes(data);return data;
-    }catch(_){if(await file.exists())return file.readAsBytes();rethrow;}
-    finally{pending.remove(key);}
-  });}
+    }catch(_){if(await file.exists())return file.readAsBytes();
+      if(satellite){
+        imagery=false;
+        final request=await client.getUrl(Uri.parse('https://tile.openstreetmap.org/${widget.z}/${widget.x}/${widget.y}.png'));
+        final response=await request.close().timeout(const Duration(seconds:15));
+        if(response.statusCode!=200)throw HttpException('Карта недоступна');
+        final data=BytesBuilder();await for(final chunk in response.timeout(const Duration(seconds:15))){data.add(chunk);}return data.takeBytes();
+      }rethrow;}
+  })();}
   @override void initState(){super.initState();bytes=fetch();}
-  @override void didUpdateWidget(covariant _RouteTile old){super.didUpdateWidget(old);if(old.z!=widget.z||old.x!=widget.x||old.y!=widget.y)bytes=fetch();}
+  @override void didUpdateWidget(covariant _RouteTile old){super.didUpdateWidget(old);if(old.z!=widget.z||old.x!=widget.x||old.y!=widget.y||old.satellite!=widget.satellite)bytes=fetch();}
   @override Widget build(BuildContext context)=>FutureBuilder<Uint8List>(future:bytes,builder:(context,s){
     if(!s.hasData)return Container(color:const Color(0xFF14232D),child:s.hasError?Center(child:TextButton(onPressed:()=>setState(()=>bytes=fetch()),
       child:const Text('Нет карты\nПовторить',textAlign:TextAlign.center,style:TextStyle(fontSize:10,color:Colors.white54)))):null);
+    if(imagery)return Image.memory(s.data!,fit:BoxFit.fill,gaplessPlayback:true,color:const Color(0xFFB6C9D2),colorBlendMode:BlendMode.modulate);
     return ColorFiltered(colorFilter:const ColorFilter.matrix([
       -.24,-.12,-.06,0,122,
       -.12,-.28,-.06,0,145,
