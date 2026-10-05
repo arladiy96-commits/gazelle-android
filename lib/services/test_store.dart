@@ -53,6 +53,9 @@ class TestPreferences {
   static void resetCache(){_opening=null;}
 }
 
+// Persist names, never enum indexes. Missing source means a legacy odometer shift.
+enum MileageSource { odometer, manual, gps }
+
 class TestState {
   final List<Map<String,dynamic>> shifts,records;
   final List<Map<String,dynamic>> products;
@@ -72,7 +75,25 @@ class TestState {
   List<Map<String,dynamic>> forShift(String id)=>records.where((e)=>e['shiftId']==id).toList();
   double hours(Map<String,dynamic> s)=>(s['hoursWorked'] as num?)?.toDouble()??0;
   double elapsed(Map<String,dynamic> s)=>DateTime.parse(s['end'] as String? ?? DateTime.now().toIso8601String()).difference(DateTime.parse(s['start'] as String)).inSeconds/3600;
-  double mileage(Map<String,dynamic> s)=>(s['currentKm'] as num).toDouble()-(s['startKm'] as num).toDouble();
+  static MileageSource mileageSource(Map<String,dynamic> s)=>switch(s['mileageSource']) {
+    'manual'=>MileageSource.manual,'gps'=>MileageSource.gps,_=>MileageSource.odometer,
+  };
+  bool hasRecordedMileage(Map<String,dynamic> s)=>switch(mileageSource(s)) {
+    MileageSource.manual=>s['manualKm'] is num,
+    MileageSource.gps=>s['gpsKm'] is num,
+    MileageSource.odometer=>s['odometerSet']==true,
+  };
+  double mileage(Map<String,dynamic> s)=>switch(mileageSource(s)) {
+    MileageSource.manual=>(s['manualKm'] as num?)?.toDouble()??0,
+    MileageSource.gps=>(s['gpsKm'] as num?)?.toDouble()??0,
+    MileageSource.odometer=>(s['currentKm'] as num).toDouble()-(s['startKm'] as num).toDouble(),
+  };
+  // Only real readings may prefill another shift or the maintenance odometer.
+  double? get latestOdometer {
+    final known=shifts.where((s)=>s['currentKm'] is num).toList()
+      ..sort((a,z)=>(z['start'] as String).compareTo(a['start'] as String));
+    return known.isEmpty?null:(known.first['currentKm'] as num).toDouble();
+  }
   bool inMonth(String value,DateTime d){final t=DateTime.parse(value);return t.year==d.year&&t.month==d.month;}
   DateTime recordDay(Map<String,dynamic> e)=>DateTime.parse(shifts.firstWhere((s)=>s['id']==e['shiftId'])['start'] as String);
   static String dayKey(DateTime d)=>'${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
@@ -89,7 +110,7 @@ class TestState {
     ss.sort((a,b)=>(b['start'] as String).compareTo(a['start'] as String));
     for(final shift in ss){final d=DateTime.parse(shift['start'] as String);final key=dayKey(d);days[key]=d;allHours+=hours(shift);
       if(d.weekday<6&&!holiday(d))work+=hours(shift);
-      if(shift['odometerSet']==true&&seenMileage.add(key))km+=mileage(shift);
+      if(hasRecordedMileage(shift)&&seenMileage.add(key))km+=mileage(shift);
       for(final e in forShift(shift['id'] as String)){final amount=(e['amount'] as num?)?.toDouble()??0;
         if(e['kind']=='trip'){if(e['type']=='Город'){city+=amount;}else{region+=amount;}if(e['isPaid']==true)paid++;}
         if(e['kind']=='fuel'){if(e['type']=='Газ'){gas+=amount;}else{petrol+=amount;}}}
@@ -112,12 +133,36 @@ class TestStore {
   }
   static String _id()=>DateTime.now().microsecondsSinceEpoch.toString();
   static void _km(int v){if(v<0)throw ArgumentError('Одометр не может быть отрицательным');}
-  static Future<void> open(int km,{double? hours})=>_change((b){_km(km);_hours(hours);if(b.active!=null)throw StateError('Смена уже открыта');
-    if(b.shifts.any((s)=>(s['currentKm'] as num)>km))throw ArgumentError('Одометр меньше предыдущего. Исправьте прошлую смену или введите больший пробег');
-    b.shifts.add({'id':_id(),'start':DateTime.now().toIso8601String(),'end':null,'startKm':km,'currentKm':km,'hoursWorked':hours,'odometerSet':false,'gpsStatus':'active','gpsKm':0.0});return b;});
-  static Future<void> odometer(String id,int km,{bool close=false,double? hours})=>_change((b){_km(km);final s=b.shifts.firstWhere((s)=>s['id']==id);
-    if(s['end']!=null)throw StateError('Смена уже закрыта');if(km<(s['startKm'] as num))throw ArgumentError('Пробег меньше начала смены');
-    _hours(hours);s['currentKm']=km;s['odometerSet']=true;if(hours!=null)s['hoursWorked']=hours;if(close){s['end']=DateTime.now().toIso8601String();s['gpsStatus']='stopped';}return b;});
+  static Future<void> open(int? km,{double? hours,bool manual=false})=>_change((b){
+    _hours(hours);if(b.active!=null)throw StateError('Смена уже открыта');
+    if(!manual){
+      if(km==null)throw ArgumentError('Введите показание одометра');
+      _km(km);
+      if(b.shifts.any((s)=>s['currentKm'] is num&&(s['currentKm'] as num)>km))throw ArgumentError('Одометр меньше предыдущего. Исправьте прошлую смену или введите больший пробег');
+    }
+    b.shifts.add({'id':_id(),'start':DateTime.now().toIso8601String(),'end':null,
+      'startKm':manual?null:km,'currentKm':manual?null:km,
+      'mileageSource':(manual?MileageSource.manual:MileageSource.odometer).name,'manualKm':null,
+      'hoursWorked':hours,'odometerSet':false,'gpsStatus':'active','gpsKm':0.0});return b;
+  });
+  static Future<void> odometer(String id,int km,{bool close=false,double? hours,MileageSource? source})=>_change((b){
+    final s=b.shifts.firstWhere((s)=>s['id']==id);
+    if(s['end']!=null)throw StateError('Смена уже закрыта');
+    final selected=source??TestState.mileageSource(s);
+    if(selected==MileageSource.gps)throw ArgumentError('GPS пока не используется для завершения смены');
+    if(km<0)throw ArgumentError(selected==MileageSource.manual?'Пробег не может быть отрицательным':'Одометр не может быть отрицательным');
+    _hours(hours);
+    if(selected==MileageSource.manual){s['manualKm']=km;s['odometerSet']=false;}
+    else {
+      final start=s['startKm'] as num?;
+      if(start==null)throw ArgumentError('У смены нет начального показания. Введите пробег вручную');
+      if(km<start)throw ArgumentError('Пробег меньше начала смены');
+      s['currentKm']=km;s['odometerSet']=true;s['manualKm']=null;
+    }
+    s['mileageSource']=selected.name;
+    if(hours!=null)s['hoursWorked']=hours;
+    if(close){s['end']=DateTime.now().toIso8601String();s['gpsStatus']='stopped';}return b;
+  });
   static Future<void> saveRecord(Map<String,dynamic> value)=>_change((b){
     final e=Map<String,dynamic>.from(value);final kind=e['kind'];
     if(!['trip','fuel','invoice','other'].contains(kind))throw ArgumentError('Неизвестная запись');
@@ -149,12 +194,25 @@ class TestStore {
     if(old!=null)b.records.remove(old);b.records.add(e);return b;});
   static Future<void> deleteRecord(String id)=>_change((b){b.records.removeWhere((e)=>e['id']==id);return b;});
   static Future<void> deleteShift(String id)=>_change((b){b.records.removeWhere((e)=>e['shiftId']==id);b.shifts.removeWhere((e)=>e['id']==id);return b;});
-  static Future<void> editShift(String id,DateTime start,DateTime? end,int startKm,int endKm,{double? hours})=>_change((b){
-    _km(startKm);_hours(hours);if(endKm<startKm||start.isAfter(DateTime.now())||(end!=null&&(!end.isAfter(start)||end.isAfter(DateTime.now()))))throw ArgumentError('Проверьте время и одометр');
-    final s=b.shifts.firstWhere((s)=>s['id']==id);if((s['end']==null)!=(end==null))throw ArgumentError('Статус смены меняется кнопкой завершения');
+  static Future<void> editShift(String id,DateTime start,DateTime? end,int? startKm,int? endKm,{double? hours,int? manualKm})=>_change((b){
+    final s=b.shifts.firstWhere((s)=>s['id']==id);
+    final manual=TestState.mileageSource(s)==MileageSource.manual;
+    _hours(hours);
+    if(!manual){
+      if(startKm==null||endKm==null)throw ArgumentError('Введите показания одометра');
+      _km(startKm);if(endKm<startKm)throw ArgumentError('Проверьте время и одометр');
+    }else if(manualKm!=null&&manualKm<0){throw ArgumentError('Пробег не может быть отрицательным');}
+    if(manual&&end!=null&&manualKm==null&&s['manualKm']==null)throw ArgumentError('Введите пробег за смену');
+    if(start.isAfter(DateTime.now())||(end!=null&&(!end.isAfter(start)||end.isAfter(DateTime.now()))))throw ArgumentError('Проверьте время и одометр');
+    if((s['end']==null)!=(end==null))throw ArgumentError('Статус смены меняется кнопкой завершения');
     for(final r in b.forShift(id)){final d=DateTime.parse(r['date'] as String);if(d.isBefore(start)||(end!=null&&d.isAfter(end)))throw ArgumentError('За границами смены остаются записи');}
     for(final other in b.shifts.where((s)=>s['id']!=id)){final a=DateTime.parse(other['start'] as String);final z=other['end']==null?DateTime.now():DateTime.parse(other['end'] as String);if(start.isBefore(z)&&(end??DateTime.now()).isAfter(a))throw ArgumentError('Смены не должны пересекаться');}
-    s.addAll({'start':start.toIso8601String(),'end':end?.toIso8601String(),'startKm':startKm,'currentKm':endKm,'odometerSet':true,'hoursWorked':hours??s['hoursWorked']});return b;});
+    s.addAll({'start':start.toIso8601String(),'end':end?.toIso8601String(),'hoursWorked':hours??s['hoursWorked']});
+    if(manual){if(manualKm!=null)s['manualKm']=manualKm;}
+    else{s.addAll({'startKm':startKm,'currentKm':endKm,'odometerSet':true});}
+    s['mileageSource']=TestState.mileageSource(s).name;
+    return b;
+  });
   static void _hours(double? h){if(h!=null&&(!h.isFinite||h<0))throw ArgumentError('Введите неотрицательное число часов');}
   static Future<void> gps(String id,{bool? paused,double addKm=0})=>_change((b){final s=b.shifts.firstWhere((s)=>s['id']==id);if(s['end']!=null)throw StateError('Смена закрыта');
     if(paused!=null)s['gpsStatus']=paused?'paused':'active';
