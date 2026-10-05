@@ -14,7 +14,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
   GasReport? _report;
   String? _error, _keptSignature;
-  bool _distance = false, _busy = false;
+  bool _distance = false, _busy = false, _expanded = false;
   int _request = 0;
   final _horizontal = ScrollController();
   @override
@@ -53,7 +53,8 @@ class _GasReportScreenState extends State<_GasReportScreen> {
     return value
         .toStringAsFixed(2)
         .replaceFirst(RegExp(r'\.?0+$'), '')
-        .replaceAll('.', ',');
+        .replaceAll('.', ',')
+        .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m)=>'${m[1]} ');
   }
 
   String _litres(double? v) => v == null ? '—' : '${_number(v)} л';
@@ -255,105 +256,52 @@ class _GasReportScreenState extends State<_GasReportScreen> {
     }
   }
 
-  Widget _stat(String label, String value, {String? note}) => Padding(
-    padding: const EdgeInsets.only(bottom: 12, right: 8),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(color: muted, fontSize: 12)),
-        const SizedBox(height: 5),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Color(0xFFF0F1EF),
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        if (note != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 3),
-            child: Text(
-              note,
-              style: const TextStyle(color: muted, fontSize: 11),
-            ),
-          ),
-      ],
-    ),
-  );
-  Widget _summary(GasReport r) => _panel(
-    Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Итоги месяца',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 14),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: _stat('Остаток с прошлого месяца', _litres(r.opening)),
-            ),
-            Expanded(child: _stat('Получено газа', _litres(r.gas))),
-          ],
-        ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: _stat('Пробег за месяц', '${_number(r.km)} км')),
-            Expanded(
-              child: _stat(
-                'Расход по норме',
-                _litres(r.consumption),
-                note: 'Норма 28 л / 100 км',
-              ),
-            ),
-          ],
-        ),
-        const Divider(height: 12, color: Color(0xFF44413A)),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'Текущий остаток',
-                style: TextStyle(color: Color(0xFFE8E8E4), fontSize: 15),
-              ),
-            ),
-            Text(
-              _litres(r.closing),
-              style: TextStyle(
-                color: (r.closing ?? 0) < 0 ? const Color(0xFFD29280) : gold,
-                fontSize: 25,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        if ((r.closing ?? 0) < 0)
-          const Padding(
-            padding: EdgeInsets.only(top: 6),
-            child: Text(
-              'Отрицательный остаток: проверьте выдачи газа и начальный остаток.',
-              style: TextStyle(color: Color(0xFFD29280), fontSize: 12),
-            ),
-          ),
-        _action(
-          r.opening == null
-              ? 'Указать остаток с прошлого месяца'
-              : '${r.manualOpening ? 'Начальный остаток указан вручную' : 'Перенесено из сданного отчёта'} · Изменить',
-          _busy ? null : () => _opening(r),
-          icon: Icons.edit_outlined,
-        ),
-      ],
-    ),
-  );
+  Widget _stat(String label,String value,IconData icon,{String? note,Color color=gold,VoidCallback? onTap}) {
+    final content=Container(padding:const EdgeInsets.all(11),decoration:BoxDecoration(
+      borderRadius:BorderRadius.circular(12),border:Border.all(color:const Color(0xFF4D585C),width:.7),
+      gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
+        colors:[Color(0xB3263035),Color(0xE6091319)])),
+      child:Row(children:[Icon(icon,color:color,size:28),const SizedBox(width:10),Expanded(child:Column(
+        crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text(label,style:const TextStyle(color:Color(0xFFD2D9DB),fontSize:12,height:1.3)),
+          const SizedBox(height:6),Text(value,style:const TextStyle(color:Color(0xFFF2F2EF),fontSize:21,fontWeight:FontWeight.w600)),
+          if(note!=null)Padding(padding:const EdgeInsets.only(top:3),child:Text(note,style:const TextStyle(color:muted,fontSize:10))),
+        ]))]));
+    return onTap==null?content:InkWell(borderRadius:BorderRadius.circular(12),onTap:onTap,child:content);
+  }
+  Widget _cylinders()=>SizedBox(width:83,height:60,child:Stack(alignment:Alignment.bottomCenter,children:[
+    for(var i=0;i<3;i++)Positioned(left:i*23.0,bottom:i==1?0:3,child:Column(children:[
+      Container(width:10,height:6,decoration:BoxDecoration(border:Border.all(color:i==0?const Color(0xFF71838B):gold,width:1.3),borderRadius:BorderRadius.circular(2))),
+      Container(width:26,height:i==1?48:42,decoration:BoxDecoration(borderRadius:BorderRadius.circular(8),
+        border:Border.all(color:const Color(0xFF73624B),width:.6),gradient:LinearGradient(colors:i==0?
+          const [Color(0xFF162129),Color(0xFF69777B),Color(0xFF14222B)]:
+          const [Color(0xFF342B20),Color(0xFF9C7A42),Color(0xFF2F281F)]),
+        boxShadow:const [BoxShadow(color:Color(0x99000000),blurRadius:4,offset:Offset(2,3))])),
+    ])),
+  ]));
+  Widget _summary(GasReport r)=>_panel(Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+    const Text('Итоги месяца',style:TextStyle(color:Colors.white,fontSize:19,fontWeight:FontWeight.w600)),const SizedBox(height:12),
+    IntrinsicHeight(child:Row(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      Expanded(child:_stat('Остаток\nс прошлого месяца',_litres(r.opening),Icons.propane_tank_outlined,onTap:_busy?null:()=>_opening(r))),
+      const SizedBox(width:8),Expanded(child:_stat('Получено газа\nза месяц',_litres(r.gas),Icons.propane_tank_outlined)),
+    ])),const SizedBox(height:8),
+    IntrinsicHeight(child:Row(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      Expanded(child:_stat('Пробег за месяц','${_number(r.km)} км',Icons.add_road_outlined,color:const Color(0xFF9AB9C8))),
+      const SizedBox(width:8),Expanded(child:_stat('Расход по норме',_litres(r.consumption),Icons.local_fire_department_outlined,
+        color:const Color(0xFF9AB9C8),note:'Норма 28 л / 100 км')),
+    ])),const SizedBox(height:9),
+    Container(padding:const EdgeInsets.symmetric(horizontal:13,vertical:12),decoration:BoxDecoration(
+      borderRadius:BorderRadius.circular(12),border:Border.all(color:const Color(0xFFAD8A4D),width:.8),
+      gradient:const LinearGradient(colors:[Color(0xDB111E1E),Color(0xD2091419),Color(0xB333291B)])),
+      child:Row(children:[Icon(Icons.propane_tank_outlined,color:(r.closing??0)<0?const Color(0xFFD29280):const Color(0xFF86B7A2),size:32),
+        const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          const Text('Текущий остаток',style:TextStyle(color:Color(0xFFD1DFDA),fontSize:13)),const SizedBox(height:4),
+          Text(_litres(r.closing),style:TextStyle(color:(r.closing??0)<0?const Color(0xFFD29280):const Color(0xFF80B79B),fontSize:27,fontWeight:FontWeight.w600)),
+        ])),_cylinders()])),
+    if((r.closing??0)<0)const Padding(padding:EdgeInsets.only(top:8),child:Text('Отрицательный остаток: проверьте выдачи и начальный остаток.',style:TextStyle(color:Color(0xFFD29280),fontSize:12))),
+    if(r.opening==null)_action('Указать остаток с прошлого месяца',_busy?null:()=>_opening(r),icon:Icons.edit_outlined)
+    else Padding(padding:const EdgeInsets.only(top:7),child:Text('Нажмите на начальный остаток, чтобы изменить его.',style:const TextStyle(color:muted,fontSize:10))),
+  ]),padding:const EdgeInsets.all(10));
   Widget _status(GasReport r) {
     final kept = _keptSignature == r.signature;
     return _panel(
@@ -438,243 +386,64 @@ class _GasReportScreenState extends State<_GasReportScreen> {
     );
   }
 
-  Widget _cell(
-    String text,
-    double width, {
-    bool header = false,
-    bool total = false,
-    bool left = false,
-    double? height,
-  }) => Container(
-    width: width,
-    height: height ?? (header ? 64 : 56),
-    alignment: left ? Alignment.centerLeft : Alignment.centerRight,
-    padding: const EdgeInsets.symmetric(horizontal: 10),
-    decoration: const BoxDecoration(
-      border: Border(bottom: BorderSide(color: Color(0xFF303D43), width: .6)),
-    ),
-    child: Text(
-      text,
-      maxLines: header ? 3 : 1,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        color: header
-            ? muted
-            : total
-            ? gold
-            : const Color(0xFFE7EBEC),
-        fontSize: header ? 12 : 14,
-        fontWeight: total ? FontWeight.w600 : FontWeight.w400,
-      ),
-    ),
-  );
-  Widget _table(GasReport r) {
-    final directionWidth = math.max(
-      250.0,
-      r.days.fold<double>(0, (value, d) {
-        final painter = TextPainter(
-          text: TextSpan(
-            text: d.directions,
-            style: const TextStyle(fontSize: 14),
-          ),
-          textDirection: TextDirection.ltr,
-          textScaler: MediaQuery.textScalerOf(context),
-        )..layout();
-        final width = painter.width + 24;
-        painter.dispose();
-        return math.max(value, width);
-      }),
-    );
-    return _panel(
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(12, 12, 12, 8),
-            child: Text(
-              'По дням',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              children: [
-                for (final distance in [false, true])
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(3),
-                      child: TextButton(
-                        onPressed: () => setState(() => _distance = distance),
-                        style: TextButton.styleFrom(
-                          foregroundColor: _distance == distance ? gold : muted,
-                          backgroundColor: _distance == distance
-                              ? const Color(0x443F301E)
-                              : Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(
-                              color: _distance == distance
-                                  ? const Color(0xFF977441)
-                                  : const Color(0xFF475056),
-                              width: .8,
-                            ),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 10,
-                          ),
-                        ),
-                        child: Text(
-                          distance ? 'Пробег за день' : 'Показания одометра',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(12, 8, 12, 4),
-            child: Text(
-              'Листайте колонки ↔ · Нажмите дату для сводки дня',
-              style: TextStyle(color: muted, fontSize: 11),
-            ),
-          ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFF111C22),
-                  border: Border(
-                    right: BorderSide(color: Color(0xFF776044), width: .8),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    _cell('Дата', 62, header: true, left: true),
-                    for (final d in r.days)
-                      InkWell(
-                        onTap: () => _openDaySummary(context, d.date),
-                        child: _cell(
-                          '${d.date.day.toString().padLeft(2, '0')}.${d.date.month.toString().padLeft(2, '0')}',
-                          62,
-                          left: true,
-                        ),
-                      ),
-                    _cell('Итого', 62, total: true, left: true),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Scrollbar(
-                  controller: _horizontal,
-                  thumbVisibility: true,
-                  notificationPredicate: (n) =>
-                      n.metrics.axis == Axis.horizontal,
-                  child: SingleChildScrollView(
-                    controller: _horizontal,
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            if (_distance)
-                              _cell('Пробег за день, км', 114, header: true)
-                            else ...[
-                              _cell('Пробег на начало, км', 114, header: true),
-                              _cell('Пробег на конец, км', 114, header: true),
-                            ],
-                            _cell('Полученный газ', 110, header: true),
-                            _cell('Полученный бензин', 110, header: true),
-                            _cell(
-                              'Направление',
-                              directionWidth,
-                              header: true,
-                              left: true,
-                            ),
-                          ],
-                        ),
-                        for (final d in r.days)
-                          Row(
-                            children: [
-                              if (_distance)
-                                _cell(
-                                  '${_number(d.km)}${d.pending > 0 ? ' *' : ''}',
-                                  114,
-                                )
-                              else ...[
-                                _cell(
-                                  d.startKm == null ? '—' : _number(d.startKm!),
-                                  114,
-                                ),
-                                _cell(
-                                  d.endKm == null ? '—' : _number(d.endKm!),
-                                  114,
-                                ),
-                              ],
-                              _cell(d.gas == 0 ? '—' : _litres(d.gas), 110),
-                              _cell(
-                                d.petrol == 0 ? '—' : _litres(d.petrol),
-                                110,
-                              ),
-                              _cell(
-                                d.directions.isEmpty ? '—' : d.directions,
-                                directionWidth,
-                                left: true,
-                              ),
-                            ],
-                          ),
-                        Row(
-                          children: [
-                            _cell(
-                              '${_number(r.km)} км',
-                              _distance ? 114 : 228,
-                              total: true,
-                            ),
-                            _cell(_litres(r.gas), 110, total: true),
-                            _cell(_litres(r.petrol), 110, total: true),
-                            _cell('', directionWidth, total: true, left: true),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (r.days.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(18),
-              child: Text(
-                'В этом месяце смен пока нет.',
-                style: TextStyle(color: muted, fontSize: 14),
-              ),
-            ),
-          if (r.pending > 0)
-            const Padding(
-              padding: EdgeInsets.all(12),
-              child: Text(
-                '* Учтён только сохранённый пробег. Незавершённые смены ещё могут изменить итог.',
-                style: TextStyle(color: muted, fontSize: 12),
-              ),
-            ),
-        ],
-      ),
-      padding: EdgeInsets.zero,
-    );
+  Widget _cell(String text,double width,{bool header=false,bool total=false,bool left=false})=>Container(
+    width:width,height:header?48:38,alignment:left?Alignment.centerLeft:Alignment.centerRight,
+    padding:const EdgeInsets.symmetric(horizontal:7),decoration:const BoxDecoration(
+      border:Border(bottom:BorderSide(color:Color(0xFF29383E),width:.5),right:BorderSide(color:Color(0xFF253239),width:.5))),
+    child:Text(text,maxLines:header?3:1,overflow:TextOverflow.ellipsis,style:TextStyle(
+      color:header?muted:total?gold:const Color(0xFFE7EBEC),fontSize:header?11:13,fontWeight:total?FontWeight.w600:FontWeight.w400)));
+  void _toggleTable(){
+    if(_horizontal.hasClients){_horizontal.jumpTo(0);}
+    setState(()=>_expanded=!_expanded);
   }
-
+  Widget _table(GasReport r){
+    final rows=_expanded?r.days:r.days.take(5).toList();
+    final distance=_expanded&&_distance;
+    final directionWidth=math.max(165.0,rows.fold<double>(0,(value,d){
+      final painter=TextPainter(text:TextSpan(text:d.directions,style:const TextStyle(fontSize:13)),textDirection:TextDirection.ltr,textScaler:MediaQuery.textScalerOf(context))..layout();
+      final width=painter.width+20;painter.dispose();return math.max(value,width);
+    }));
+    return _panel(Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Padding(padding:const EdgeInsets.fromLTRB(10,5,8,5),child:Row(children:[
+        Expanded(child:Text(_expanded?'Журнал за месяц':'По дням',style:const TextStyle(color:Colors.white,fontSize:18,fontWeight:FontWeight.w600))),
+        OutlinedButton(onPressed:_toggleTable,style:OutlinedButton.styleFrom(foregroundColor:gold,
+          side:const BorderSide(color:Color(0xFF997B48),width:.8),backgroundColor:const Color(0x303F301B),
+          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10)),padding:const EdgeInsets.symmetric(horizontal:10)),
+          child:Text(_expanded?'Свернуть ↙':'Развернуть ↗',style:const TextStyle(fontSize:12))),
+      ])),
+      if(_expanded)Padding(padding:const EdgeInsets.fromLTRB(7,0,7,9),child:Row(children:[
+        for(final mode in [false,true])Expanded(child:Padding(padding:const EdgeInsets.symmetric(horizontal:3),child:TextButton(
+          onPressed:(){if(_horizontal.hasClients){_horizontal.jumpTo(0);}setState(()=>_distance=mode);},
+          style:TextButton.styleFrom(foregroundColor:_distance==mode?gold:muted,
+            backgroundColor:_distance==mode?const Color(0x664B391E):const Color(0x99081015),
+            shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8),side:BorderSide(color:_distance==mode?const Color(0xFFA78951):const Color(0xFF39464C),width:.8)),
+            padding:const EdgeInsets.symmetric(horizontal:5,vertical:10)),
+          child:Text(mode?'Пробег за день':'Показания одометра',textAlign:TextAlign.center,style:const TextStyle(fontSize:12))))),
+      ])),
+      Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Container(color:const Color(0xFF101A20),child:Column(children:[
+          _cell('Дата',54,header:true,left:true),
+          for(final d in rows)Semantics(button:true,label:'Сводка за ${_detailDate(d.date)}',child:InkWell(onTap:()=>_openDaySummary(context,d.date),
+            child:_cell('${d.date.day.toString().padLeft(2,'0')}.${d.date.month.toString().padLeft(2,'0')}',54,left:true))),
+          if(_expanded)_cell('Итого',54,total:true,left:true),
+        ])),
+        Expanded(child:Scrollbar(controller:_horizontal,thumbVisibility:true,notificationPredicate:(n)=>n.metrics.axis==Axis.horizontal,
+          child:SingleChildScrollView(controller:_horizontal,scrollDirection:Axis.horizontal,padding:const EdgeInsets.only(bottom:7),child:Column(children:[
+            Row(children:[if(distance)_cell('Пробег\nза день, км',104,header:true)else ...[_cell('Пробег\nна начало',86,header:true),_cell('Пробег\nна конец',86,header:true)],
+              _cell('Газ,\nл',60,header:true),_cell('Бензин,\nл',66,header:true),_cell('Направление',directionWidth,header:true,left:true)]),
+            for(final d in rows)Row(children:[if(distance)_cell('${_number(d.km)}${d.pending>0?' *':''}',104)else ...[
+              _cell(d.startKm==null?'—':_number(d.startKm!),86),_cell(d.endKm==null?'—':_number(d.endKm!),86)],
+              _cell(d.gas==0?'—':_number(d.gas),60),_cell(d.petrol==0?'—':_number(d.petrol),66),_cell(d.directions.isEmpty?'—':d.directions,directionWidth,left:true)]),
+            if(_expanded)Row(children:[_cell('${_number(r.km)} км',distance?104:172,total:true),_cell(_number(r.gas),60,total:true),_cell(_number(r.petrol),66,total:true),_cell('',directionWidth,total:true)]),
+          ])))),
+      ]),
+      if(r.days.isEmpty)const Padding(padding:EdgeInsets.all(16),child:Text('В этом месяце смен пока нет.',style:TextStyle(color:muted,fontSize:13))),
+      if(!_expanded&&r.days.isNotEmpty)TextButton(onPressed:_toggleTable,style:TextButton.styleFrom(foregroundColor:muted),
+        child:Text('Показано ${rows.length} из ${r.days.length} дней ⌄',style:const TextStyle(fontSize:11))),
+      if(_expanded)const Padding(padding:EdgeInsets.fromLTRB(10,5,10,10),child:Text('Колонки прокручиваются ↔ · Дата открывает сводку дня',style:TextStyle(color:muted,fontSize:10))),
+      if(r.pending>0)const Padding(padding:EdgeInsets.all(10),child:Text('* Учтён только сохранённый пробег; итог незавершённых смен может измениться.',style:TextStyle(color:muted,fontSize:11))),
+    ]),padding:EdgeInsets.zero);
+  }
   void _navigate(int index) {
     if (index == 2) {
       _showQuickAddMenu(context, widget.session);
@@ -688,7 +457,9 @@ class _GasReportScreenState extends State<_GasReportScreen> {
   Widget build(BuildContext context) {
     final now = DateTime.now(), r = _report;
     final canNext = _month.isBefore(DateTime(now.year, now.month));
-    return AnnotatedRegion<SystemUiOverlayStyle>(
+    return PopScope(canPop: !_expanded,onPopInvokedWithResult:(didPop,result){
+      if(!didPop&&_expanded){_toggleTable();}
+    },child:AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
@@ -718,7 +489,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
                           ),
                           child: IconButton(
                             tooltip: 'Назад',
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: () { if(_expanded){_toggleTable();}else{Navigator.pop(context);} },
                             icon: const Icon(Icons.chevron_left, color: gold),
                           ),
                         ),
@@ -798,13 +569,12 @@ class _GasReportScreenState extends State<_GasReportScreen> {
                             ),
                           )
                         : ListView(
+                            key:ValueKey(_expanded),
                             padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
                             children: [
-                              _summary(r),
-                              const SizedBox(height: 12),
+                              if(!_expanded)...[_summary(r),const SizedBox(height:12)],
                               _table(r),
-                              const SizedBox(height: 12),
-                              _status(r),
+                              if(!_expanded)...[const SizedBox(height:12),_status(r)],
                             ],
                           ),
                   ),
@@ -818,6 +588,6 @@ class _GasReportScreenState extends State<_GasReportScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 }
