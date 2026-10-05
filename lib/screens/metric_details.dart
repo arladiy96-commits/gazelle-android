@@ -1205,50 +1205,73 @@ class _MetricDetailsState extends State<_MetricDetails> {
     return value==null?'—':'${_fmtInt(value)} ${widget.metric=='Зарплата'?'₸':'км'}';}
 }
 
-class _DayDetails extends StatefulWidget {
-  final DateTime date;const _DayDetails({required this.date});
-  @override
-  State<_DayDetails> createState()=>_DayDetailsState();
+Future<void> _openDaySummary(BuildContext context,DateTime day) async {
+  await Navigator.of(context).push<void>(_SceneRoute<void>(builder:(_)=>_DayDetails(date:DateTime(day.year,day.month,day.day))));
 }
-class _DayDetailsState extends State<_DayDetails> {
-  ActivityBook? _book;TestPreferences? _prefs;String? _error;
-  @override
-  void initState(){super.initState();_homeDataRevision.addListener(_load);_load();}
-  @override
-  void dispose(){_homeDataRevision.removeListener(_load);super.dispose();}
-  Future<void> _load() async {
-    try{final b=await ActivityRepository.load(widget.date);final p=await TestPreferences.getInstance();
-      if(mounted)setState((){_book=b;_prefs=p;_error=null;});}
-    catch(_){if(mounted)setState(()=>_error='Не удалось прочитать отчёт');}
+
+double _summaryMileage(TestState b,DateTime day)=>b.shifts.where((s)=>TestState.dayKey(DateTime.parse(s['start'] as String))==TestState.dayKey(day)).fold<double>(0,(value,s)=>value+(s['odometerSet']==true?b.mileage(s):(s['gpsKm'] as num?)?.toDouble()??0));
+
+class _DayDetails extends StatelessWidget {
+  final DateTime date;
+  const _DayDetails({required this.date});
+  static const gold=Color(0xFFD8AC65),blue=Color(0xFF62ADC0),white=Color(0xFFE6E9EA);
+  Widget text(String s,double size,{Color color=white,FontWeight weight=FontWeight.w400,int lines=1})=>Text(s,maxLines:lines,overflow:TextOverflow.ellipsis,style:TextStyle(color:color,fontSize:size,fontWeight:weight,height:1.2));
+  Widget metric(String title,String value,IconData icon,Color color)=>Container(padding:const EdgeInsets.symmetric(horizontal:15,vertical:14),decoration:BoxDecoration(border:Border.all(color:const Color(0xFF514936),width:.6),color:const Color(0x45081015)),child:Row(children:[Icon(icon,color:color,size:47),const SizedBox(width:17),Expanded(child:Column(mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.start,children:[text(title,19,color:Colors.white70),const SizedBox(height:5),FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,child:text(value,36,color:color,weight:FontWeight.w600))]))]));
+  Widget record(BuildContext c,Map<String,dynamic> r,int index,{bool fuel=false}){
+    final timestamp=DateTime.tryParse(r['date']?.toString()??'');
+    final title=fuel?r['type']?.toString()??'Топливо':r['direction']?.toString()??'Без направления';
+    return Material(color:Colors.transparent,child:InkWell(onTap:()=>_testEditor(c,fuel?'fuel':'trip',entry:r),child:Container(height:57,padding:const EdgeInsets.symmetric(horizontal:12),decoration:const BoxDecoration(border:Border(bottom:BorderSide(color:Color(0xFF3E474D),width:.7))),child:Row(children:[
+      if(fuel)Icon(r['type']=='Газ'?Icons.local_fire_department:Icons.local_gas_station_outlined,color:gold,size:32)
+      else Container(width:31,height:31,alignment:Alignment.center,decoration:BoxDecoration(shape:BoxShape.circle,border:Border.all(color:gold)),child:text('${index+1}',18,color:gold)),
+      const SizedBox(width:18),Expanded(child:Column(mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.start,children:[text(title,19),text('${timestamp==null?'':_detailTime(timestamp)}${fuel?' · Выдано':' · ${r['type']??''}'}',13,color:Colors.white54)])),
+      const SizedBox(width:10),text('${_fmt1((r['amount'] as num?)?.toDouble()??0)} ${fuel?'л':'кг'}',25,color:gold,weight:FontWeight.w600),const Icon(Icons.chevron_right,color:Colors.white54,size:25),
+    ]))));
   }
-  String get _key=>'home_day_${widget.date.year}_${widget.date.month}_${widget.date.day}_';
-  double? _number(String name)=>(_prefs?.get('$_key$name') as num?)?.toDouble();
-  void _trip(ActivityEntry e)=>_editActivity(context,e);
-  @override
-  Widget build(BuildContext context)=>_DetailFrame(title:'${_detailDate(widget.date)} ${widget.date.year}',scene:_Scene.cab,action:IconButton(tooltip:'Действия со сменой',icon:const Icon(Icons.more_horiz,color:_amber),onPressed:()=>_dayActions(context,widget.date)),children:[
-    if(_error!=null)...[_DetailGlass(child:_dt(_error!)),_detailButton('Повторить',_load)]
-    else if(_book==null)const Center(child:CircularProgressIndicator(color:_amber))
-    else ..._content(),
-  ]);
-  List<Widget> _content(){
-    final rows=_book!.onDay(widget.date);final trips=rows.where((e)=>e.kind=='trip').toList();final fuel=rows.where((e)=>e.kind=='fuel').toList();
-    final status=_prefs?.getString('${_key}status');final hours=_number('hours'),mileage=_number('mileage'),start=_number('odometer_start'),end=_number('odometer_end');
-    return [
-      Center(child:_dt(switch(status){'completed'=>'Смена завершена','open'=>'Смена открыта',_=>'Статус смены не записан'},color:_amber,size:14)),const SizedBox(height:10),
-      _DetailGlass(accent:true,child:Column(children:[Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        _dt(hours==null?'—':'${_fmt1(hours)} ч',size:20),const SizedBox(height:6),_dt('Отработано',size:14)])),
-        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_dt(mileage==null?'—':'${_fmtInt(mileage)} км',size:20),const SizedBox(height:6),_dt('Пробег за день',size:14)]))]),
-        const Divider(height:18,color:Color(0xFF53616A)),_dt(start==null||end==null?'Одометр не записан':'Одометр  ${_fmtInt(start)} → ${_fmtInt(end)} км',size:15)])),
-      _dt('Рейсы · ${trips.length}',size:15),const SizedBox(height:12),
-      _DetailGlass(child:trips.isEmpty?_dt('Рейсы за этот день не записаны.',color:const Color(0xFFB3C6D0)):Column(children:_separated([
-        for(var i=0;i<trips.length;i++)_detailRow('${(i+1).toString().padLeft(2,'0')}  ${trips[i].direction.isEmpty?'Без направления':trips[i].direction}',
-          '${_fmtInt(trips[i].amount*1000)} кг',subtitle:trips[i].type,onTap:()=>_trip(trips[i]))]))),
-      _DetailGlass(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_dt('Топливо',size:15),const SizedBox(height:10),
-        if(fuel.isEmpty)_dt('Заправок нет',size:13,color:const Color(0xFFB3C6D0))
-        else ..._separated([for(final e in fuel)_detailRow(e.type,'${_fmt1(e.amount)} л',subtitle:_detailTime(e.date),onTap:()=>_editActivity(context,e))])])),
-      _detailButton('GPS за день',()=>Navigator.push(context,_SceneRoute<void>(builder:(_)=>_DayGps(day:widget.date))),icon:Icons.route),
+  @override Widget build(BuildContext context)=>AnnotatedRegion<SystemUiOverlayStyle>(value:const SystemUiOverlayStyle(statusBarColor:Colors.transparent,statusBarIconBrightness:Brightness.light,systemNavigationBarColor:Colors.transparent,systemNavigationBarIconBrightness:Brightness.light),child:Scaffold(backgroundColor:const Color(0xFF071017),body:_TestLive(builder:(b){
+    final key=TestState.dayKey(date);
+    final shifts=b.shifts.where((s)=>TestState.dayKey(DateTime.parse(s['start'] as String))==key).toList()..sort((a,z)=>(a['start'] as String).compareTo(z['start'] as String));
+    final ids=shifts.map((s)=>s['id']).toSet();
+    final rows=b.records.where((r)=>ids.contains(r['shiftId'])).toList()..sort((a,z)=>(a['date'] as String).compareTo(z['date'] as String));
+    final trips=rows.where((r)=>r['kind']=='trip').toList(),fuel=rows.where((r)=>r['kind']=='fuel').toList();
+    final stats=b.statistics(date,day:date);
+    // Same monthly base-pay allocation as the existing statistics table.
+    var dayBases=0.0;
+    for(var i=1;i<=DateTime(date.year,date.month+1,0).day;i++){dayBases+=b.statistics(date,day:DateTime(date.year,date.month,i))['base_salary']??0;}
+    final factor=dayBases==0?1.0:(b.statistics(date)['base_salary']??0)/dayBases;
+    final salary=(stats['salary']??0)-(stats['base_salary']??0)*(1-factor);
+    final items=< (String,String,IconData,Color)>[
+      ('Город','${_fmt1(stats['city_kg']??0)} кг',Icons.location_city,gold),
+      ('Район','${_fmt1(stats['region_kg']??0)} кг',Icons.location_on_outlined,blue),
+      ('Рейсы','${trips.length}',Icons.local_shipping_outlined,gold),
+      ('Пробег','${_fmt1(_summaryMileage(b,date))} км',Icons.speed_outlined,blue),
+      ('Газ (выдано)','${_fmt1(stats['gas']??0)} л',Icons.local_fire_department,gold),
+      ('Бензин (выдано)','${_fmt1(stats['petrol']??0)} л',Icons.local_gas_station_outlined,blue),
+      ('Часы','${_fmt1(stats['all_hours']??0)} ч',Icons.access_time,gold),
+      ('Заработано','${_fmt1(salary)} ₸',Icons.payments_outlined,blue),
     ];
-  }
+    return LayoutBuilder(builder:(context,box){
+      final scale=box.maxWidth/864,top=MediaQuery.viewPaddingOf(context).top;
+      final height=math.max(box.maxHeight,1536*scale+top);
+      Widget at(double x,double y,double w,double h,Widget child)=>Positioned(left:x,top:y,width:w,height:h,child:child);
+      final scene=SizedBox(width:864,height:1536,child:Stack(children:[
+        at(50,52,78,78,_GasTap(label:'Назад',onTap:()=>Navigator.pop(context),child:Container(decoration:BoxDecoration(shape:BoxShape.circle,color:const Color(0xD909131A),border:Border.all(color:gold,width:1.5)),child:const Icon(Icons.arrow_back,color:white,size:40)))),
+        at(185,65,535,59,Center(child:text('Сводка за день',40,weight:FontWeight.w600))),
+        at(225,133,440,39,Center(child:text('${_detailDate(date)} ${date.year}',25,color:Colors.white70))),
+        at(756,66,58,58,PopupMenuButton<String>(tooltip:'Действия за день',icon:const Icon(Icons.more_horiz,color:gold,size:32),color:const Color(0xFF101A21),onSelected:(value){if(value=='gps'){Navigator.of(context).push<void>(_SceneRoute<void>(builder:(_)=>_DayGps(day:date)));}else{_dayActions(context,date);}},itemBuilder:(_)=>const [PopupMenuItem(value:'gps',child:Text('GPS за день')),PopupMenuItem(value:'shift',child:Text('Действия со сменой'))])),
+        at(145,255,551,58,Row(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.grass,color:gold,size:42),const SizedBox(width:18),text('М Е Л Ь Н И Ц А',26)])),
+        for(var i=0;i<8;i++)at(144.0+(i%2)*280,326.0+(i~/2)*107,280,107,metric(items[i].$1,items[i].$2,items[i].$3,items[i].$4)),
+        at(150,768,543,87,shifts.isEmpty?Center(child:text('За этот день смен нет',21,color:Colors.white60)):ListView.builder(primary:false,physics:const ClampingScrollPhysics(),padding:EdgeInsets.zero,itemCount:shifts.length,itemBuilder:(c,i){final s=shifts[i],start=DateTime.parse(s['start'] as String),end=DateTime.tryParse(s['end']?.toString()??'');return Padding(padding:const EdgeInsets.symmetric(vertical:6),child:Row(children:[const Icon(Icons.schedule,color:gold,size:31),const SizedBox(width:18),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[text('Открыта ${_detailTime(start)}  ·  ${end==null?'Ещё не завершена':'Завершена ${_detailTime(end)}'}',18),text('Одометр: ${s['startKm']} → ${s['odometerSet']==true?s['currentKm']:'—'} км',15,color:Colors.white60)]))]));})),
+        at(99,934,658,52,Row(children:[const Icon(Icons.local_shipping_outlined,color:gold,size:43),const SizedBox(width:20),text('Рейсы за день',27,weight:FontWeight.w600)])),
+        at(96,1003,670,163,trips.isEmpty?Center(child:text('Рейсов за этот день нет',20,color:Colors.white60)):ListView.builder(primary:false,physics:const ClampingScrollPhysics(),padding:EdgeInsets.zero,itemExtent:57,itemCount:trips.length,itemBuilder:(c,i)=>record(context,trips[i],i))),
+        at(99,1211,658,53,Row(children:[const Icon(Icons.local_gas_station_outlined,color:gold,size:39),const SizedBox(width:20),text('Выдача топлива',27,weight:FontWeight.w600)])),
+        at(96,1274,670,111,fuel.isEmpty?Center(child:text('Выдач топлива за этот день нет',20,color:Colors.white60)):ListView.builder(primary:false,physics:const ClampingScrollPhysics(),padding:EdgeInsets.zero,itemExtent:57,itemCount:fuel.length,itemBuilder:(c,i)=>record(context,fuel[i],i,fuel:true))),
+      ]));
+      return SingleChildScrollView(child:SizedBox(height:height,child:Stack(children:[
+        Positioned.fill(child:RepaintBoundary(child:_ExtendedArtwork(asset:'assets/images/scenes/day_summary.png',topInset:top))),
+        Positioned(top:top,left:0,right:0,height:1536*scale,child:FittedBox(fit:BoxFit.contain,alignment:Alignment.topCenter,child:MediaQuery.withClampedTextScaling(minScaleFactor:1,maxScaleFactor:1,child:scene))),
+      ])));
+    });
+  })));
 }
 
 // Gas detail scene. Uses the same shift-accounting dates as the home totals.
@@ -1314,26 +1337,7 @@ class _GasDashboardState extends State<_GasDashboard> {
     if (selected != null && mounted) setState(() => month = selected);
   }
   Future<void> add() async { await _testEditor(context, 'fuel', initialType: fuel); }
-  Future<void> openDay(DateTime day) async {
-    await showModalBottomSheet<void>(context: context, isScrollControlled: true,
-      backgroundColor: const Color(0xF00C151C), builder: (sheet) => SafeArea(
-        child: SizedBox(height: MediaQuery.sizeOf(sheet).height * .65,
-          child: _TestLive(builder: (current) {
-            final entries = current.records.where((r) => r['kind'] == 'fuel' && r['type'] == fuel &&
-              TestState.dayKey(current.recordDay(r)) == TestState.dayKey(day)).toList()
-              ..sort((a,b) => (b['date'] as String).compareTo(a['date'] as String));
-            return ListView(padding: const EdgeInsets.all(20), children: [
-              Row(children: [Expanded(child: Text('$fuel · ${_detailDate(day)}',
-                style: const TextStyle(color: _gasWhite, fontSize: 20))),
-                IconButton(tooltip: 'Закрыть', onPressed: () => Navigator.pop(sheet),
-                  icon: const Icon(Icons.close, color: _gasWhite))]),
-              const SizedBox(height: 12),
-              if (entries.isEmpty) Text('Выдач $fuelGenitive за этот день нет', style: const TextStyle(color: _gasWhite)),
-              for (final row in entries) _GasJournalRow(accent:fuelAccent, row: row, day: day,
-                onTap: () => _testEditor(sheet, 'fuel', entry: row)),
-            ]);
-          }))));
-  }
+  Future<void> openDay(DateTime day)=>_openDaySummary(context,day);
   @override Widget build(BuildContext context) {
     final entries = rows;
     final total = entries.fold<double>(0, (s,r) => s + amount(r));
@@ -1467,7 +1471,7 @@ class _GasDashboardState extends State<_GasDashboard> {
                     onTap: () => openDay(DateTime(month.year, month.month, d))),
                 ] else if (tab == 2) ...[
                   for (final r in entries) _GasJournalRow(accent:fuelAccent, row: r, day: dateOf(r),
-                    onTap: () => _testEditor(context, 'fuel', entry: r)),
+                    onTap: () => openDay(dateOf(r))),
                 ] else ...[
                   Text('${_garageMonths[month.month-1]} ${month.year} · литры по дням',
                     style: const TextStyle(color: Color(0xFFADB8BF), fontSize: 12)),
@@ -1649,21 +1653,7 @@ class _MileageReferenceState extends State<_MileageReference> {
     backgroundColor:const Color(0xFF08131B),appBar:AppBar(backgroundColor:const Color(0xFF101B22),title:const Text('Маршрут смены')),
     body:SafeArea(child:Column(children:[Padding(padding:const EdgeInsets.all(12),child:Text(_detailDate(DateTime.parse(shift['start'] as String)),style:const TextStyle(color:gold))),
       Expanded(child:ShiftRouteMap(shiftId:shift['id'] as String,paused:shift['gpsStatus']=='paused'))])))));
-  void day(TestState b,DateTime date,List<Map<String,dynamic>> shifts)=>showModalBottomSheet<void>(
-    context:context,isScrollControlled:true,backgroundColor:const Color(0xFF101A21),
-    shape:const RoundedRectangleBorder(borderRadius:BorderRadius.vertical(top:Radius.circular(22))),
-    builder:(c)=>SafeArea(child:Padding(padding:const EdgeInsets.all(18),child:Column(mainAxisSize:MainAxisSize.min,children:[
-      Text('Пробег · ${_detailDate(date)}',style:const TextStyle(color:white,fontSize:19)),const SizedBox(height:12),
-      ConstrainedBox(constraints:BoxConstraints(maxHeight:MediaQuery.sizeOf(c).height*.65),child:ListView(shrinkWrap:true,children:[
-        for(final s in shifts)Container(margin:const EdgeInsets.only(bottom:10),padding:const EdgeInsets.all(12),decoration:panel(),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          Text('${_detailTime(DateTime.parse(s['start'] as String))} · ${_fmt1(km(b,s))} км',style:const TextStyle(color:gold,fontSize:17)),
-          const SizedBox(height:6),Text(destinations(b,[s]).join(', ').isEmpty?'Направление не указано':destinations(b,[s]).join(', '),style:const TextStyle(color:white)),
-          const SizedBox(height:5),Text('Одометр: ${s['startKm']} → ${s['currentKm']} км',style:const TextStyle(color:Colors.white60,fontSize:12)),
-          Row(children:[TextButton(onPressed:(){Navigator.pop(c);_testOpen(context,shiftId:s['id'] as String);},child:const Text('Открыть смену')),
-            TextButton(onPressed:(){Navigator.pop(c);route(s);},child:const Text('GPS-маршрут'))]),
-        ])),
-      ])),
-    ]))));
+  void day(TestState b,DateTime date,List<Map<String,dynamic>> shifts){_openDaySummary(context,date);}
   BoxDecoration panel()=>BoxDecoration(borderRadius:BorderRadius.circular(19),
     border:Border.all(color:const Color(0xAA8E754F),width:1),
     gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xF0192228),Color(0xF5060D13),Color(0xED15222A)]),
@@ -1813,17 +1803,9 @@ class _DistrictDashboardState extends State<_DistrictDashboard> {
       title:Text(destination.isEmpty?missingDirection:destination.join(', '),style:TextStyle(color:white,fontSize:15*factor)),
       subtitle:Text('${_detailDate(day)}${time==null?'':' · ${_detailTime(time)}'}',style:TextStyle(color:Colors.white60,fontSize:12*factor)),
       trailing:Text(kg(weight([row])),style:TextStyle(color:gold,fontSize:16*factor)),
-      onTap:()=>_testEditor(context,'trip',entry:row));
+      onTap:()=>openDay(day));
   }
-  void openDay(DateTime date)=>showModalBottomSheet<void>(context:context,isScrollControlled:true,
-    backgroundColor:const Color(0xFF101A21),builder:(sheet)=>SafeArea(child:SizedBox(height:MediaQuery.sizeOf(sheet).height*.65,
-      child:_TestLive(builder:(b){final rows=b.records.where((r)=>r['kind']=='trip'&&r['type']==tripType&&TestState.dayKey(b.recordDay(r))==TestState.dayKey(date)).toList();
-        return Column(children:[Padding(padding:const EdgeInsets.all(16),child:Row(children:[Expanded(child:Text('${widget.city?'Городские направления':'Районы'} · ${_detailDate(date)}',style:const TextStyle(color:white,fontSize:20))),
-          IconButton(onPressed:()=>Navigator.pop(sheet),icon:const Icon(Icons.close,color:white))])),
-          Expanded(child:rows.isEmpty?const Center(child:Text('Рейсов за этот день нет',style:TextStyle(color:white))):ListView(children:[for(final row in rows)record(row,date)])),
-          Padding(padding:const EdgeInsets.all(16),child:Text('Всего: ${kg(weight(rows))}',style:const TextStyle(color:gold,fontSize:20)))
-        ]);
-      }))));
+  void openDay(DateTime date){_openDaySummary(context,date);}
   @override Widget build(BuildContext context)=>AnnotatedRegion<SystemUiOverlayStyle>(
     value:const SystemUiOverlayStyle(statusBarColor:Colors.transparent,statusBarIconBrightness:Brightness.light,
       systemNavigationBarColor:Colors.transparent,systemNavigationBarIconBrightness:Brightness.light),
@@ -1923,9 +1905,7 @@ class _SalaryDashboardState extends State<_SalaryDashboard> {
       final dates=groups.keys.toList()..sort((a,z)=>z.compareTo(a));
       return Column(children:[Padding(padding:const EdgeInsets.all(16),child:Row(children:[Expanded(child:text('Зарплата по дням',20)),IconButton(onPressed:()=>Navigator.pop(sheet),icon:const Icon(Icons.close,color:white))])),
         Expanded(child:dates.isEmpty?Center(child:text('В этом месяце смен нет',16)):ListView(children:[for(final date in dates)
-          ExpansionTile(iconColor:gold,collapsedIconColor:gold,title:text(_detailDate(date),16),trailing:text(money(b.statistics(month,day:date)['salary']??0),17,color:gold),
-            children:[for(final part in parts)Padding(padding:const EdgeInsets.symmetric(horizontal:20,vertical:6),child:Row(children:[Expanded(child:text(part.$2,13)),text(money(b.statistics(month,day:date)[part.$1]??0),13)])),
-              for(final shift in groups[date]!)ListTile(title:text('Смена · ${_detailTime(DateTime.parse(shift['start'] as String))}',15),trailing:const Icon(Icons.chevron_right,color:gold),onTap:()=>_testOpen(sheet,shiftId:shift['id'] as String))])]))]);
+          ListTile(title:text(_detailDate(date),16),trailing:text(money(b.statistics(month,day:date)['salary']??0),17,color:gold),onTap:()=>_openDaySummary(sheet,date))]))]);
     }))));
   @override Widget build(BuildContext context)=>AnnotatedRegion<SystemUiOverlayStyle>(value:const SystemUiOverlayStyle(
     statusBarColor:Colors.transparent,statusBarIconBrightness:Brightness.light,systemNavigationBarColor:Colors.transparent,systemNavigationBarIconBrightness:Brightness.light),

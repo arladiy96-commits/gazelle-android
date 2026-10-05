@@ -33,7 +33,7 @@ class _MillStatisticsState extends State<_MillStatistics> {
       });
       final s=b.statistics(d,day:d);
       final trips=b.records.where((e)=>e['kind']=='trip'&&TestState.dayKey(b.recordDay(e))==TestState.dayKey(d)).length;
-      out.add(_StatsDay(d,s['city_kg']??0,s['region_kg']??0,s['mileage']??0,
+      out.add(_StatsDay(d,s['city_kg']??0,s['region_kg']??0,_summaryMileage(b,d),
         (s['salary']??0)-(s['base_salary']??0)*(1-factor),trips));
     }return out;
   }
@@ -58,20 +58,7 @@ class _MillStatisticsState extends State<_MillStatistics> {
       initialDateRange:range,helpText:'Выберите период',saveText:'Готово');
     if(r!=null&&mounted)setState((){custom=r;period=2;});
   }
-  void openDay(TestState b,_StatsDay d)=>showModalBottomSheet<void>(context:context,isScrollControlled:true,
-    backgroundColor:const Color(0xFF10191F),builder:(sheet)=>SafeArea(child:Padding(padding:const EdgeInsets.all(20),
-      child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Row(children:[Expanded(child:Text('${date(d.date)}.${d.date.year}',style:const TextStyle(color:Colors.white,fontSize:20))),
-          IconButton(onPressed:()=>Navigator.pop(sheet),icon:const Icon(Icons.close,color:gold))]),
-        Text('Город: ${_fmt1(d.city)} кг   Район: ${_fmt1(d.region)} кг\nРейсы: ${d.trips}   Пробег: ${_fmt1(d.km)} км\nЗаработано: ${_fmt1(d.salary)} ₸',
-          style:const TextStyle(color:Colors.white,height:1.8)),
-        if(!d.active)const Text('За этот день данных нет',style:TextStyle(color:Colors.grey)),
-        ConstrainedBox(constraints:BoxConstraints(maxHeight:MediaQuery.sizeOf(sheet).height*.45),child:ListView(shrinkWrap:true,children:[
-          for(final s in b.shifts.where((s)=>TestState.dayKey(DateTime.parse(s['start'] as String))==TestState.dayKey(d.date)))
-            ListTile(contentPadding:EdgeInsets.zero,title:Text('Смена · ${_detailTime(DateTime.parse(s['start'] as String))}',style:const TextStyle(color:gold)),
-              trailing:const Icon(Icons.chevron_right,color:gold),onTap:(){Navigator.pop(sheet);_testOpen(context,shiftId:s['id'] as String);}),
-        ])),
-      ]))));
+  void openDay(TestState b,_StatsDay d){_openDaySummary(context,d.date);}
   Widget panel(Widget child,{bool light=false})=>Container(margin:const EdgeInsets.only(bottom:9),padding:const EdgeInsets.all(12),
     decoration:BoxDecoration(borderRadius:BorderRadius.circular(18),border:Border.all(color:const Color(0xFF86603C),width:.8),
       gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:light?

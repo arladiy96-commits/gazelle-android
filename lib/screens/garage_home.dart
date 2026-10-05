@@ -983,17 +983,7 @@ class _PaidRoutesDashboardState extends State<_PaidRoutesDashboard> {
       ])))));
     if(selected!=null&&mounted)setState(()=>month=selected);
   }
-  void openDay(DateTime date)=>showModalBottomSheet<void>(context:context,isScrollControlled:true,
-    backgroundColor:const Color(0xFF101A21),builder:(sheet)=>SafeArea(child:SizedBox(height:MediaQuery.sizeOf(sheet).height*.65,
-      child:_TestLive(builder:(b){final rows=_millPaidRows(b,DateTime(date.year,date.month)).where((r)=>TestState.dayKey(b.recordDay(r))==TestState.dayKey(date)).toList();
-        return Column(children:[Padding(padding:const EdgeInsets.all(16),child:Row(children:[Expanded(child:text('Платные рейсы · ${_detailDate(date)}',19)),
-          IconButton(onPressed:()=>Navigator.pop(sheet),icon:const Icon(Icons.close,color:white))])),
-          Expanded(child:rows.isEmpty?Center(child:text('Платных рейсов за этот день нет',15)):ListView(children:[for(final r in rows)
-            ListTile(leading:const Icon(Icons.location_on_outlined,color:blue),title:text(names([r]),16),
-              subtitle:text(_detailTime(DateTime.parse(r['date'] as String)),12,color:Colors.white60),
-              trailing:text('${_fmt1(weight([r]))} кг',16,color:gold),onTap:()=>_testEditor(sheet,'trip',entry:r))])),
-          Padding(padding:const EdgeInsets.all(16),child:text('Всего: ${_fmt1(weight(rows))} кг',20,color:gold))]);
-      }))));
+  void openDay(DateTime date){_openDaySummary(context,date);}
   @override Widget build(BuildContext context)=>AnnotatedRegion<SystemUiOverlayStyle>(
     value:const SystemUiOverlayStyle(statusBarColor:Colors.transparent,statusBarIconBrightness:Brightness.light,
       systemNavigationBarColor:Colors.transparent,systemNavigationBarIconBrightness:Brightness.light),
