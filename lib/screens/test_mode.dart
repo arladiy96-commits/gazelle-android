@@ -241,7 +241,7 @@ class _TestHubState extends State<_TestHub> {
     final duration=Duration(seconds:(b.elapsed(s)*3600).round());final elapsed='${duration.inHours.toString().padLeft(2,'0')}:${(duration.inMinutes%60).toString().padLeft(2,'0')}:${(duration.inSeconds%60).toString().padLeft(2,'0')}';
     return [_DetailGlass(accent:true,child:Column(children:[_detailRow(s['end']==null?'Смена открыта':'Смена завершена',elapsed),
       _detailRow('Начало','${_detailDate(DateTime.parse(s['start'] as String))} · ${_detailTime(DateTime.parse(s['start'] as String))}'),
-      _detailRow('Пробег','${_fmt1(b.mileage(s))} км',subtitle:'Одометр ${s['startKm']} → ${s['currentKm']}'),
+      _detailRow('Пробег','${_fmt1(b.mileage(s))} км',subtitle:TestState.mileageSource(s)==MileageSource.manual?'введено вручную':'Одометр ${s['startKm']} → ${s['currentKm']}'),
       _detailRow('Учтено часов','${_fmt1(b.hours(s))} ч'),
       _detailRow('Город','${_fmt1(total('trip','Город'))} кг'),_detailRow('Район','${_fmt1(total('trip','Район'))} кг'),
       _detailRow('Рейсов','${rows.where((e)=>e['kind']=='trip').length}'),
@@ -274,6 +274,7 @@ class _TestOdometer extends StatefulWidget {
   State<_TestOdometer> createState()=>_TestOdometerState();
 }
 class _TestOdometerState extends State<_TestOdometer>{bool busy=false;String? error;
+  bool get manual=>widget.shift!=null&&TestState.mileageSource(widget.shift!)==MileageSource.manual;
   late final hours=TextEditingController(text:widget.shift?['hoursWorked']?.toString()??'');
   @override void dispose(){hours.dispose();super.dispose();}
   @override
@@ -281,8 +282,8 @@ class _TestOdometerState extends State<_TestOdometer>{bool busy=false;String? er
     if(widget.close&&widget.shift!=null)_TestLive(builder:(b){final rows=b.forShift(widget.shift!['id'] as String);return _DetailGlass(child:Column(children:[
       _detailRow('Рейсов','${rows.where((e)=>e['kind']=='trip').length}'),
       _detailRow('Перевезено','${_fmt1(rows.where((e)=>e['kind']=='trip').fold<double>(0,(n,e)=>n+(e['amount'] as num).toDouble())/1000)} т'),
-      ValueListenableBuilder<TextEditingValue>(valueListenable:widget.controller,builder:(_,v,__)=>_detailRow('Пробег смены','${_fmtInt(math.max(0,(double.tryParse(v.text)??0)-(widget.shift!['startKm'] as num).toDouble()))} км'))]));}),
-    _testField(widget.controller,'Показание одометра, км',numeric:true,integer:true),
+      ValueListenableBuilder<TextEditingValue>(valueListenable:widget.controller,builder:(_,v,__)=>_detailRow('Пробег смены','${_fmtInt(math.max(0,(double.tryParse(v.text)??0)-(manual?0:(widget.shift!['startKm'] as num).toDouble())))} км'))]));}),
+    _testField(widget.controller,manual?'Пробег за смену, км':'Показание одометра, км',numeric:true,integer:true),
     _testField(hours,'Отработано часов (вручную)',numeric:true),if(error!=null)_dt(error!,color:_amber),
     _detailButton(busy?'Сохранение…':widget.shift==null?'Открыть смену':widget.close?'Завершить смену':'Сохранить показание',() async{if(busy)return;setState((){busy=true;error=null;});try{final km=int.tryParse(widget.controller.text);if(km==null)throw ArgumentError('Введите целый пробег');
       final h=hours.text.trim().isEmpty?null:double.tryParse(hours.text.replaceAll(',','.'))??double.nan;
@@ -299,13 +300,15 @@ class _TestRates extends StatelessWidget {
 }
 class _TestShiftEditor extends StatefulWidget {final Map<String,dynamic> shift;const _TestShiftEditor({required this.shift});@override State<_TestShiftEditor> createState()=>_TestShiftEditorState();}
 class _TestShiftEditorState extends State<_TestShiftEditor>{late DateTime start=DateTime.parse(widget.shift['start'] as String);late DateTime? end=DateTime.tryParse(widget.shift['end'] as String? ?? '');
+  bool get manual=>TestState.mileageSource(widget.shift)==MileageSource.manual;
+  late final distance=TextEditingController(text:widget.shift['manualKm']?.toString()??'');
   late final hours=TextEditingController(text:widget.shift['hoursWorked']?.toString()??'');
-  late final a=TextEditingController(text:widget.shift['startKm'].toString()),z=TextEditingController(text:widget.shift['currentKm'].toString());bool busy=false;
-  @override void dispose(){a.dispose();z.dispose();hours.dispose();super.dispose();}
+  late final a=TextEditingController(text:widget.shift['startKm']?.toString()??''),z=TextEditingController(text:widget.shift['currentKm']?.toString()??'');bool busy=false;
+  @override void dispose(){a.dispose();z.dispose();hours.dispose();distance.dispose();super.dispose();}
   @override Widget build(BuildContext context)=>_DetailFrame(title:'Изменить смену',children:[_detailButton('Начало: ${_detailDate(start)} ${_detailTime(start)}',() async{final d=await _testDate(context,start);if(d!=null&&mounted)setState(()=>start=d);}),
     if(end!=null)_detailButton('Конец: ${_detailDate(end!)} ${_detailTime(end!)}',() async{final d=await _testDate(context,end!);if(d!=null&&mounted)setState(()=>end=d);}),
-    _testField(hours,'Отработано часов',numeric:true),_testField(a,'Одометр начала',numeric:true,integer:true),_testField(z,'Одометр конца / текущий',numeric:true,integer:true),
-    _detailButton('Сохранить',() async{if(busy)return;busy=true;await _testRun(context,() async{await TestStore.editShift(widget.shift['id'] as String,start,end,int.tryParse(a.text)??-1,int.tryParse(z.text)??-1,hours:hours.text.trim().isEmpty?null:double.tryParse(hours.text.replaceAll(',','.'))??double.nan);if(mounted)Navigator.pop(context);});busy=false;})]);}
+    _testField(hours,'Отработано часов',numeric:true),if(manual)_testField(distance,'Пробег за смену, км',numeric:true,integer:true)else ...[_testField(a,'Одометр начала',numeric:true,integer:true),_testField(z,'Одометр конца / текущий',numeric:true,integer:true)],
+    _detailButton('Сохранить',() async{if(busy)return;busy=true;await _testRun(context,() async{if(manual&&distance.text.trim().isEmpty&&end!=null)throw ArgumentError('Введите пробег за смену');await TestStore.editShift(widget.shift['id'] as String,start,end,int.tryParse(a.text),int.tryParse(z.text),manualKm:manual&&distance.text.trim().isNotEmpty?int.tryParse(distance.text)??-1:null,hours:hours.text.trim().isEmpty?null:double.tryParse(hours.text.replaceAll(',','.'))??double.nan);if(mounted)Navigator.pop(context);});busy=false;})]);}
 
 class _TestLive extends StatefulWidget {
   final Widget Function(TestState) builder;

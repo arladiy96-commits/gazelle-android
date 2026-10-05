@@ -75,10 +75,7 @@ class _SceneSummary extends StatelessWidget {
     Flexible(child:Text(value,textAlign:TextAlign.right,style:const TextStyle(color:_amber,fontSize:22,fontWeight:FontWeight.w500))),
   ]));
 }
-double? _actualOdometer(TestState b){
-  final shifts=[...b.shifts]..sort((a,z)=>(z['start'] as String).compareTo(a['start'] as String));
-  return shifts.isEmpty?null:(shifts.first['currentKm'] as num).toDouble();
-}
+double? _actualOdometer(TestState b)=>b.latestOdometer;
 
 class _SceneForm extends StatelessWidget {
   final _Scene scene;final Widget child;final TextEditingController? odometerController;
@@ -91,7 +88,7 @@ class _SceneForm extends StatelessWidget {
 Future<void> _showShiftForm(BuildContext context,{Map<String,dynamic>? shift,bool close=false}) async {
   final b=await TestStore.load();if(!context.mounted)return;
   final gps=(shift?['gpsKm'] as num?)?.toDouble()??0;
-  final initial=shift==null?_actualOdometer(b)?.round():close&&gps>0?(shift['startKm'] as num).toInt()+gps.round():(shift['currentKm'] as num).toInt();
+  final initial=shift==null?_actualOdometer(b)?.round():TestState.mileageSource(shift)==MileageSource.manual?(shift['manualKm'] as num?)?.toInt():close&&gps>0?(shift['startKm'] as num).toInt()+gps.round():(shift['currentKm'] as num).toInt();
   final controller=TextEditingController(text:initial?.toString()??'');
   final route=_SceneRoute<void>(builder:(_)=>shift==null&&!close
     ? _OpenShiftDashboard(controller:controller)
@@ -829,7 +826,7 @@ class _OpenShiftDashboard extends StatefulWidget {
 }
 class _OpenShiftDashboardState extends State<_OpenShiftDashboard> {
   static const gold=Color(0xFFE8BD7B),white=Color(0xFFE6E9E9);
-  bool busy=false;
+  bool busy=false,manual=false;
   String? error;
   Future<void> edit()async{
     if(busy)return;
@@ -860,9 +857,9 @@ class _OpenShiftDashboardState extends State<_OpenShiftDashboard> {
   Future<void> submit()async{
     if(busy)return;
     final km=int.tryParse(widget.controller.text);
-    if(km==null){setState(()=>error='Нажмите на одометр и введите показание');await edit();return;}
+    if(!manual&&km==null){setState(()=>error='Нажмите на одометр и введите показание');await edit();return;}
     setState((){busy=true;error=null;});
-    try{await TestStore.open(km);if(mounted)Navigator.pop(context);}
+    try{await TestStore.open(manual?null:km,manual:manual);if(mounted)Navigator.pop(context);}
     catch(e){if(mounted)setState((){busy=false;error=_testError(e);});}
   }
   Widget drum(String value){
@@ -887,9 +884,10 @@ class _OpenShiftDashboardState extends State<_OpenShiftDashboard> {
         at(171,88,580,63,Row(children:[const Icon(Icons.speed,color:gold,size:60),const SizedBox(width:24),
           const Expanded(child:FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,child:Text('Открыть смену',style:TextStyle(color:white,fontSize:44))))])),
         at(173,157,372,2,Container(color:gold.withValues(alpha:.65))),
-        at(182,757,510,40,const Center(child:FittedBox(fit:BoxFit.scaleDown,child:Text('Текущее показание одометра',style:TextStyle(color:white,fontSize:29))))),
-        at(183,851,485,131,ValueListenableBuilder<TextEditingValue>(valueListenable:widget.controller,builder:(_,v,__)=>drum(v.text))),
-        at(697,911,52,42,const Text('км',style:TextStyle(color:gold,fontSize:32))),
+        at(182,757,510,40,Center(child:FittedBox(fit:BoxFit.scaleDown,child:Text(manual?'Одометр не используется':'Текущее показание одометра',style:const TextStyle(color:white,fontSize:29))))),
+        at(183,851,485,131,manual?const Center(child:Text('Пробег укажете\nпри завершении смены',textAlign:TextAlign.center,style:TextStyle(color:Colors.white60,fontSize:27))):ValueListenableBuilder<TextEditingValue>(valueListenable:widget.controller,builder:(_,v,__)=>drum(v.text))),
+        if(!manual)at(697,911,52,42,const Text('км',style:TextStyle(color:gold,fontSize:32))),
+        at(182,987,510,54,TextButton(onPressed:busy?null:()=>setState((){manual=!manual;error=null;}),style:TextButton.styleFrom(foregroundColor:Colors.white60),child:Text(manual?'Использовать одометр':'Одометр не работает',style:const TextStyle(fontSize:22)))),
         at(134,1047,604,102,_GasTap(label:'Открыть смену',onTap:submit,child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
           if(busy)const SizedBox(width:35,height:35,child:CircularProgressIndicator(color:gold,strokeWidth:3))else const Icon(Icons.play_arrow_rounded,color:gold,size:59),
           const SizedBox(width:22),Text(busy?'Сохранение…':'Открыть смену',style:const TextStyle(color:gold,fontSize:39,fontWeight:FontWeight.w500))]))),
@@ -912,6 +910,16 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
   static const gold=Color(0xFFE8BD7B),white=Color(0xFFE6E9E9);
   bool busy=false;
   String? error;
+  late bool manual=TestState.mileageSource(widget.shift)==MileageSource.manual;
+  String odometerDraft='',manualDraft='';
+  void toggleMileage(){
+    if(busy)return;
+    setState((){
+      if(manual){manualDraft=widget.controller.text;widget.controller.text=odometerDraft;}
+      else{odometerDraft=widget.controller.text;widget.controller.text=manualDraft;}
+      manual=!manual;error=null;
+    });
+  }
   late int? workedMinutes=widget.shift['hoursWorked']==null?null:((widget.shift['hoursWorked'] as num)*60).round();
   Future<void> edit()async{
     if(busy)return;
@@ -922,14 +930,14 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
       sheetAnimationStyle:AnimationStyle.noAnimation,
       shape:const RoundedRectangleBorder(borderRadius:BorderRadius.vertical(top:Radius.circular(22))),builder:(sheet)=>
         StatefulBuilder(builder:(sheet,update){
-          void accept(){if(int.tryParse(draft.text)==null){update(()=>validation='Введите показание одометра');return;}Navigator.pop(sheet,draft.text);}
+          void accept(){if(int.tryParse(draft.text)==null){update(()=>validation=manual?'Введите пробег за смену':'Введите показание одометра');return;}Navigator.pop(sheet,draft.text);}
           return Padding(padding:EdgeInsets.fromLTRB(22,22,22,MediaQuery.viewInsetsOf(sheet).bottom+20),child:SafeArea(top:false,
             child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
-              const Text('Показание одометра',style:TextStyle(color:white,fontSize:20)),const SizedBox(height:16),
+              Text(manual?'Пробег за смену':'Показание одометра',style:const TextStyle(color:white,fontSize:20)),const SizedBox(height:16),
               TextField(controller:draft,autofocus:true,keyboardType:TextInputType.number,textInputAction:TextInputAction.done,
                 inputFormatters:[FilteringTextInputFormatter.digitsOnly,LengthLimitingTextInputFormatter(9)],
                 style:const TextStyle(color:gold,fontSize:32,letterSpacing:3),cursorColor:gold,
-                decoration:InputDecoration(suffixText:'км',hintText:'Введите показание',hintStyle:const TextStyle(fontSize:18,color:Colors.white38),
+                decoration:InputDecoration(suffixText:'км',hintText:manual?'Введите километры':'Введите показание',hintStyle:const TextStyle(fontSize:18,color:Colors.white38),
                   errorText:validation,filled:true,fillColor:const Color(0xFF080F14),border:OutlineInputBorder(borderRadius:BorderRadius.circular(12))),
                 onSubmitted:(_)=>accept()),const SizedBox(height:16),SizedBox(width:double.infinity,child:OutlinedButton(
                   style:OutlinedButton.styleFrom(foregroundColor:gold,side:const BorderSide(color:gold),padding:const EdgeInsets.all(14)),onPressed:accept,child:const Text('Готово')))
@@ -974,22 +982,22 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
   Future<void> submit()async{
     if(busy)return;
     final km=int.tryParse(widget.controller.text);
-    if(km==null){setState(()=>error='Введите показание одометра');await edit();return;}
-    if(km<(widget.shift['startKm'] as num)){setState(()=>error='Показание не может быть меньше одометра начала смены');return;}
+    if(km==null){setState(()=>error=manual?'Введите пробег за смену':'Введите показание одометра');await edit();return;}
+    if(!manual&&km<(widget.shift['startKm'] as num)){setState(()=>error='Показание не может быть меньше одометра начала смены');return;}
     if(workedMinutes==null){setState(()=>error='Укажите отработанные часы');await editHours();return;}
     setState((){busy=true;error=null;});
     try{
       final hours='${workedMinutes!~/60} ч ${workedMinutes!%60} мин';
-      final confirmed=await _testConfirm(context,'Завершить смену? Одометр: $km км. Отработано: $hours.');
+      final confirmed=await _testConfirm(context,'Завершить смену? ${manual?'Пробег за смену':'Одометр'}: $km км. Отработано: $hours.');
       if(!mounted)return;
       if(!confirmed){setState(()=>busy=false);return;}
-      await TestStore.odometer(widget.shift['id'] as String,km,close:true,hours:workedMinutes!/60);
+      await TestStore.odometer(widget.shift['id'] as String,km,close:true,hours:workedMinutes!/60,source:manual?MileageSource.manual:MileageSource.odometer);
       if(mounted)Navigator.pop(context);
     }catch(e){if(mounted)setState((){busy=false;error=_testError(e);});}
   }
   Widget digits(String value)=>Row(children:[for(final char in value.split(''))Expanded(child:Center(
     child:FittedBox(fit:BoxFit.scaleDown,child:Text(char,style:const TextStyle(fontFamily:'monospace',fontSize:74,color:gold,fontWeight:FontWeight.w600)))))]);
-  Widget drum(String value)=>Semantics(button:true,label:'Изменить показание одометра',child:GestureDetector(
+  Widget drum(String value)=>Semantics(button:true,label:manual?'Изменить пробег за смену':'Изменить показание одометра',child:GestureDetector(
     behavior:HitTestBehavior.opaque,onTap:busy?null:edit,child:digits(value.isEmpty?'------':value.padLeft(6,'0'))));
   Widget hoursDrum()=>Semantics(button:true,label:'Изменить отработанные часы',child:GestureDetector(
     behavior:HitTestBehavior.opaque,onTap:busy?null:editHours,child:Row(children:[
@@ -1007,7 +1015,8 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
           color:const Color(0xB8091117),border:Border.all(color:gold,width:1.5)),child:const Icon(Icons.arrow_back,color:gold,size:45)))),
         at(173,88,580,63,const Align(alignment:Alignment.centerLeft,child:FittedBox(fit:BoxFit.scaleDown,child:Text('Завершить смену',style:TextStyle(color:white,fontSize:44))))),
         at(173,157,372,2,Container(color:gold.withValues(alpha:.65))),
-        at(182,699,510,40,const Center(child:FittedBox(fit:BoxFit.scaleDown,child:Text('Текущее показание одометра',style:TextStyle(color:white,fontSize:29))))),
+        at(182,699,510,40,Center(child:FittedBox(fit:BoxFit.scaleDown,child:Text(manual?'Пробег за смену':'Текущее показание одометра',style:const TextStyle(color:white,fontSize:29))))),
+        if(widget.shift['startKm']!=null)at(182,738,510,50,TextButton(onPressed:busy?null:toggleMileage,style:TextButton.styleFrom(foregroundColor:Colors.white60),child:Text(manual?'Использовать одометр':'Ввести пробег вручную',style:const TextStyle(fontSize:22)))),
         at(211,790,449,108,ValueListenableBuilder<TextEditingValue>(valueListenable:widget.controller,builder:(_,v,__)=>drum(v.text))),
         at(689,839,52,42,const Text('км',style:TextStyle(color:gold,fontSize:32))),
         at(225,960,440,40,const Center(child:Text('Отработанные часы',style:TextStyle(color:white,fontSize:29)))),

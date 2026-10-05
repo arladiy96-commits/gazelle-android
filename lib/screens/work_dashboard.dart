@@ -132,7 +132,7 @@ class _MillWorkScreen extends StatelessWidget {
     final elapsed=shift==null?0:math.max(0,(b.elapsed(shift)*3600).round());
     final clock='${(elapsed~/3600).toString().padLeft(2,'0')}:${(elapsed~/60%60).toString().padLeft(2,'0')}:${(elapsed%60).toString().padLeft(2,'0')}';
     final start=DateTime.tryParse(shift?['start']?.toString()??'');
-    final km=shift==null?0.0:shift['odometerSet']==true?b.mileage(shift):(shift['gpsKm'] as num?)?.toDouble()??0.0;
+    final km=shift==null?0.0:b.hasRecordedMileage(shift)?b.mileage(shift):(shift['gpsKm'] as num?)?.toDouble()??0.0;
     final gas=sum('fuel','Газ'),petrol=sum('fuel','Бензин');
     final totalFuel=gas+petrol;
     return LayoutBuilder(builder:(context,box){

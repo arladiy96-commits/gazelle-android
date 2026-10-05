@@ -296,7 +296,7 @@ class _MetricDetailsState extends State<_MetricDetails> {
   double? _mileageMonthOdometer(TestState book,DateTime month){
     final shifts=book.shifts.where((shift){
       final date=DateTime.tryParse((shift['start'] as String?)??'');
-      return date!=null&&date.year==month.year&&date.month==month.month;
+      return shift['currentKm'] is num&&date!=null&&date.year==month.year&&date.month==month.month;
     }).toList()
       ..sort((a,b)=>((a['start'] as String?)??'')
           .compareTo((b['start'] as String?)??''));
@@ -1209,7 +1209,7 @@ Future<void> _openDaySummary(BuildContext context,DateTime day) async {
   await Navigator.of(context).push<void>(_SceneRoute<void>(builder:(_)=>_DayDetails(date:DateTime(day.year,day.month,day.day))));
 }
 
-double _summaryMileage(TestState b,DateTime day)=>b.shifts.where((s)=>TestState.dayKey(DateTime.parse(s['start'] as String))==TestState.dayKey(day)).fold<double>(0,(value,s)=>value+(s['odometerSet']==true?b.mileage(s):(s['gpsKm'] as num?)?.toDouble()??0));
+double _summaryMileage(TestState b,DateTime day)=>b.shifts.where((s)=>TestState.dayKey(DateTime.parse(s['start'] as String))==TestState.dayKey(day)).fold<double>(0,(value,s)=>value+(b.hasRecordedMileage(s)?b.mileage(s):(s['gpsKm'] as num?)?.toDouble()??0));
 
 class _DayDetails extends StatelessWidget {
   final DateTime date;
@@ -1260,7 +1260,7 @@ class _DayDetails extends StatelessWidget {
         at(756,66,58,58,PopupMenuButton<String>(tooltip:'Действия за день',icon:const Icon(Icons.more_horiz,color:gold,size:32),color:const Color(0xFF101A21),onSelected:(value){if(value=='gps'){Navigator.of(context).push<void>(_SceneRoute<void>(builder:(_)=>_DayGps(day:date)));}else{_dayActions(context,date);}},itemBuilder:(_)=>const [PopupMenuItem(value:'gps',child:Text('GPS за день')),PopupMenuItem(value:'shift',child:Text('Действия со сменой'))])),
         at(145,255,551,58,Row(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.grass,color:gold,size:42),const SizedBox(width:18),text('М Е Л Ь Н И Ц А',26)])),
         for(var i=0;i<8;i++)at(144.0+(i%2)*280,326.0+(i~/2)*107,280,107,metric(items[i].$1,items[i].$2,items[i].$3,items[i].$4)),
-        at(150,768,543,87,shifts.isEmpty?Center(child:text('За этот день смен нет',21,color:Colors.white60)):ListView.builder(primary:false,physics:const ClampingScrollPhysics(),padding:EdgeInsets.zero,itemCount:shifts.length,itemBuilder:(c,i){final s=shifts[i],start=DateTime.parse(s['start'] as String),end=DateTime.tryParse(s['end']?.toString()??'');return Padding(padding:const EdgeInsets.symmetric(vertical:6),child:Row(children:[const Icon(Icons.schedule,color:gold,size:31),const SizedBox(width:18),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[text('Открыта ${_detailTime(start)}  ·  ${end==null?'Ещё не завершена':'Завершена ${_detailTime(end)}'}',18),text('Одометр: ${s['startKm']} → ${s['odometerSet']==true?s['currentKm']:'—'} км',15,color:Colors.white60)]))]));})),
+        at(150,768,543,87,shifts.isEmpty?Center(child:text('За этот день смен нет',21,color:Colors.white60)):ListView.builder(primary:false,physics:const ClampingScrollPhysics(),padding:EdgeInsets.zero,itemCount:shifts.length,itemBuilder:(c,i){final s=shifts[i],start=DateTime.parse(s['start'] as String),end=DateTime.tryParse(s['end']?.toString()??'');return Padding(padding:const EdgeInsets.symmetric(vertical:6),child:Row(children:[const Icon(Icons.schedule,color:gold,size:31),const SizedBox(width:18),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[text('Открыта ${_detailTime(start)}  ·  ${end==null?'Ещё не завершена':'Завершена ${_detailTime(end)}'}',18),text(TestState.mileageSource(s)==MileageSource.manual?(s['manualKm']==null?'Пробег будет указан при завершении':'${_fmt1(b.mileage(s))} км · введено вручную'):'Одометр: ${s['startKm']} → ${s['odometerSet']==true?s['currentKm']:'—'} км',15,color:Colors.white60)]))]));})),
         at(99,934,658,52,Row(children:[const Icon(Icons.local_shipping_outlined,color:gold,size:43),const SizedBox(width:20),text('Рейсы за день',27,weight:FontWeight.w600)])),
         at(96,1003,670,163,trips.isEmpty?Center(child:text('Рейсов за этот день нет',20,color:Colors.white60)):ListView.builder(primary:false,physics:const ClampingScrollPhysics(),padding:EdgeInsets.zero,itemExtent:57,itemCount:trips.length,itemBuilder:(c,i)=>record(context,trips[i],i))),
         at(99,1211,658,53,Row(children:[const Icon(Icons.local_gas_station_outlined,color:gold,size:39),const SizedBox(width:20),text('Выдача топлива',27,weight:FontWeight.w600)])),
@@ -1638,7 +1638,7 @@ class _MileageReferenceState extends State<_MileageReference> {
     }catch(_){/* GPS time remains unavailable; do not substitute shift duration. */}
     finally{reading=false;}
   }
-  double km(TestState b,Map<String,dynamic> s)=>s['odometerSet']==true?b.mileage(s):(s['gpsKm'] as num?)?.toDouble()??b.mileage(s);
+  double km(TestState b,Map<String,dynamic> s)=>b.hasRecordedMileage(s)?b.mileage(s):(s['gpsKm'] as num?)?.toDouble()??b.mileage(s);
   String destination(Object? raw){final value=raw?.toString().trim()??'';return value.split(RegExp(r'\s*(?:→|->|—|–)\s*')).last.trim();}
   List<String> destinations(TestState b,List<Map<String,dynamic>> shifts)=>{
     for(final s in shifts)for(final r in b.forShift(s['id'] as String))
