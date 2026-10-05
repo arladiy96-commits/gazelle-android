@@ -6606,11 +6606,27 @@ class _ExtendedArtworkState extends State<_ExtendedArtwork> {
   @override void didChangeDependencies(){super.didChangeDependencies();resolve();}
   @override void didUpdateWidget(covariant _ExtendedArtwork old){super.didUpdateWidget(old);if(old.asset!=widget.asset)resolve();}
   @override void dispose(){stream?.removeListener(listener);info?.dispose();super.dispose();}
-  @override Widget build(BuildContext context)=>RepaintBoundary(child:CustomPaint(painter:info==null?null:_ExtendedArtworkPainter(info!,widget.topInset,widget.fit,widget.imageWidth,widget.bottomInset)));
+  @override Widget build(BuildContext context)=>RepaintBoundary(child:CustomPaint(painter:info==null?null:_ExtendedArtworkPainter(info!,widget.topInset,widget.fit,widget.imageWidth,widget.bottomInset,widget.asset)));
 }
 class _ExtendedArtworkPainter extends CustomPainter {
   final ImageInfo info;final double inset;final BoxFit fit;final double? imageWidth;final double bottomInset;
-  _ExtendedArtworkPainter(this.info,this.inset,this.fit,this.imageWidth,this.bottomInset);
+  final String asset;
+  _ExtendedArtworkPainter(this.info,this.inset,this.fit,this.imageWidth,this.bottomInset,this.asset);
+  // Match the subdued petrol/mileage palette on the five brighter scenes.
+  // Applied while drawing artwork only: live text, fields and map stay crisp.
+  static const _mutedScenes=<String>{
+    'assets/images/scenes/work_shift_scene.png',
+    'assets/images/scenes/quick_add.png',
+    'assets/images/scenes/paid_dashboard.png',
+    'assets/images/scenes/trip_entry.png',
+    'assets/images/scenes/fuel_entry.png',
+  };
+  static const _mutedTone=ColorFilter.matrix([
+    .58,.18,.02,0,0,
+    .06,.70,.02,0,0,
+    .06,.18,.54,0,0,
+    0,0,0,1,0,
+  ]);
   @override void paint(Canvas canvas,Size size){
     final image=info.image;final source=Size(image.width.toDouble(),image.height.toDouble());
     final target=Size(size.width,math.max(1.0,size.height-inset-bottomInset));
@@ -6621,6 +6637,7 @@ class _ExtendedArtworkPainter extends CustomPainter {
     final band=math.min(48.0,dst.height*.08);
     final sourceBand=band*src.height/dst.height;
     final paint=Paint()..filterQuality=FilterQuality.high;
+    if(_mutedScenes.contains(asset))paint.colorFilter=_mutedTone;
     canvas.drawImageRect(image,Rect.fromLTWH(src.left,src.top,src.width,sourceBand),
       Rect.fromLTWH(dst.left,0,dst.width,inset+band),paint);
     final extra=math.max(0.0,size.height-(inset+dst.height));
@@ -6632,5 +6649,5 @@ class _ExtendedArtworkPainter extends CustomPainter {
       Rect.fromLTWH(src.left,src.bottom-sourceFloor,src.width,sourceFloor),
       Rect.fromLTWH(dst.left,inset+dst.height-floorBand,dst.width,floorBand+extra),paint);
   }
-  @override bool shouldRepaint(covariant _ExtendedArtworkPainter old)=>old.info!=info||old.inset!=inset||old.fit!=fit||old.imageWidth!=imageWidth||old.bottomInset!=bottomInset;
+  @override bool shouldRepaint(covariant _ExtendedArtworkPainter old)=>old.info!=info||old.inset!=inset||old.fit!=fit||old.imageWidth!=imageWidth||old.bottomInset!=bottomInset||old.asset!=asset;
 }
