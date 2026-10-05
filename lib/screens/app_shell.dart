@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/test_store.dart';
+import '../services/gas_report_service.dart';
 import '../services/gps_tracker.dart';
 import '../widgets/shift_route_map.dart';
 
@@ -23,6 +24,7 @@ part 'garage_sections.dart';
 part 'test_mode.dart';
 part 'cinematic.dart';
 part 'statistics_dashboard.dart';
+part 'gas_report_screen.dart';
 
 class AppShell extends StatefulWidget {
   final AppSession session;
