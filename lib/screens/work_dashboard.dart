@@ -95,7 +95,7 @@ class _MillWorkScreen extends StatelessWidget {
   static const gold=Color(0xFFE3B66F),cyan=Color(0xFF24B6DB);
   void go(BuildContext c,int i){if(onNavigate!=null){onNavigate!(i);}else{_CinematicMore(session:session).navigate(c,i);}}
   Widget label(String value,double size,{Color color=Colors.white,FontWeight weight=FontWeight.w400,int lines=1})=>Text(value,maxLines:lines,overflow:TextOverflow.ellipsis,style:TextStyle(fontSize:size,color:color,fontWeight:weight,height:1.18));
-  Widget card({required String title,required String value,required IconData icon,required String foot,required String detail,required VoidCallback tap,double? progress,bool gauge=false})=>_GarageTap(label:title.replaceAll('\n',' '),onTap:tap,child:Padding(padding:const EdgeInsets.fromLTRB(17,16,17,12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+  Widget card({required String title,required String value,required IconData icon,required String foot,required String detail,double? progress,bool gauge=false})=>Padding(padding:const EdgeInsets.fromLTRB(17,16,17,12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
     Row(crossAxisAlignment:CrossAxisAlignment.start,children:[Icon(icon,size:40,color:gold),const SizedBox(width:15),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[label(title,17,color:const Color(0xFFBFCBD2),lines:2),const SizedBox(height:7),FittedBox(fit:BoxFit.scaleDown,child:label(value,27,weight:FontWeight.w600))]))]),
     const Spacer(),
     if(gauge)Row(children:[const Icon(Icons.speed,size:39,color:cyan),const SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[label(foot,13,color:Colors.white60),label(detail,15)]))])
@@ -104,7 +104,7 @@ class _MillWorkScreen extends StatelessWidget {
       else Container(height:1,color:const Color(0xFF34414A)),
       const SizedBox(height:10),Row(children:[Expanded(child:label(foot,13,color:Colors.white60)),label(detail,14)]),
     ],
-  ])));
+  ]));
   Widget event(BuildContext context,Map<String,dynamic> r,int index){
     final kind=r['kind']?.toString()??'other';
     final fuel=r['type']?.toString()??'Топливо';
@@ -140,7 +140,10 @@ class _MillWorkScreen extends StatelessWidget {
       final top=MediaQuery.viewPaddingOf(context).top;
       final bottom=MediaQuery.viewPaddingOf(context).bottom;
       final dock=showNavigation?87.0+bottom:bottom;
-      final height=math.max(1310*scale+top,box.maxHeight-dock);
+      final viewportHeight=math.max(0.0,box.maxHeight-dock);
+      final height=math.max(1310*scale+top,viewportHeight);
+      // Lock the approved composition at the former bottom scroll position.
+      final sceneOffset=math.max(0.0,height-viewportHeight);
       Widget at(double x,double y,double w,double h,Widget child)=>Positioned(left:x,top:y,width:w,height:h,child:child);
       final scene=SizedBox(width:709,height:1310,child:Stack(children:[
         at(31,27,76,76,_GarageTap(label:'Главная',onTap:()=>go(context,0),child:Container(decoration:BoxDecoration(shape:BoxShape.circle,color:const Color(0xE609131B),border:Border.all(color:gold,width:1.5)),child:const Icon(Icons.arrow_back,size:37,color:gold)))),
@@ -148,21 +151,21 @@ class _MillWorkScreen extends StatelessWidget {
         at(238,82,255,26,label('Сводка за текущую смену',18,color:Colors.white70)),
         at(503,31,179,71,Container(padding:const EdgeInsets.symmetric(horizontal:15),decoration:BoxDecoration(color:const Color(0xE60A151D),borderRadius:BorderRadius.circular(23),border:Border.all(color:gold.withValues(alpha:.7))),child:Row(children:[Container(width:14,height:14,decoration:BoxDecoration(shape:BoxShape.circle,color:shift==null?Colors.grey:const Color(0xFF09C46B))),const SizedBox(width:13),Expanded(child:Column(mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.start,children:[label(shift==null?'Смена закрыта':'Смена открыта',13,color:Colors.white60),const SizedBox(height:4),label(clock,22)]))]))),
         at(29,132,649,372,_WorkMapFrame(child:RepaintBoundary(child:ShiftRouteMap(key:ValueKey(shift?['id']),shiftId:shift?['id'] as String?,paused:shift?['gpsStatus']=='paused',unit:1.8,satellite:false)))),
-        at(27,536,214,155,card(title:'Тоннаж\nза смену',value:'${_fmt1(sum('trip'))} кг',icon:Icons.scale_outlined,foot:'Цель (день)',detail:'—',tap:()=>_testOpen(context,page:'Рейсы',shiftId:shift?['id'] as String?))),
-        at(258,536,201,155,card(title:'Пробег\nза смену',value:'${_fmt1(km)} км',icon:Icons.add_road,foot:'Средний за смену',detail:elapsed>0?'${_fmt1(km*3600/elapsed)} км/ч':'—',gauge:true,tap:()=>_openMetricDetails(context,'Пробег',DateTime.now()))),
-        at(475,536,205,155,card(title:'Рейсы\nза смену',value:'$trips',icon:Icons.local_shipping_outlined,foot:'План (день)',detail:'—',tap:()=>_testOpen(context,page:'Рейсы',shiftId:shift?['id'] as String?))),
-        at(27,709,214,157,card(title:'Газ\nза смену',value:'${_fmt1(gas)} л',icon:Icons.local_fire_department,foot:'Выдано',detail:'${_fmt1(gas)} л',progress:totalFuel>0?gas/totalFuel:0,tap:()=>_testEditor(context,'fuel',initialType:'Газ'))),
-        at(258,709,201,157,card(title:'Бензин\nза смену',value:'${_fmt1(petrol)} л',icon:Icons.local_gas_station_outlined,foot:'Выдано',detail:'${_fmt1(petrol)} л',progress:totalFuel>0?petrol/totalFuel:0,tap:()=>_testEditor(context,'fuel',initialType:'Бензин'))),
-        at(475,709,205,157,card(title:'Время смены',value:clock,icon:Icons.access_time,foot:'Начало',detail:start==null?'—':_detailTime(start),tap:()=>_testOpen(context,shiftId:shift?['id'] as String?))),
+        at(27,536,214,155,card(title:'Тоннаж\nза смену',value:'${_fmt1(sum('trip'))} кг',icon:Icons.scale_outlined,foot:'Цель (день)',detail:'—')),
+        at(258,536,201,155,card(title:'Пробег\nза смену',value:'${_fmt1(km)} км',icon:Icons.add_road,foot:'Средний за смену',detail:elapsed>0?'${_fmt1(km*3600/elapsed)} км/ч':'—',gauge:true)),
+        at(475,536,205,155,card(title:'Рейсы\nза смену',value:'$trips',icon:Icons.local_shipping_outlined,foot:'План (день)',detail:'—')),
+        at(27,709,214,157,card(title:'Газ\nза смену',value:'${_fmt1(gas)} л',icon:Icons.local_fire_department,foot:'Выдано',detail:'${_fmt1(gas)} л',progress:totalFuel>0?gas/totalFuel:0)),
+        at(258,709,201,157,card(title:'Бензин\nза смену',value:'${_fmt1(petrol)} л',icon:Icons.local_gas_station_outlined,foot:'Выдано',detail:'${_fmt1(petrol)} л',progress:totalFuel>0?petrol/totalFuel:0)),
+        at(475,709,205,157,card(title:'Время смены',value:clock,icon:Icons.access_time,foot:'Начало',detail:start==null?'—':_detailTime(start))),
         at(45,905,617,46,Row(children:[const Icon(Icons.history,color:gold,size:40),const SizedBox(width:20),Expanded(child:label('Действия в текущей смене',23,weight:FontWeight.w600))])),
-        at(40,960,633,317,rows.isEmpty?Center(child:label(shift==null?'Откройте смену, чтобы начать работу':'Действий пока нет',20,color:Colors.white60)):ListView.builder(key:ValueKey('events-${shift?['id']}'),padding:EdgeInsets.zero,itemExtent:64,itemCount:rows.length,itemBuilder:(c,i)=>event(context,rows[i],i))),
+        at(40,960,633,317,rows.isEmpty?Center(child:label(shift==null?'Откройте смену, чтобы начать работу':'Действий пока нет',20,color:Colors.white60)):ListView.builder(key:ValueKey('events-${shift?['id']}'),primary:false,physics:const ClampingScrollPhysics(),padding:EdgeInsets.zero,itemExtent:64,itemCount:rows.length,itemBuilder:(c,i)=>event(context,rows[i],i))),
       ]));
       return Stack(children:[
         Positioned.fill(child:_ExtendedArtwork(asset:'assets/images/scenes/work_shift_scene.png',topInset:top)),
-        Positioned(left:0,right:0,top:0,bottom:dock,child:SingleChildScrollView(child:SizedBox(height:height,child:Stack(children:[
+        Positioned(left:0,right:0,top:0,bottom:dock,child:ClipRect(child:Stack(children:[Positioned(left:0,right:0,top:-sceneOffset,height:height,child:Stack(children:[
           Positioned.fill(child:_ExtendedArtwork(asset:'assets/images/scenes/work_shift_scene.png',topInset:top)),
           Positioned(top:top,left:0,right:0,height:1310*scale,child:FittedBox(fit:BoxFit.contain,alignment:Alignment.topCenter,child:MediaQuery.withClampedTextScaling(minScaleFactor:1,maxScaleFactor:1,child:scene))),
-        ])))),
+        ]))]))),
         if(showNavigation)Positioned(left:8,right:8,bottom:bottom+3,child:_MillDock(index:1,onChanged:(i){if(i==1)return;if(i==2){(onQuickAdd??()=>_showQuickAddMenu(context,session))();}else if(i==4){_openHomeMenu(context,session);}else{go(context,i);}})),
       ]);
     });
