@@ -819,6 +819,32 @@ class _DayGps extends StatelessWidget {
   });
 }
 
+
+// Separate secondary action: the whole panel is tappable, without a glow.
+class _ShiftMileageModeButton extends StatelessWidget {
+  final String label;
+  final bool manual;
+  final VoidCallback? onPressed;
+  const _ShiftMileageModeButton({required this.label,required this.manual,required this.onPressed});
+  @override Widget build(BuildContext context)=>OutlinedButton(
+    onPressed:onPressed,
+    style:OutlinedButton.styleFrom(
+      foregroundColor:const Color(0xFFD5DADD),
+      disabledForegroundColor:const Color(0xFF738087),
+      backgroundColor:const Color(0xF2101920),
+      side:BorderSide(color:manual?const Color(0xFFB39A70):const Color(0xFF69747A),width:1.5),
+      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),
+      padding:const EdgeInsets.symmetric(horizontal:24,vertical:16),
+      elevation:0,
+    ),
+    child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+      Icon(manual?Icons.speed_outlined:Icons.edit_outlined,size:34,color:const Color(0xFFBFA77C)),
+      const SizedBox(width:18),
+      Flexible(child:FittedBox(fit:BoxFit.scaleDown,child:Text(label,style:const TextStyle(fontSize:30,fontWeight:FontWeight.w500)))),
+    ]),
+  );
+}
+
 class _OpenShiftDashboard extends StatefulWidget {
   final TextEditingController controller;
   const _OpenShiftDashboard({required this.controller});
@@ -887,11 +913,11 @@ class _OpenShiftDashboardState extends State<_OpenShiftDashboard> {
         at(182,757,510,40,Center(child:FittedBox(fit:BoxFit.scaleDown,child:Text(manual?'Одометр не используется':'Текущее показание одометра',style:const TextStyle(color:white,fontSize:29))))),
         at(183,851,485,131,manual?const Center(child:Text('Пробег укажете\nпри завершении смены',textAlign:TextAlign.center,style:TextStyle(color:Colors.white60,fontSize:27))):ValueListenableBuilder<TextEditingValue>(valueListenable:widget.controller,builder:(_,v,__)=>drum(v.text))),
         if(!manual)at(697,911,52,42,const Text('км',style:TextStyle(color:gold,fontSize:32))),
-        at(182,987,510,54,TextButton(onPressed:busy?null:()=>setState((){manual=!manual;error=null;}),style:TextButton.styleFrom(foregroundColor:Colors.white60),child:Text(manual?'Использовать одометр':'Одометр не работает',style:const TextStyle(fontSize:22)))),
+        at(134,1178,604,120,_ShiftMileageModeButton(label:manual?'Использовать одометр':'Одометр не работает',manual:manual,onPressed:busy?null:()=>setState((){manual=!manual;error=null;}))),
         at(134,1047,604,102,_GasTap(label:'Открыть смену',onTap:submit,child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
           if(busy)const SizedBox(width:35,height:35,child:CircularProgressIndicator(color:gold,strokeWidth:3))else const Icon(Icons.play_arrow_rounded,color:gold,size:59),
           const SizedBox(width:22),Text(busy?'Сохранение…':'Открыть смену',style:const TextStyle(color:gold,fontSize:39,fontWeight:FontWeight.w500))]))),
-        if(error!=null)at(135,1190,607,108,Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:const Color(0xEC10171C),borderRadius:BorderRadius.circular(14)),
+        if(error!=null)at(135,1320,607,108,Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:const Color(0xEC10171C),borderRadius:BorderRadius.circular(14)),
           child:Center(child:Text(error!,textAlign:TextAlign.center,style:const TextStyle(color:gold,fontSize:23))))),
       ]));
       return SingleChildScrollView(child:SizedBox(width:box.maxWidth,height:math.max(box.maxHeight,1536*scale+safe+MediaQuery.viewPaddingOf(context).bottom),child:Stack(children:[
@@ -1016,7 +1042,7 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
         at(173,88,580,63,const Align(alignment:Alignment.centerLeft,child:FittedBox(fit:BoxFit.scaleDown,child:Text('Завершить смену',style:TextStyle(color:white,fontSize:44))))),
         at(173,157,372,2,Container(color:gold.withValues(alpha:.65))),
         at(182,699,510,40,Center(child:FittedBox(fit:BoxFit.scaleDown,child:Text(manual?'Пробег за смену':'Текущее показание одометра',style:const TextStyle(color:white,fontSize:29))))),
-        if(widget.shift['startKm']!=null)at(182,738,510,50,TextButton(onPressed:busy?null:toggleMileage,style:TextButton.styleFrom(foregroundColor:Colors.white60),child:Text(manual?'Использовать одометр':'Ввести пробег вручную',style:const TextStyle(fontSize:22)))),
+        if(widget.shift['startKm']!=null)at(140,1310,610,120,_ShiftMileageModeButton(label:manual?'Использовать одометр':'Ввести пробег вручную',manual:manual,onPressed:busy?null:toggleMileage)),
         at(211,790,449,108,ValueListenableBuilder<TextEditingValue>(valueListenable:widget.controller,builder:(_,v,__)=>drum(v.text))),
         at(689,839,52,42,const Text('км',style:TextStyle(color:gold,fontSize:32))),
         at(225,960,440,40,const Center(child:Text('Отработанные часы',style:TextStyle(color:white,fontSize:29)))),
@@ -1025,7 +1051,7 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
         at(140,1190,610,86,_GasTap(label:'Завершить смену',onTap:submit,child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
           if(busy)const SizedBox(width:35,height:35,child:CircularProgressIndicator(color:gold,strokeWidth:3))else const Icon(Icons.play_arrow_rounded,color:gold,size:59),
           const SizedBox(width:22),Text(busy?'Сохранение…':'Завершить смену',style:const TextStyle(color:gold,fontSize:36,fontWeight:FontWeight.w500))]))),
-        if(error!=null)at(135,1310,607,108,Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:const Color(0xEC10171C),borderRadius:BorderRadius.circular(14)),
+        if(error!=null)at(135,1440,607,80,Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:const Color(0xEC10171C),borderRadius:BorderRadius.circular(14)),
           child:Center(child:Text(error!,textAlign:TextAlign.center,style:const TextStyle(color:gold,fontSize:23))))),
       ]));
       return SingleChildScrollView(child:SizedBox(width:box.maxWidth,height:math.max(box.maxHeight,1536*scale+safe+MediaQuery.viewPaddingOf(context).bottom),child:Stack(children:[
