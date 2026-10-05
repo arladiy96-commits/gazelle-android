@@ -820,28 +820,36 @@ class _DayGps extends StatelessWidget {
 }
 
 
-// Separate secondary action: the whole panel is tappable, without a glow.
+// Thin metal face inside the original, larger touch target.
 class _ShiftMileageModeButton extends StatelessWidget {
   final String label;
   final bool manual;
   final VoidCallback? onPressed;
   const _ShiftMileageModeButton({required this.label,required this.manual,required this.onPressed});
-  @override Widget build(BuildContext context)=>OutlinedButton(
-    onPressed:onPressed,
-    style:OutlinedButton.styleFrom(
-      foregroundColor:const Color(0xFFD5DADD),
-      disabledForegroundColor:const Color(0xFF738087),
-      backgroundColor:const Color(0xF2101920),
-      side:BorderSide(color:manual?const Color(0xFFB39A70):const Color(0xFF69747A),width:1.5),
-      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),
-      padding:const EdgeInsets.symmetric(horizontal:24,vertical:16),
-      elevation:0,
+  @override Widget build(BuildContext context)=>Semantics(
+    button:true,enabled:onPressed!=null,label:label,
+    child:GestureDetector(
+      behavior:HitTestBehavior.opaque,onTap:onPressed,
+      child:Center(child:SizedBox(height:76,width:double.infinity,
+        child:DecoratedBox(decoration:BoxDecoration(
+          borderRadius:BorderRadius.circular(14),
+          border:Border.all(color:manual?const Color(0xFF9B8055):const Color(0xFF75634B),width:1.2),
+          gradient:const LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,
+            colors:[Color(0xF52D2B27),Color(0xF0161919),Color(0xF50C1114),Color(0xF521211E)],
+            stops:[0,.18,.76,1]),
+          boxShadow:const [BoxShadow(color:Color(0x66000000),blurRadius:5,offset:Offset(0,3))],
+        ),child:Padding(padding:const EdgeInsets.symmetric(horizontal:24),
+          child:ExcludeSemantics(child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+            Icon(manual?Icons.speed_outlined:Icons.edit_outlined,size:29,
+              color:onPressed==null?const Color(0xFF6E6A62):const Color(0xFFB9A079)),
+            const SizedBox(width:16),
+            Flexible(child:FittedBox(fit:BoxFit.scaleDown,child:Text(label,
+              style:TextStyle(fontSize:27,fontWeight:FontWeight.w400,
+                color:onPressed==null?const Color(0xFF77736B):const Color(0xFFD1C1A5))))),
+          ])),
+        )),
+      )),
     ),
-    child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
-      Icon(manual?Icons.speed_outlined:Icons.edit_outlined,size:34,color:const Color(0xFFBFA77C)),
-      const SizedBox(width:18),
-      Flexible(child:FittedBox(fit:BoxFit.scaleDown,child:Text(label,style:const TextStyle(fontSize:30,fontWeight:FontWeight.w500)))),
-    ]),
   );
 }
 
