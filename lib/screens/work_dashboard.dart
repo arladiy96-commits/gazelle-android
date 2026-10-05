@@ -147,7 +147,7 @@ class _MillWorkScreen extends StatelessWidget {
         at(198,31,290,49,Row(children:[const Icon(Icons.local_shipping_outlined,color:gold,size:52),const SizedBox(width:22),label('Работа',41,weight:FontWeight.w600)])),
         at(238,82,255,26,label('Сводка за текущую смену',18,color:Colors.white70)),
         at(503,31,179,71,Container(padding:const EdgeInsets.symmetric(horizontal:15),decoration:BoxDecoration(color:const Color(0xE60A151D),borderRadius:BorderRadius.circular(23),border:Border.all(color:gold.withValues(alpha:.7))),child:Row(children:[Container(width:14,height:14,decoration:BoxDecoration(shape:BoxShape.circle,color:shift==null?Colors.grey:const Color(0xFF09C46B))),const SizedBox(width:13),Expanded(child:Column(mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.start,children:[label(shift==null?'Смена закрыта':'Смена открыта',13,color:Colors.white60),const SizedBox(height:4),label(clock,22)]))]))),
-        at(29,132,649,372,ClipRRect(borderRadius:BorderRadius.circular(19),child:RepaintBoundary(child:ShiftRouteMap(key:ValueKey(shift?['id']),shiftId:shift?['id'] as String?,paused:shift?['gpsStatus']=='paused',unit:1.8,satellite:true)))),
+        at(29,132,649,372,_WorkMapFrame(child:RepaintBoundary(child:ShiftRouteMap(key:ValueKey(shift?['id']),shiftId:shift?['id'] as String?,paused:shift?['gpsStatus']=='paused',unit:1.8,satellite:false)))),
         at(27,536,214,155,card(title:'Тоннаж\nза смену',value:'${_fmt1(sum('trip'))} кг',icon:Icons.scale_outlined,foot:'Цель (день)',detail:'—',tap:()=>_testOpen(context,page:'Рейсы',shiftId:shift?['id'] as String?))),
         at(258,536,201,155,card(title:'Пробег\nза смену',value:'${_fmt1(km)} км',icon:Icons.add_road,foot:'Средний за смену',detail:elapsed>0?'${_fmt1(km*3600/elapsed)} км/ч':'—',gauge:true,tap:()=>_openMetricDetails(context,'Пробег',DateTime.now()))),
         at(475,536,205,155,card(title:'Рейсы\nза смену',value:'$trips',icon:Icons.local_shipping_outlined,foot:'План (день)',detail:'—',tap:()=>_testOpen(context,page:'Рейсы',shiftId:shift?['id'] as String?))),
@@ -158,9 +158,9 @@ class _MillWorkScreen extends StatelessWidget {
         at(40,960,633,317,rows.isEmpty?Center(child:label(shift==null?'Откройте смену, чтобы начать работу':'Действий пока нет',20,color:Colors.white60)):ListView.builder(key:ValueKey('events-${shift?['id']}'),padding:EdgeInsets.zero,itemExtent:64,itemCount:rows.length,itemBuilder:(c,i)=>event(context,rows[i],i))),
       ]));
       return Stack(children:[
-        Positioned.fill(child:_ExtendedArtwork(asset:'assets/images/scenes/work_dashboard.png',topInset:top)),
+        Positioned.fill(child:_ExtendedArtwork(asset:'assets/images/scenes/work_shift_scene.png',topInset:top)),
         Positioned(left:0,right:0,top:0,bottom:dock,child:SingleChildScrollView(child:SizedBox(height:height,child:Stack(children:[
-          Positioned.fill(child:_ExtendedArtwork(asset:'assets/images/scenes/work_dashboard.png',topInset:top)),
+          Positioned.fill(child:_ExtendedArtwork(asset:'assets/images/scenes/work_shift_scene.png',topInset:top)),
           Positioned(top:top,left:0,right:0,height:1310*scale,child:FittedBox(fit:BoxFit.contain,alignment:Alignment.topCenter,child:MediaQuery.withClampedTextScaling(minScaleFactor:1,maxScaleFactor:1,child:scene))),
         ])))),
         if(showNavigation)Positioned(left:8,right:8,bottom:bottom+3,child:_MillDock(index:1,onChanged:(i){if(i==1)return;if(i==2){(onQuickAdd??()=>_showQuickAddMenu(context,session))();}else if(i==4){_openHomeMenu(context,session);}else{go(context,i);}})),
@@ -169,3 +169,18 @@ class _MillWorkScreen extends StatelessWidget {
   });
 }
 
+
+class _WorkMapFrame extends StatelessWidget {
+  final Widget child;
+  const _WorkMapFrame({required this.child});
+  @override Widget build(BuildContext context)=>Container(
+    padding:const EdgeInsets.all(5),
+    decoration:BoxDecoration(borderRadius:BorderRadius.circular(24),
+      border:Border.all(color:const Color(0xFFE0AE63),width:1.6),
+      gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
+        colors:[Color(0xFF839AA3),Color(0xFF182A35),Color(0xFFB57C3D),Color(0xFF14252D)]),
+      boxShadow:const[BoxShadow(color:Color(0x66000000),blurRadius:8,offset:Offset(0,4))]),
+    child:Container(decoration:BoxDecoration(borderRadius:BorderRadius.circular(19),
+      border:Border.all(color:const Color(0xFF071018),width:2)),padding:const EdgeInsets.all(2),
+      child:ClipRRect(borderRadius:BorderRadius.circular(16),child:child)));
+}
