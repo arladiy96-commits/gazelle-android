@@ -300,16 +300,16 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
     });
   }
 
-  Future<void> _back({int? tab}) async {
+  Future<void> _back() async {
     if (_busy) return;
-    if (tab == null && _opened != null) {
+    if (_opened != null) {
       setState(() {
         _opened = null;
         _historyMode = true;
       });
       return;
     }
-    if (tab == null && _historyMode) {
+    if (_historyMode) {
       setState(() => _historyMode = false);
       return;
     }
@@ -322,20 +322,10 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         Navigator.of(context).pop();
-        if (tab != null && tab != 4) widget.onNavigate(tab);
       });
     } catch (_) {
       if (mounted) setState(() => _busy = false);
     }
-  }
-
-  void _navigate(int index) {
-    if (_busy) return;
-    if (index == 2) {
-      _showQuickAddMenu(context, widget.session);
-      return;
-    }
-    _back(tab: index);
   }
 
   Widget _text(
@@ -358,12 +348,13 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
           weight: FontWeight.w600,
         ),
       );
-  Widget _button(String label, VoidCallback? action, {bool selected = false}) =>
+  Widget _button(String label, VoidCallback? action, {bool selected = false, bool compact = false}) =>
       TextButton(
         onPressed: _busy ? null : action,
         style: TextButton.styleFrom(
           foregroundColor: selected ? gold : muted,
-          minimumSize: const Size(44, 44),
+          minimumSize: Size(44, compact ? 34 : 44),
+          tapTargetSize: compact ? MaterialTapTargetSize.shrinkWrap : MaterialTapTargetSize.padded,
           padding: const EdgeInsets.symmetric(horizontal: 10),
           backgroundColor: selected
               ? const Color(0x334F422C)
@@ -372,7 +363,7 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
         child: Text(
           label,
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 12),
+          style: TextStyle(fontSize: compact ? 11 : 12),
         ),
       );
   String _difference(MoneyCount count) => count.invoices.isEmpty
@@ -904,6 +895,7 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
                                                   'Накладные',
                                                   () => _tab(false),
                                                   selected: !_cashMode,
+                                                  compact: true,
                                                 ),
                                               ),
                                               Expanded(
@@ -911,6 +903,7 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
                                                   'Подсчёт денег',
                                                   () => _tab(true),
                                                   selected: _cashMode,
+                                                  compact: true,
                                                 ),
                                               ),
                                             ],
@@ -934,10 +927,7 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
                                       ),
                               ),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(8, 5, 8, 3),
-                        child: _MillDock(index: 4, onChanged: _navigate),
-                      ),
+                      const SizedBox(height: 3),
                     ],
                   );
                 },
