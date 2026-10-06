@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -8,227 +9,796 @@ class TestPreferences {
   static final revision = ValueNotifier<int>(0);
   static Future<TestPreferences>? _opening;
   final SharedPreferences _disk;
-  Map<String,dynamic> _values;
-  Future<void> _queue=Future<void>.value();
-  TestPreferences._(this._disk,this._values);
-  static Future<TestPreferences> getInstance()=>_opening??= _open();
+  Map<String, dynamic> _values;
+  Future<void> _queue = Future<void>.value();
+  TestPreferences._(this._disk, this._values);
+  static Future<TestPreferences> getInstance() => _opening ??= _open();
   static Future<TestPreferences> _open() async {
-    final disk=await SharedPreferences.getInstance();
-    final raw=disk.getString(storageKey);
-    final values=raw==null?<String,dynamic>{}:Map<String,dynamic>.from(jsonDecode(raw) as Map);
-    return TestPreferences._(disk,values);
+    final disk = await SharedPreferences.getInstance();
+    final raw = disk.getString(storageKey);
+    final values = raw == null
+        ? <String, dynamic>{}
+        : Map<String, dynamic>.from(jsonDecode(raw) as Map);
+    return TestPreferences._(disk, values);
   }
-  Object? get(String key){
-    final match=RegExp(r'^home_day_(\d+)_(\d+)_(\d+)_(.+)$').firstMatch(key);
-    if(match!=null){final d=DateTime(int.parse(match[1]!),int.parse(match[2]!),int.parse(match[3]!));final name=match[4];
-      final b=TestState.decode(_values['journal'] as String?);final shifts=b.shifts.where((s){final t=DateTime.parse(s['start'] as String);return t.year==d.year&&t.month==d.month&&t.day==d.day;}).toList();
-      if(shifts.isNotEmpty){switch(name){case 'hours':return shifts.fold<double>(0,(v,s)=>v+b.hours(s));case 'mileage':return shifts.fold<double>(0,(v,s)=>v+b.mileage(s));case 'salary':return b.statistics(d,day:d)['salary'];case 'status':return shifts.any((s)=>s['end']==null)?'open':'completed';case 'odometer_start':return shifts.first['startKm'];case 'odometer_end':return shifts.last['currentKm'];}}
+
+  Object? get(String key) {
+    final match = RegExp(r'^home_day_(\d+)_(\d+)_(\d+)_(.+)$').firstMatch(key);
+    if (match != null) {
+      final d = DateTime(
+        int.parse(match[1]!),
+        int.parse(match[2]!),
+        int.parse(match[3]!),
+      );
+      final name = match[4];
+      final b = TestState.decode(_values['journal'] as String?);
+      final shifts = b.shifts.where((s) {
+        final t = DateTime.parse(s['start'] as String);
+        return t.year == d.year && t.month == d.month && t.day == d.day;
+      }).toList();
+      if (shifts.isNotEmpty) {
+        switch (name) {
+          case 'hours':
+            return shifts.fold<double>(0, (v, s) => v + b.hours(s));
+          case 'mileage':
+            return shifts.fold<double>(0, (v, s) => v + b.mileage(s));
+          case 'salary':
+            return b.statistics(d, day: d)['salary'];
+          case 'status':
+            return shifts.any((s) => s['end'] == null) ? 'open' : 'completed';
+          case 'odometer_start':
+            return shifts.first['startKm'];
+          case 'odometer_end':
+            return shifts.last['currentKm'];
+        }
+      }
     }
-    final month=RegExp(r'^home_(\d+)_(\d+)_(.+)$').firstMatch(key);
-    if(month!=null){final d=DateTime(int.parse(month[1]!),int.parse(month[2]!));final b=TestState.decode(_values['journal'] as String?);
-      final stats=b.statistics(d);return stats[month[3]]??_values[key];}
+    final month = RegExp(r'^home_(\d+)_(\d+)_(.+)$').firstMatch(key);
+    if (month != null) {
+      final d = DateTime(int.parse(month[1]!), int.parse(month[2]!));
+      final b = TestState.decode(_values['journal'] as String?);
+      final stats = b.statistics(d);
+      return stats[month[3]] ?? _values[key];
+    }
     return _values[key];
   }
-  String? getString(String key)=>get(key) as String?;
-  bool? getBool(String key)=>get(key) as bool?;
-  int? getInt(String key)=>(get(key) as num?)?.toInt();
-  double? getDouble(String key)=>(get(key) as num?)?.toDouble();
-  Set<String> getKeys(){final keys=_values.keys.toSet();final b=TestState.decode(_values['journal'] as String?);for(final s in b.shifts){final d=DateTime.parse(s['start'] as String);keys.add('home_day_${d.year}_${d.month}_${d.day}_status');}return keys;}
-  Future<bool> _write(String? key,Object? value,{bool reset=false}) {
-    final task=_queue.then((_) async {
-      final next=reset?<String,dynamic>{}:Map<String,dynamic>.from(_values);
-      if(key!=null){if(value==null){next.remove(key);}else{next[key]=value;}}
-      if(!await _disk.setString(storageKey,jsonEncode(next)))throw StateError('Не удалось сохранить тестовые данные');
-      _values=next;revision.value++;return true;
-    });
-    _queue=task.then<void>((_){},onError:(Object e,StackTrace s){});return task;
+
+  String? getString(String key) => get(key) as String?;
+  bool? getBool(String key) => get(key) as bool?;
+  int? getInt(String key) => (get(key) as num?)?.toInt();
+  double? getDouble(String key) => (get(key) as num?)?.toDouble();
+  Set<String> getKeys() {
+    final keys = _values.keys.toSet();
+    final b = TestState.decode(_values['journal'] as String?);
+    for (final s in b.shifts) {
+      final d = DateTime.parse(s['start'] as String);
+      keys.add('home_day_${d.year}_${d.month}_${d.day}_status');
+    }
+    return keys;
   }
-  Future<bool> setString(String k,String v)=>_write(k,v);
-  Future<bool> setDouble(String k,double v)=>_write(k,v);
-  Future<bool> setInt(String k,int v)=>_write(k,v);
-  Future<bool> setBool(String k,bool v)=>_write(k,v);
-  Future<bool> remove(String k)=>_write(k,null);
-  Future<bool> clear()=>_write(null,null,reset:true);
+
+  Future<bool> _write(String? key, Object? value, {bool reset = false}) {
+    final task = _queue.then((_) async {
+      final next = reset
+          ? <String, dynamic>{}
+          : Map<String, dynamic>.from(_values);
+      if (key != null) {
+        if (value == null) {
+          next.remove(key);
+        } else {
+          next[key] = value;
+        }
+      }
+      if (!await _disk.setString(storageKey, jsonEncode(next)))
+        throw StateError('Не удалось сохранить тестовые данные');
+      _values = next;
+      revision.value++;
+      return true;
+    });
+    _queue = task.then<void>((_) {}, onError: (Object e, StackTrace s) {});
+    return task;
+  }
+
+  Future<bool> setString(String k, String v) => _write(k, v);
+  Future<bool> setDouble(String k, double v) => _write(k, v);
+  Future<bool> setInt(String k, int v) => _write(k, v);
+  Future<bool> setBool(String k, bool v) => _write(k, v);
+  Future<bool> remove(String k) => _write(k, null);
+  Future<bool> clear() => _write(null, null, reset: true);
   @visibleForTesting
-  static void resetCache(){_opening=null;}
+  static void resetCache() {
+    _opening = null;
+  }
 }
 
 // Persist names, never enum indexes. Missing source means a legacy odometer shift.
 enum MileageSource { odometer, manual, gps }
 
-class TestState {
-  final List<Map<String,dynamic>> shifts,records;
-  final List<Map<String,dynamic>> products;
-  TestState({List<Map<String,dynamic>> shifts=const[],List<Map<String,dynamic>> records=const[],List<Map<String,dynamic>>? products})
-    :shifts=[...shifts],records=[...records],products=products??[
-      {'id':'flour50','name':'Мука, тестовый товар','packKg':50.0},
-      {'id':'flour25','name':'Мука, тестовый товар','packKg':25.0},
-      {'id':'sugar10','name':'Сахар, тестовый товар','packKg':10.0}];
-  factory TestState.decode(String? raw){
-    if(raw==null)return TestState();final j=jsonDecode(raw) as Map<String,dynamic>;
-    if(j['version']!=2)throw const FormatException('Неизвестная версия тестового журнала');
-    List<Map<String,dynamic>> rows(String key)=>[for(final e in j[key] as List)Map<String,dynamic>.from(e as Map)];
-    return TestState(shifts:rows('shifts'),records:rows('records'),products:rows('products'));
+/// Rates are journal data so every salary consumer uses the same history.
+class SalaryRates {
+  static const defaults = <String, double>{
+    'base': 190000,
+    'weekend': 10000,
+    'holiday': 10000,
+    'paid': 3000,
+    'city': 1,
+    'region': 1.9,
+  };
+  static Map<String, double> decode(Object? value) {
+    final result = Map<String, double>.of(defaults);
+    if (value is Map) {
+      for (final key in defaults.keys) {
+        final n = value[key];
+        if (n is num && n.isFinite && n >= 0) result[key] = n.toDouble();
+      }
+    }
+    return result;
   }
-  Map<String,dynamic> toJson()=>{'version':2,'shifts':shifts,'records':records,'products':products};
-  Map<String,dynamic>? get active {for(final s in shifts){if(s['end']==null)return s;}return null;}
-  List<Map<String,dynamic>> forShift(String id)=>records.where((e)=>e['shiftId']==id).toList();
-  double hours(Map<String,dynamic> s)=>(s['hoursWorked'] as num?)?.toDouble()??0;
-  double elapsed(Map<String,dynamic> s)=>DateTime.parse(s['end'] as String? ?? DateTime.now().toIso8601String()).difference(DateTime.parse(s['start'] as String)).inSeconds/3600;
-  static MileageSource mileageSource(Map<String,dynamic> s)=>switch(s['mileageSource']) {
-    'manual'=>MileageSource.manual,'gps'=>MileageSource.gps,_=>MileageSource.odometer,
+}
+
+class TestState {
+  final List<Map<String, dynamic>> shifts, records;
+  final List<Map<String, dynamic>> products;
+  final List<Map<String, dynamic>> salaryRateHistory;
+  TestState({
+    List<Map<String, dynamic>> shifts = const [],
+    List<Map<String, dynamic>> records = const [],
+    List<Map<String, dynamic>>? products,
+    List<Map<String, dynamic>> salaryRateHistory = const [],
+  }) : salaryRateHistory = [...salaryRateHistory],
+       shifts = [...shifts],
+       records = [...records],
+       products =
+           products ??
+           [
+             {'id': 'flour50', 'name': 'Мука, тестовый товар', 'packKg': 50.0},
+             {'id': 'flour25', 'name': 'Мука, тестовый товар', 'packKg': 25.0},
+             {'id': 'sugar10', 'name': 'Сахар, тестовый товар', 'packKg': 10.0},
+           ];
+  factory TestState.decode(String? raw) {
+    if (raw == null) return TestState();
+    final j = jsonDecode(raw) as Map<String, dynamic>;
+    if (j['version'] != 2)
+      throw const FormatException('Неизвестная версия тестового журнала');
+    List<Map<String, dynamic>> rows(String key) => [
+      for (final e in j[key] as List) Map<String, dynamic>.from(e as Map),
+    ];
+    return TestState(
+      shifts: rows('shifts'),
+      records: rows('records'),
+      products: rows('products'),
+      salaryRateHistory: [
+        for (final e in j['salaryRateHistory'] as List? ?? [])
+          Map<String, dynamic>.from(e as Map),
+      ],
+    );
+  }
+  Map<String, dynamic> toJson() => {
+    'version': 2,
+    'shifts': shifts,
+    'records': records,
+    'products': products,
+    'salaryRateHistory': salaryRateHistory,
   };
-  bool hasRecordedMileage(Map<String,dynamic> s)=>switch(mileageSource(s)) {
-    MileageSource.manual=>s['manualKm'] is num,
-    MileageSource.gps=>s['gpsKm'] is num,
-    MileageSource.odometer=>s['odometerSet']==true,
+  Map<String, double> ratesAt(DateTime time) {
+    var rates = Map<String, double>.of(SalaryRates.defaults);
+    for (final change in salaryRateHistory) {
+      if (!DateTime.parse(change['at'] as String).isAfter(time)) {
+        rates = SalaryRates.decode(change['rates']);
+      }
+    }
+    return rates;
+  }
+
+  Map<String, double> get currentSalaryRates => ratesAt(DateTime.now());
+  Map<String, double> shiftRates(Map<String, dynamic> shift) =>
+      shift['salaryRates'] == null
+      ? ratesAt(DateTime.parse(shift['start'] as String))
+      : SalaryRates.decode(shift['salaryRates']);
+  double baseUnits(Map<String, dynamic> shift, {double? limit}) {
+    var remaining = limit == null
+        ? hours(shift)
+        : hours(shift).clamp(0, limit).toDouble();
+    var sum = 0.0;
+    for (final raw in shift['salaryHourBands'] as List? ?? []) {
+      final band = raw as Map;
+      final used = remaining
+          .clamp(0, (band['hours'] as num).toDouble())
+          .toDouble();
+      sum += used * (band['base'] as num).toDouble();
+      remaining -= used;
+    }
+    return sum +
+        remaining.clamp(0, double.infinity) * shiftRates(shift)['base']!;
+  }
+
+  void changeSalaryRate(String key, double value, DateTime now) {
+    if (!SalaryRates.defaults.containsKey(key) ||
+        !value.isFinite ||
+        value < 0 ||
+        value > 999999999) {
+      throw ArgumentError('Введите ставку от 0 до 999 999 999');
+    }
+    final next = ratesAt(now);
+    if (next[key] == value) return;
+    // Bind all existing operations before introducing a new rate version.
+    for (final record in records) {
+      record['salaryRates'] ??= ratesAt(
+        DateTime.parse(record['date'] as String),
+      );
+    }
+    for (final shift in shifts) {
+      shift['salaryRates'] ??= shiftRates(shift);
+      shift['salaryDayRates'] ??= Map<String, double>.of(shiftRates(shift));
+      if (shift['end'] == null) {
+        if (key == 'base') {
+          final bands = [
+            for (final raw in shift['salaryHourBands'] as List? ?? [])
+              Map<String, dynamic>.from(raw as Map),
+          ];
+          final already = bands.fold<double>(
+            0,
+            (sum, band) => sum + (band['hours'] as num).toDouble(),
+          );
+          final recorded = hours(shift) - already;
+          if (recorded > 0)
+            bands.add({'hours': recorded, 'base': shiftRates(shift)['base']});
+          shift['salaryHourBands'] = bands;
+        }
+        shift['salaryRates'] = {...shiftRates(shift), key: value};
+      }
+    }
+    next[key] = value;
+    salaryRateHistory.add({'at': now.toIso8601String(), 'rates': next});
+  }
+
+  Map<String, dynamic>? get active {
+    for (final s in shifts) {
+      if (s['end'] == null) return s;
+    }
+    return null;
+  }
+
+  List<Map<String, dynamic>> forShift(String id) =>
+      records.where((e) => e['shiftId'] == id).toList();
+  double hours(Map<String, dynamic> s) =>
+      (s['hoursWorked'] as num?)?.toDouble() ?? 0;
+  double elapsed(Map<String, dynamic> s) =>
+      DateTime.parse(s['end'] as String? ?? DateTime.now().toIso8601String())
+          .difference(DateTime.parse(s['start'] as String))
+          .inSeconds /
+      3600;
+  static MileageSource mileageSource(Map<String, dynamic> s) =>
+      switch (s['mileageSource']) {
+        'manual' => MileageSource.manual,
+        'gps' => MileageSource.gps,
+        _ => MileageSource.odometer,
+      };
+  bool hasRecordedMileage(Map<String, dynamic> s) => switch (mileageSource(s)) {
+    MileageSource.manual => s['manualKm'] is num,
+    MileageSource.gps => s['gpsKm'] is num,
+    MileageSource.odometer => s['odometerSet'] == true,
   };
-  double mileage(Map<String,dynamic> s)=>switch(mileageSource(s)) {
-    MileageSource.manual=>(s['manualKm'] as num?)?.toDouble()??0,
-    MileageSource.gps=>(s['gpsKm'] as num?)?.toDouble()??0,
-    MileageSource.odometer=>(s['currentKm'] as num).toDouble()-(s['startKm'] as num).toDouble(),
+  double mileage(Map<String, dynamic> s) => switch (mileageSource(s)) {
+    MileageSource.manual => (s['manualKm'] as num?)?.toDouble() ?? 0,
+    MileageSource.gps => (s['gpsKm'] as num?)?.toDouble() ?? 0,
+    MileageSource.odometer =>
+      (s['currentKm'] as num).toDouble() - (s['startKm'] as num).toDouble(),
   };
   // Only real readings may prefill another shift or the maintenance odometer.
   double? get latestOdometer {
-    final known=shifts.where((s)=>s['currentKm'] is num).toList()
-      ..sort((a,z)=>(z['start'] as String).compareTo(a['start'] as String));
-    return known.isEmpty?null:(known.first['currentKm'] as num).toDouble();
+    final known = shifts.where((s) => s['currentKm'] is num).toList()
+      ..sort((a, z) => (z['start'] as String).compareTo(a['start'] as String));
+    return known.isEmpty ? null : (known.first['currentKm'] as num).toDouble();
   }
-  bool inMonth(String value,DateTime d){final t=DateTime.parse(value);return t.year==d.year&&t.month==d.month;}
-  DateTime recordDay(Map<String,dynamic> e)=>DateTime.parse(shifts.firstWhere((s)=>s['id']==e['shiftId'])['start'] as String);
-  static String dayKey(DateTime d)=>'${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
+
+  bool inMonth(String value, DateTime d) {
+    final t = DateTime.parse(value);
+    return t.year == d.year && t.month == d.month;
+  }
+
+  DateTime recordDay(Map<String, dynamic> e) => DateTime.parse(
+    shifts.firstWhere((s) => s['id'] == e['shiftId'])['start'] as String,
+  );
+  static String dayKey(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   // Compatibility with the uploaded miniapp /api/stats calendar, not bot.py.
-  static const holidays={'2026-03-08','2026-03-09','2026-03-15','2026-05-01','2026-05-07','2026-05-09','2026-05-11','2026-07-06','2026-10-25','2026-10-26','2026-12-16'};
-  static bool holiday(DateTime d)=>holidays.contains(dayKey(d));
-  static double norm(DateTime d){double n=0;for(int i=1;i<=DateTime(d.year,d.month+1,0).day;i++){final x=DateTime(d.year,d.month,i);if(x.weekday<6&&!holiday(x))n+=8;}return n;}
-  static bool paidDirection(String value)=>const {'саумалколь','щучинск','новоишимское'}.contains(value.trim().toLowerCase());
-  Map<String,double> statistics(DateTime month,{DateTime? day}){
-    final ss=shifts.where((s){final d=DateTime.parse(s['start'] as String);return inMonth(s['start'] as String,month)&&(day==null||dayKey(d)==dayKey(day));}).toList();
-    final days=<String,DateTime>{};double work=0,allHours=0,city=0,region=0,paid=0,km=0,gas=0,petrol=0;
-    final seenMileage=<String>{};
+  static const holidays = {
+    '2026-03-08',
+    '2026-03-09',
+    '2026-03-15',
+    '2026-05-01',
+    '2026-05-07',
+    '2026-05-09',
+    '2026-05-11',
+    '2026-07-06',
+    '2026-10-25',
+    '2026-10-26',
+    '2026-12-16',
+  };
+  static bool holiday(DateTime d) => holidays.contains(dayKey(d));
+  static double norm(DateTime d) {
+    double n = 0;
+    for (int i = 1; i <= DateTime(d.year, d.month + 1, 0).day; i++) {
+      final x = DateTime(d.year, d.month, i);
+      if (x.weekday < 6 && !holiday(x)) n += 8;
+    }
+    return n;
+  }
+
+  static bool paidDirection(String value) => const {
+    'саумалколь',
+    'щучинск',
+    'новоишимское',
+  }.contains(value.trim().toLowerCase());
+  Map<String, double> statistics(DateTime month, {DateTime? day}) {
+    final ss = shifts.where((s) {
+      final d = DateTime.parse(s['start'] as String);
+      return inMonth(s['start'] as String, month) &&
+          (day == null || dayKey(d) == dayKey(day));
+    }).toList();
+    final days = <String, DateTime>{};
+    double work = 0,
+        allHours = 0,
+        city = 0,
+        region = 0,
+        km = 0,
+        gas = 0,
+        petrol = 0;
+    double weightedBase = 0,
+        weekend = 0,
+        festive = 0,
+        paidPay = 0,
+        cityPay = 0,
+        regionPay = 0;
+    // Allocate the monthly cap oldest first: new hours cannot dilute old pay.
+    final monthlyWork =
+        shifts.where((s) {
+          final d = DateTime.parse(s['start'] as String);
+          return inMonth(s['start'] as String, month) &&
+              d.weekday < 6 &&
+              !holiday(d);
+        }).toList()..sort(
+          (a, b) => (a['start'] as String).compareTo(b['start'] as String),
+        );
+    var remainingNorm = norm(month);
+    final baseByShift = <String, double>{};
+    for (final shift in monthlyWork) {
+      baseByShift[shift['id'] as String] = baseUnits(
+        shift,
+        limit: remainingNorm,
+      );
+      remainingNorm = (remainingNorm - hours(shift))
+          .clamp(0, double.infinity)
+          .toDouble();
+    }
+    final dayRates = <String, Map<String, double>>{};
+    final seenMileage = <String>{};
     // Match miniapp's descending shift order and its one-mileage-per-day aggregation.
-    ss.sort((a,b)=>(b['start'] as String).compareTo(a['start'] as String));
-    for(final shift in ss){final d=DateTime.parse(shift['start'] as String);final key=dayKey(d);days[key]=d;allHours+=hours(shift);
-      if(d.weekday<6&&!holiday(d))work+=hours(shift);
-      if(hasRecordedMileage(shift)&&seenMileage.add(key))km+=mileage(shift);
-      for(final e in forShift(shift['id'] as String)){final amount=(e['amount'] as num?)?.toDouble()??0;
-        if(e['kind']=='trip'){if(e['type']=='Город'){city+=amount;}else{region+=amount;}if(e['isPaid']==true)paid++;}
-        if(e['kind']=='fuel'){if(e['type']=='Газ'){gas+=amount;}else{petrol+=amount;}}}
-    }
-    final normal=norm(month);final base=normal==0?0.0:190000*(work.clamp(0,normal)/normal);
-    final weekend=days.values.where((d)=>d.weekday>=6).length*10000.0;
-    final festive=days.values.where(holiday).length*10000.0;
-    return {'salary':base+weekend+festive+paid*3000+city+region*1.9,'base_salary':base,'weekend_pay':weekend,'holiday_pay':festive,
-      'paid_routes_pay':paid*3000,'city_pay':city,'region_pay':region*1.9,'hours':work,'all_hours':allHours,'norm_hours':normal,'mileage':km,'gas':gas,'petrol':petrol,'city_kg':city,'region_kg':region};
-  }
-  double salary(Map<String,dynamic> s){final d=DateTime.parse(s['start'] as String);return statistics(d,day:d)['salary']!;}
-}
-class TestStore {
-  static final revision=TestPreferences.revision;
-  static Future<void> _queue=Future<void>.value();
-  static Future<TestState> load() async=>TestState.decode((await TestPreferences.getInstance()).getString('journal'));
-  static Future<void> _change(TestState Function(TestState) change){
-    final task=_queue.then((_) async{final next=change(await load());await (await TestPreferences.getInstance()).setString('journal',jsonEncode(next.toJson()));});
-    _queue=task.then<void>((_){},onError:(Object e,StackTrace s){});return task;
-  }
-  static String _id()=>DateTime.now().microsecondsSinceEpoch.toString();
-  static void _km(int v){if(v<0)throw ArgumentError('Одометр не может быть отрицательным');}
-  static Future<void> open(int? km,{double? hours,bool manual=false})=>_change((b){
-    _hours(hours);if(b.active!=null)throw StateError('Смена уже открыта');
-    if(!manual){
-      if(km==null)throw ArgumentError('Введите показание одометра');
-      _km(km);
-      if(b.shifts.any((s)=>s['currentKm'] is num&&(s['currentKm'] as num)>km))throw ArgumentError('Одометр меньше предыдущего. Исправьте прошлую смену или введите больший пробег');
-    }
-    b.shifts.add({'id':_id(),'start':DateTime.now().toIso8601String(),'end':null,
-      'startKm':manual?null:km,'currentKm':manual?null:km,
-      'mileageSource':(manual?MileageSource.manual:MileageSource.odometer).name,'manualKm':null,
-      'hoursWorked':hours,'odometerSet':false,'gpsStatus':'active','gpsKm':0.0});return b;
-  });
-  static Future<void> odometer(String id,int km,{bool close=false,double? hours,MileageSource? source})=>_change((b){
-    final s=b.shifts.firstWhere((s)=>s['id']==id);
-    if(s['end']!=null)throw StateError('Смена уже закрыта');
-    final selected=source??TestState.mileageSource(s);
-    if(selected==MileageSource.gps)throw ArgumentError('GPS пока не используется для завершения смены');
-    if(km<0)throw ArgumentError(selected==MileageSource.manual?'Пробег не может быть отрицательным':'Одометр не может быть отрицательным');
-    _hours(hours);
-    if(selected==MileageSource.manual){s['manualKm']=km;s['odometerSet']=false;}
-    else {
-      final start=s['startKm'] as num?;
-      if(start==null)throw ArgumentError('У смены нет начального показания. Введите пробег вручную');
-      if(km<start)throw ArgumentError('Пробег меньше начала смены');
-      s['currentKm']=km;s['odometerSet']=true;s['manualKm']=null;
-    }
-    s['mileageSource']=selected.name;
-    if(hours!=null)s['hoursWorked']=hours;
-    if(close){s['end']=DateTime.now().toIso8601String();s['gpsStatus']='stopped';}return b;
-  });
-  static Future<void> saveRecord(Map<String,dynamic> value)=>_change((b){
-    final e=Map<String,dynamic>.from(value);final kind=e['kind'];
-    if(!['trip','fuel','invoice','other'].contains(kind))throw ArgumentError('Неизвестная запись');
-    final id=e['id'];final old=b.records.where((r)=>r['id']==id).firstOrNull;
-    if(id!=null&&old==null)throw StateError('Запись уже удалена');
-    e['shiftId']=old?['shiftId']??e['shiftId']??b.active?['id'];
-    if(e['shiftId']==null)throw StateError('Сначала откройте смену');
-    final s=b.shifts.firstWhere((s)=>s['id']==e['shiftId']);
-    final d=DateTime.parse(e['date'] as String? ?? DateTime.now().toIso8601String());
-    if(d.isAfter(DateTime.now())||d.isBefore(DateTime.parse(s['start'] as String))||(s['end']!=null&&d.isAfter(DateTime.parse(s['end'] as String))))throw ArgumentError('Время записи должно попадать в смену');
-    final amount=(e['amount'] as num?)?.toDouble()??0;
-    if(!amount.isFinite||amount<0||(['trip','fuel'].contains(kind)&&amount==0))throw ArgumentError('Введите число больше нуля');
-    if(kind=='trip'&&(!['Город','Район'].contains(e['type'])||(e['direction'] as String? ?? '').trim().isEmpty))throw ArgumentError('Укажите тип и направление');
-    if(kind=='fuel'&&!['Газ','Бензин'].contains(e['type']))throw ArgumentError('Выберите топливо');
-    if(kind=='other'&&(e['note'] as String? ?? '').trim().isEmpty)throw ArgumentError('Заполните описание или товары');
-    if(kind=='trip')e['isPaid']=e['isPaid']==true||TestState.paidDirection(e['direction'] as String);
-    if(kind=='invoice'){
-      if(old?['status']=='closed')throw StateError('Закрытую накладную нельзя редактировать');
-      final items=[for(final row in e['items'] as List? ?? [])Map<String,dynamic>.from(row as Map)];
-      if(items.isEmpty)throw ArgumentError('Добавьте хотя бы один товар');
-      for(final item in items){final pack=(item['packKg'] as num?)?.toDouble()??0;final weight=(item['totalKg'] as num?)?.toDouble()??0;
-        if((item['name'] as String? ?? '').trim().isEmpty||!pack.isFinite||pack<=0||!weight.isFinite||weight<=0)throw ArgumentError('Проверьте название, упаковку и вес товаров');
-        item['quantity']=(weight/pack).floor();if(item['quantity']==0)throw ArgumentError('Вес меньше одной упаковки');
+    ss.sort((a, b) => (b['start'] as String).compareTo(a['start'] as String));
+    for (final shift in ss) {
+      final d = DateTime.parse(shift['start'] as String);
+      final key = dayKey(d);
+      days[key] = d;
+      allHours += hours(shift);
+      dayRates[key] = shift['salaryDayRates'] == null
+          ? shiftRates(shift)
+          : SalaryRates.decode(shift['salaryDayRates']);
+      if (d.weekday < 6 && !holiday(d)) {
+        work += hours(shift);
+        weightedBase += baseByShift[shift['id']] ?? 0;
       }
-      e['items']=items;e['status']='draft';
-      if(old==null){int highest=0;for(final r in b.records.where((r)=>r['kind']=='invoice')){final number=int.tryParse(r['number']?.toString()??'')??0;if(number>highest)highest=number;}e['number']='${highest+1}';}
+      if (hasRecordedMileage(shift) && seenMileage.add(key))
+        km += mileage(shift);
+      for (final e in forShift(shift['id'] as String)) {
+        final amount = (e['amount'] as num?)?.toDouble() ?? 0;
+        if (e['kind'] == 'trip') {
+          final rates = e['salaryRates'] == null
+              ? ratesAt(DateTime.parse(e['date'] as String))
+              : SalaryRates.decode(e['salaryRates']);
+          if (e['type'] == 'Город') {
+            city += amount;
+            cityPay += amount * rates['city']!;
+          } else {
+            region += amount;
+            regionPay += amount * rates['region']!;
+          }
+          if (e['isPaid'] == true) paidPay += rates['paid']!;
+        }
+        if (e['kind'] == 'fuel') {
+          if (e['type'] == 'Газ') {
+            gas += amount;
+          } else {
+            petrol += amount;
+          }
+        }
+      }
     }
-    e['amount']=amount;e['id']=id??_id();e['date']=d.toIso8601String();
-    if(old!=null)b.records.remove(old);b.records.add(e);return b;});
-  static Future<void> deleteRecord(String id)=>_change((b){b.records.removeWhere((e)=>e['id']==id);return b;});
-  static Future<void> deleteShift(String id)=>_change((b){b.records.removeWhere((e)=>e['shiftId']==id);b.shifts.removeWhere((e)=>e['id']==id);return b;});
-  static Future<void> editShift(String id,DateTime start,DateTime? end,int? startKm,int? endKm,{double? hours,int? manualKm})=>_change((b){
-    final s=b.shifts.firstWhere((s)=>s['id']==id);
-    final manual=TestState.mileageSource(s)==MileageSource.manual;
-    _hours(hours);
-    if(!manual){
-      if(startKm==null||endKm==null)throw ArgumentError('Введите показания одометра');
-      _km(startKm);if(endKm<startKm)throw ArgumentError('Проверьте время и одометр');
-    }else if(manualKm!=null&&manualKm<0){throw ArgumentError('Пробег не может быть отрицательным');}
-    if(manual&&end!=null&&manualKm==null&&s['manualKm']==null)throw ArgumentError('Введите пробег за смену');
-    if(start.isAfter(DateTime.now())||(end!=null&&(!end.isAfter(start)||end.isAfter(DateTime.now()))))throw ArgumentError('Проверьте время и одометр');
-    if((s['end']==null)!=(end==null))throw ArgumentError('Статус смены меняется кнопкой завершения');
-    for(final r in b.forShift(id)){final d=DateTime.parse(r['date'] as String);if(d.isBefore(start)||(end!=null&&d.isAfter(end)))throw ArgumentError('За границами смены остаются записи');}
-    for(final other in b.shifts.where((s)=>s['id']!=id)){final a=DateTime.parse(other['start'] as String);final z=other['end']==null?DateTime.now():DateTime.parse(other['end'] as String);if(start.isBefore(z)&&(end??DateTime.now()).isAfter(a))throw ArgumentError('Смены не должны пересекаться');}
-    s.addAll({'start':start.toIso8601String(),'end':end?.toIso8601String(),'hoursWorked':hours??s['hoursWorked']});
-    if(manual){if(manualKm!=null)s['manualKm']=manualKm;}
-    else{s.addAll({'startKm':startKm,'currentKm':endKm,'odometerSet':true});}
-    s['mileageSource']=TestState.mileageSource(s).name;
+    final normal = norm(month);
+    final base = normal == 0 ? 0.0 : weightedBase / normal;
+    for (final entry in days.entries) {
+      if (entry.value.weekday >= 6) weekend += dayRates[entry.key]!['weekend']!;
+      if (holiday(entry.value)) festive += dayRates[entry.key]!['holiday']!;
+    }
+    return {
+      'salary': base + weekend + festive + paidPay + cityPay + regionPay,
+      'base_salary': base,
+      'weekend_pay': weekend,
+      'holiday_pay': festive,
+      'paid_routes_pay': paidPay,
+      'city_pay': cityPay,
+      'region_pay': regionPay,
+      'hours': work,
+      'all_hours': allHours,
+      'norm_hours': normal,
+      'mileage': km,
+      'gas': gas,
+      'petrol': petrol,
+      'city_kg': city,
+      'region_kg': region,
+    };
+  }
+
+  double salary(Map<String, dynamic> s) {
+    final d = DateTime.parse(s['start'] as String);
+    return statistics(d, day: d)['salary']!;
+  }
+}
+
+class TestStore {
+  static final revision = TestPreferences.revision;
+  static Future<void> _queue = Future<void>.value();
+  static Future<TestState> load() async => TestState.decode(
+    (await TestPreferences.getInstance()).getString('journal'),
+  );
+  static Future<void> _change(TestState Function(TestState) change) {
+    final task = _queue.then((_) async {
+      final next = change(await load());
+      await (await TestPreferences.getInstance()).setString(
+        'journal',
+        jsonEncode(next.toJson()),
+      );
+    });
+    _queue = task.then<void>((_) {}, onError: (Object e, StackTrace s) {});
+    return task;
+  }
+
+  static Future<void> setSalaryRate(String key, double value) => _change((b) {
+    b.changeSalaryRate(key, value, DateTime.now());
     return b;
   });
-  static void _hours(double? h){if(h!=null&&(!h.isFinite||h<0))throw ArgumentError('Введите неотрицательное число часов');}
-  static Future<void> gps(String id,{bool? paused,double addKm=0})=>_change((b){final s=b.shifts.firstWhere((s)=>s['id']==id);if(s['end']!=null)throw StateError('Смена закрыта');
-    if(paused!=null)s['gpsStatus']=paused?'paused':'active';
-    if(addKm>0){if(s['gpsStatus']!='active')throw StateError('GPS на паузе');s['gpsKm']=((s['gpsKm'] as num?)?.toDouble()??0)+addKm;}return b;});
-  static Future<void> closeInvoice(String id)=>_change((b){final e=b.records.firstWhere((e)=>e['id']==id&&e['kind']=='invoice');e['status']='closed';return b;});
-  static Future<void> saveProduct({String? id,required String name,required double packKg})=>_change((b){
-    if(name.trim().isEmpty||!packKg.isFinite||packKg<=0)throw ArgumentError('Укажите название и вес упаковки');
-    if(b.products.any((p)=>p['id']!=id&&p['name']==name.trim()&&p['packKg']==packKg))throw ArgumentError('Такой товар уже есть');
-    if(id!=null&&!b.products.any((p)=>p['id']==id))throw StateError('Товар удалён');
-    b.products.removeWhere((p)=>p['id']==id);b.products.add({'id':id??_id(),'name':name.trim(),'packKg':packKg});return b;});
-  static Future<void> deleteProduct(String id)=>_change((b){b.products.removeWhere((p)=>p['id']==id);return b;});
-  static Future<void> reset(){final task=_queue.then((_) async{await (await TestPreferences.getInstance()).clear();});_queue=task.then<void>((_){},onError:(Object e,StackTrace s){});return task;}
-  static Future<void> seed()=>_change((b){if(b.shifts.isNotEmpty||b.records.isNotEmpty)throw StateError('Пример доступен только в пустом журнале');
-    final start=DateTime.now().subtract(const Duration(hours:4));final id=_id();
-    return TestState(shifts:[{'id':id,'start':start.toIso8601String(),'end':null,'startKm':128540,'currentKm':128664,'hoursWorked':8.0,'odometerSet':true,'gpsStatus':'active','gpsKm':124.0}],records:[
-      {'id':'${id}a','shiftId':id,'kind':'trip','type':'Город','direction':'Петропавловск','amount':4000.0,'date':start.add(const Duration(minutes:30)).toIso8601String(),'note':'Тестовый рейс'},
-      {'id':'${id}b','shiftId':id,'kind':'fuel','type':'Газ','amount':40.0,'date':start.add(const Duration(hours:1)).toIso8601String(),'note':''},
-      {'id':'${id}c','shiftId':id,'kind':'trip','type':'Район','direction':'Щучинск','isPaid':true,'amount':2500.0,'date':start.add(const Duration(hours:2)).toIso8601String(),'note':''}]);});
+  static String _id() => DateTime.now().microsecondsSinceEpoch.toString();
+  static void _km(int v) {
+    if (v < 0) throw ArgumentError('Одометр не может быть отрицательным');
+  }
+
+  static Future<void> open(int? km, {double? hours, bool manual = false}) =>
+      _change((b) {
+        _hours(hours);
+        if (b.active != null) throw StateError('Смена уже открыта');
+        if (!manual) {
+          if (km == null) throw ArgumentError('Введите показание одометра');
+          _km(km);
+          if (b.shifts.any(
+            (s) => s['currentKm'] is num && (s['currentKm'] as num) > km,
+          ))
+            throw ArgumentError(
+              'Одометр меньше предыдущего. Исправьте прошлую смену или введите больший пробег',
+            );
+        }
+        b.shifts.add({
+          'id': _id(),
+          'start': DateTime.now().toIso8601String(),
+          'end': null,
+          'startKm': manual ? null : km,
+          'currentKm': manual ? null : km,
+          'mileageSource':
+              (manual ? MileageSource.manual : MileageSource.odometer).name,
+          'manualKm': null,
+          'salaryRates': b.currentSalaryRates,
+          'salaryDayRates':
+              b.shifts
+                  .where(
+                    (s) =>
+                        TestState.dayKey(
+                          DateTime.parse(s['start'] as String),
+                        ) ==
+                        TestState.dayKey(DateTime.now()),
+                  )
+                  .map((s) => s['salaryDayRates'] ?? b.shiftRates(s))
+                  .firstOrNull ??
+              b.currentSalaryRates,
+          'hoursWorked': hours,
+          'odometerSet': false,
+          'gpsStatus': 'active',
+          'gpsKm': 0.0,
+        });
+        return b;
+      });
+  static Future<void> odometer(
+    String id,
+    int km, {
+    bool close = false,
+    double? hours,
+    MileageSource? source,
+  }) => _change((b) {
+    final s = b.shifts.firstWhere((s) => s['id'] == id);
+    if (s['end'] != null) throw StateError('Смена уже закрыта');
+    final selected = source ?? TestState.mileageSource(s);
+    if (selected == MileageSource.gps)
+      throw ArgumentError('GPS пока не используется для завершения смены');
+    if (km < 0)
+      throw ArgumentError(
+        selected == MileageSource.manual
+            ? 'Пробег не может быть отрицательным'
+            : 'Одометр не может быть отрицательным',
+      );
+    _hours(hours);
+    if (selected == MileageSource.manual) {
+      s['manualKm'] = km;
+      s['odometerSet'] = false;
+    } else {
+      final start = s['startKm'] as num?;
+      if (start == null)
+        throw ArgumentError(
+          'У смены нет начального показания. Введите пробег вручную',
+        );
+      if (km < start) throw ArgumentError('Пробег меньше начала смены');
+      s['currentKm'] = km;
+      s['odometerSet'] = true;
+      s['manualKm'] = null;
+    }
+    s['mileageSource'] = selected.name;
+    if (hours != null) s['hoursWorked'] = hours;
+    if (close) {
+      s['end'] = DateTime.now().toIso8601String();
+      s['gpsStatus'] = 'stopped';
+    }
+    return b;
+  });
+  static Future<void> saveRecord(Map<String, dynamic> value) => _change((b) {
+    final e = Map<String, dynamic>.from(value);
+    final kind = e['kind'];
+    if (!['trip', 'fuel', 'invoice', 'other'].contains(kind))
+      throw ArgumentError('Неизвестная запись');
+    final id = e['id'];
+    final old = b.records.where((r) => r['id'] == id).firstOrNull;
+    if (id != null && old == null) throw StateError('Запись уже удалена');
+    e['shiftId'] = old?['shiftId'] ?? e['shiftId'] ?? b.active?['id'];
+    if (e['shiftId'] == null) throw StateError('Сначала откройте смену');
+    final s = b.shifts.firstWhere((s) => s['id'] == e['shiftId']);
+    final d = DateTime.parse(
+      e['date'] as String? ?? DateTime.now().toIso8601String(),
+    );
+    if (d.isAfter(DateTime.now()) ||
+        d.isBefore(DateTime.parse(s['start'] as String)) ||
+        (s['end'] != null && d.isAfter(DateTime.parse(s['end'] as String))))
+      throw ArgumentError('Время записи должно попадать в смену');
+    final amount = (e['amount'] as num?)?.toDouble() ?? 0;
+    if (!amount.isFinite ||
+        amount < 0 ||
+        (['trip', 'fuel'].contains(kind) && amount == 0))
+      throw ArgumentError('Введите число больше нуля');
+    if (kind == 'trip' &&
+        (!['Город', 'Район'].contains(e['type']) ||
+            (e['direction'] as String? ?? '').trim().isEmpty))
+      throw ArgumentError('Укажите тип и направление');
+    if (kind == 'fuel' && !['Газ', 'Бензин'].contains(e['type']))
+      throw ArgumentError('Выберите топливо');
+    if (kind == 'other' && (e['note'] as String? ?? '').trim().isEmpty)
+      throw ArgumentError('Заполните описание или товары');
+    if (kind == 'trip')
+      e['isPaid'] =
+          e['isPaid'] == true ||
+          TestState.paidDirection(e['direction'] as String);
+    if (kind == 'invoice') {
+      if (old?['status'] == 'closed')
+        throw StateError('Закрытую накладную нельзя редактировать');
+      final items = [
+        for (final row in e['items'] as List? ?? [])
+          Map<String, dynamic>.from(row as Map),
+      ];
+      if (items.isEmpty) throw ArgumentError('Добавьте хотя бы один товар');
+      for (final item in items) {
+        final pack = (item['packKg'] as num?)?.toDouble() ?? 0;
+        final weight = (item['totalKg'] as num?)?.toDouble() ?? 0;
+        if ((item['name'] as String? ?? '').trim().isEmpty ||
+            !pack.isFinite ||
+            pack <= 0 ||
+            !weight.isFinite ||
+            weight <= 0)
+          throw ArgumentError('Проверьте название, упаковку и вес товаров');
+        item['quantity'] = (weight / pack).floor();
+        if (item['quantity'] == 0)
+          throw ArgumentError('Вес меньше одной упаковки');
+      }
+      e['items'] = items;
+      e['status'] = 'draft';
+      if (old == null) {
+        int highest = 0;
+        for (final r in b.records.where((r) => r['kind'] == 'invoice')) {
+          final number = int.tryParse(r['number']?.toString() ?? '') ?? 0;
+          if (number > highest) highest = number;
+        }
+        e['number'] = '${highest + 1}';
+      }
+    }
+    e['salaryRates'] =
+        old?['salaryRates'] ??
+        b.ratesAt(old == null ? d : DateTime.parse(old['date'] as String));
+    e['amount'] = amount;
+    e['id'] = id ?? _id();
+    e['date'] = d.toIso8601String();
+    if (old != null) b.records.remove(old);
+    b.records.add(e);
+    return b;
+  });
+  static Future<void> deleteRecord(String id) => _change((b) {
+    b.records.removeWhere((e) => e['id'] == id);
+    return b;
+  });
+  static Future<void> deleteShift(String id) => _change((b) {
+    b.records.removeWhere((e) => e['shiftId'] == id);
+    b.shifts.removeWhere((e) => e['id'] == id);
+    return b;
+  });
+  static Future<void> editShift(
+    String id,
+    DateTime start,
+    DateTime? end,
+    int? startKm,
+    int? endKm, {
+    double? hours,
+    int? manualKm,
+  }) => _change((b) {
+    final s = b.shifts.firstWhere((s) => s['id'] == id);
+    final manual = TestState.mileageSource(s) == MileageSource.manual;
+    _hours(hours);
+    if (!manual) {
+      if (startKm == null || endKm == null)
+        throw ArgumentError('Введите показания одометра');
+      _km(startKm);
+      if (endKm < startKm) throw ArgumentError('Проверьте время и одометр');
+    } else if (manualKm != null && manualKm < 0) {
+      throw ArgumentError('Пробег не может быть отрицательным');
+    }
+    if (manual && end != null && manualKm == null && s['manualKm'] == null)
+      throw ArgumentError('Введите пробег за смену');
+    if (start.isAfter(DateTime.now()) ||
+        (end != null && (!end.isAfter(start) || end.isAfter(DateTime.now()))))
+      throw ArgumentError('Проверьте время и одометр');
+    if ((s['end'] == null) != (end == null))
+      throw ArgumentError('Статус смены меняется кнопкой завершения');
+    for (final r in b.forShift(id)) {
+      final d = DateTime.parse(r['date'] as String);
+      if (d.isBefore(start) || (end != null && d.isAfter(end)))
+        throw ArgumentError('За границами смены остаются записи');
+    }
+    for (final other in b.shifts.where((s) => s['id'] != id)) {
+      final a = DateTime.parse(other['start'] as String);
+      final z = other['end'] == null
+          ? DateTime.now()
+          : DateTime.parse(other['end'] as String);
+      if (start.isBefore(z) && (end ?? DateTime.now()).isAfter(a))
+        throw ArgumentError('Смены не должны пересекаться');
+    }
+    s.addAll({
+      'start': start.toIso8601String(),
+      'end': end?.toIso8601String(),
+      'hoursWorked': hours ?? s['hoursWorked'],
+    });
+    if (manual) {
+      if (manualKm != null) s['manualKm'] = manualKm;
+    } else {
+      s.addAll({'startKm': startKm, 'currentKm': endKm, 'odometerSet': true});
+    }
+    s['mileageSource'] = TestState.mileageSource(s).name;
+    return b;
+  });
+  static void _hours(double? h) {
+    if (h != null && (!h.isFinite || h < 0))
+      throw ArgumentError('Введите неотрицательное число часов');
+  }
+
+  static Future<void> gps(String id, {bool? paused, double addKm = 0}) =>
+      _change((b) {
+        final s = b.shifts.firstWhere((s) => s['id'] == id);
+        if (s['end'] != null) throw StateError('Смена закрыта');
+        if (paused != null) s['gpsStatus'] = paused ? 'paused' : 'active';
+        if (addKm > 0) {
+          if (s['gpsStatus'] != 'active') throw StateError('GPS на паузе');
+          s['gpsKm'] = ((s['gpsKm'] as num?)?.toDouble() ?? 0) + addKm;
+        }
+        return b;
+      });
+  static Future<void> closeInvoice(String id) => _change((b) {
+    final e = b.records.firstWhere(
+      (e) => e['id'] == id && e['kind'] == 'invoice',
+    );
+    e['status'] = 'closed';
+    return b;
+  });
+  static Future<void> saveProduct({
+    String? id,
+    required String name,
+    required double packKg,
+  }) => _change((b) {
+    if (name.trim().isEmpty || !packKg.isFinite || packKg <= 0)
+      throw ArgumentError('Укажите название и вес упаковки');
+    if (b.products.any(
+      (p) => p['id'] != id && p['name'] == name.trim() && p['packKg'] == packKg,
+    ))
+      throw ArgumentError('Такой товар уже есть');
+    if (id != null && !b.products.any((p) => p['id'] == id))
+      throw StateError('Товар удалён');
+    b.products.removeWhere((p) => p['id'] == id);
+    b.products.add({'id': id ?? _id(), 'name': name.trim(), 'packKg': packKg});
+    return b;
+  });
+  static Future<void> deleteProduct(String id) => _change((b) {
+    b.products.removeWhere((p) => p['id'] == id);
+    return b;
+  });
+  static Future<void> reset() {
+    final task = _queue.then((_) async {
+      await (await TestPreferences.getInstance()).clear();
+    });
+    _queue = task.then<void>((_) {}, onError: (Object e, StackTrace s) {});
+    return task;
+  }
+
+  static Future<void> seed() => _change((b) {
+    if (b.shifts.isNotEmpty || b.records.isNotEmpty)
+      throw StateError('Пример доступен только в пустом журнале');
+    final start = DateTime.now().subtract(const Duration(hours: 4));
+    final id = _id();
+    return TestState(
+      salaryRateHistory: b.salaryRateHistory,
+      shifts: [
+        {
+          'id': id,
+          'start': start.toIso8601String(),
+          'end': null,
+          'startKm': 128540,
+          'currentKm': 128664,
+          'hoursWorked': 8.0,
+          'odometerSet': true,
+          'gpsStatus': 'active',
+          'gpsKm': 124.0,
+        },
+      ],
+      records: [
+        {
+          'id': '${id}a',
+          'shiftId': id,
+          'kind': 'trip',
+          'type': 'Город',
+          'direction': 'Петропавловск',
+          'amount': 4000.0,
+          'date': start.add(const Duration(minutes: 30)).toIso8601String(),
+          'note': 'Тестовый рейс',
+        },
+        {
+          'id': '${id}b',
+          'shiftId': id,
+          'kind': 'fuel',
+          'type': 'Газ',
+          'amount': 40.0,
+          'date': start.add(const Duration(hours: 1)).toIso8601String(),
+          'note': '',
+        },
+        {
+          'id': '${id}c',
+          'shiftId': id,
+          'kind': 'trip',
+          'type': 'Район',
+          'direction': 'Щучинск',
+          'isPaid': true,
+          'amount': 2500.0,
+          'date': start.add(const Duration(hours: 2)).toIso8601String(),
+          'note': '',
+        },
+      ],
+    );
+  });
 }
