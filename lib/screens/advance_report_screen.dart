@@ -986,9 +986,19 @@ class _AdvanceImagePreviewState extends State<_AdvanceImagePreview> {
     setState(() { _loading = true; _error = null; _bytes = null; });
     try {
       final r = widget.report;
+      final daily = <String, List<AdvanceRow>>{};
+      final ordered = List<AdvanceRow>.of(r.rows)..sort((a, b) => a.date.compareTo(b.date));
+      for (final row in ordered) {
+        daily.putIfAbsent(_date(row.date), () => []).add(row);
+      }
+      final days = daily.entries.toList();
       final data = await _channel.invokeMethod<dynamic>('render', {
         'name': widget.name, 'number': '${r.number}',
         'period': '${r.start == null ? '—' : _date(r.start!)} — ${_date(_end)}',
+        'daily': [for (final day in days.skip(_page * 16).take(16))
+          [day.key, day.value.map((row) => AdvanceRow.decimal(row.total, 2, grouped: true)).join(' + '),
+           AdvanceRow.decimal(day.value.fold<int>(0, (sum, row) => sum + row.total), 2, grouped: true)]],
+        'dailyContinues': days.length > (_page + 1) * 16,
         'received': AdvanceRow.decimal(r.received, 2, grouped: true),
         'expenses': AdvanceRow.decimal(r.expenses, 2, grouped: true),
         'balance': AdvanceRow.decimal(r.balance, 2, grouped: true),
