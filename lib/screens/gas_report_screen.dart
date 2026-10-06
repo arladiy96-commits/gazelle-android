@@ -16,7 +16,6 @@ class _GasReportScreenState extends State<_GasReportScreen> {
   String? _error, _keptSignature;
   bool _distance = false, _busy = false, _expanded = false;
   int _request = 0;
-  final _horizontal = ScrollController();
   @override
   void initState() {
     super.initState();
@@ -27,7 +26,6 @@ class _GasReportScreenState extends State<_GasReportScreen> {
   @override
   void dispose() {
     TestStore.revision.removeListener(_reload);
-    _horizontal.dispose();
     super.dispose();
   }
 
@@ -257,17 +255,27 @@ class _GasReportScreenState extends State<_GasReportScreen> {
   }
 
   Widget _stat(String label,String value,IconData icon,{String? note,Color color=gold,VoidCallback? onTap}) {
-    final content=Container(padding:const EdgeInsets.all(11),decoration:BoxDecoration(
-      borderRadius:BorderRadius.circular(12),border:Border.all(color:const Color(0xFF4D585C),width:.7),
-      gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
-        colors:[Color(0xB3263035),Color(0xE6091319)])),
-      child:Row(children:[Icon(icon,color:color,size:28),const SizedBox(width:10),Expanded(child:Column(
-        crossAxisAlignment:CrossAxisAlignment.start,children:[
-          Text(label,style:const TextStyle(color:Color(0xFFD2D9DB),fontSize:12,height:1.3)),
-          const SizedBox(height:6),Text(value,style:const TextStyle(color:Color(0xFFF2F2EF),fontSize:21,fontWeight:FontWeight.w600)),
-          if(note!=null)Padding(padding:const EdgeInsets.only(top:3),child:Text(note,style:const TextStyle(color:muted,fontSize:10))),
-        ]))]));
-    return onTap==null?content:InkWell(borderRadius:BorderRadius.circular(12),onTap:onTap,child:content);
+    final content=Container(padding:const EdgeInsets.all(2),decoration:BoxDecoration(
+      borderRadius:BorderRadius.circular(11),
+      gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF74634A),Color(0xFF35424A),Color(0xFF171F25),Color(0xFF5E503B)]),
+      boxShadow:const [BoxShadow(color:Color(0x65000000),blurRadius:5,offset:Offset(0,3))]),
+      child:Container(padding:const EdgeInsets.fromLTRB(9,11,9,11),decoration:BoxDecoration(
+        borderRadius:BorderRadius.circular(9),border:Border.all(color:const Color(0xFF424A4A),width:.5),
+        gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
+          colors:[Color(0xEF1D272B),Color(0xEB101B22),Color(0xF2071016)])),
+        child:Row(children:[
+          Container(width:30,height:39,alignment:Alignment.center,decoration:BoxDecoration(
+            borderRadius:BorderRadius.circular(7),border:Border.all(color:const Color(0x665F645E),width:.6),
+            gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF303A3C),Color(0xFF0D161D)])),
+            child:Icon(icon,color:color,size:25,shadows:const [Shadow(color:Color(0xAA000000),offset:Offset(1,2),blurRadius:2)])),
+          const SizedBox(width:8),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Text(label,style:const TextStyle(color:Color(0xFFCBD2D4),fontSize:11,height:1.25)),
+            const SizedBox(height:6),FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,
+              child:Text(value,maxLines:1,style:const TextStyle(color:Color(0xFFF0F1EF),fontSize:20,fontWeight:FontWeight.w600))),
+            if(note!=null)Padding(padding:const EdgeInsets.only(top:4),child:Text(note,style:const TextStyle(color:muted,fontSize:9,height:1.2))),
+          ])),
+        ])));
+    return onTap==null?content:InkWell(borderRadius:BorderRadius.circular(11),onTap:onTap,child:content);
   }
   Widget _cylinders()=>SizedBox(width:83,height:60,child:Stack(alignment:Alignment.bottomCenter,children:[
     for(var i=0;i<3;i++)Positioned(left:i*23.0,bottom:i==1?0:3,child:Column(children:[
@@ -386,62 +394,59 @@ class _GasReportScreenState extends State<_GasReportScreen> {
     );
   }
 
-  Widget _cell(String text,double width,{bool header=false,bool total=false,bool left=false})=>Container(
-    width:width,height:header?48:38,alignment:left?Alignment.centerLeft:Alignment.centerRight,
-    padding:const EdgeInsets.symmetric(horizontal:7),decoration:const BoxDecoration(
-      border:Border(bottom:BorderSide(color:Color(0xFF29383E),width:.5),right:BorderSide(color:Color(0xFF253239),width:.5))),
-    child:Text(text,maxLines:header?3:1,overflow:TextOverflow.ellipsis,style:TextStyle(
-      color:header?muted:total?gold:const Color(0xFFE7EBEC),fontSize:header?11:13,fontWeight:total?FontWeight.w600:FontWeight.w400)));
-  void _toggleTable(){
-    if(_horizontal.hasClients){_horizontal.jumpTo(0);}
-    setState(()=>_expanded=!_expanded);
-  }
+  void _toggleTable()=>setState(()=>_expanded=!_expanded);
   Widget _table(GasReport r){
     final rows=_expanded?r.days:r.days.take(5).toList();
     final distance=_expanded&&_distance;
-    final directionWidth=math.max(165.0,rows.fold<double>(0,(value,d){
-      final painter=TextPainter(text:TextSpan(text:d.directions,style:const TextStyle(fontSize:13)),textDirection:TextDirection.ltr,textScaler:MediaQuery.textScalerOf(context))..layout();
-      final width=painter.width+20;painter.dispose();return math.max(value,width);
-    }));
+    Widget cell(String value,{bool header=false,bool total=false,bool left=false})=>Padding(
+      padding:EdgeInsets.symmetric(horizontal:3,vertical:header?8:6),
+      child:Text(value,textAlign:left?TextAlign.left:TextAlign.center,softWrap:true,
+        style:TextStyle(color:header?const Color(0xFFBDC7CB):total?gold:const Color(0xFFE3E8E9),
+          fontSize:header?9.5:10.5,height:1.2,fontWeight:total?FontWeight.w600:FontWeight.w400)));
+    TableRow line(List<String> values,{bool header=false,bool total=false,GasReportDay? day})=>TableRow(
+      decoration:BoxDecoration(color:header?const Color(0x70111B20):total?const Color(0x9910191C):Colors.transparent),
+      children:[for(var i=0;i<values.length;i++)
+        if(day!=null)InkWell(onTap:()=>_openDaySummary(context,day.date),
+          child:cell(values[i],left:i==values.length-1))
+        else cell(values[i],header:header,total:total,left:i==values.length-1),
+      ]);
     return _panel(Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
       Padding(padding:const EdgeInsets.fromLTRB(10,5,8,5),child:Row(children:[
         Expanded(child:Text(_expanded?'Журнал за месяц':'По дням',style:const TextStyle(color:Colors.white,fontSize:18,fontWeight:FontWeight.w600))),
         OutlinedButton(onPressed:_toggleTable,style:OutlinedButton.styleFrom(foregroundColor:gold,
           side:const BorderSide(color:Color(0xFF997B48),width:.8),backgroundColor:const Color(0x303F301B),
-          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10)),padding:const EdgeInsets.symmetric(horizontal:10)),
+          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(9)),padding:const EdgeInsets.symmetric(horizontal:10)),
           child:Text(_expanded?'Свернуть ↙':'Развернуть ↗',style:const TextStyle(fontSize:12))),
       ])),
-      if(_expanded)Padding(padding:const EdgeInsets.fromLTRB(7,0,7,9),child:Row(children:[
+      if(_expanded)Padding(padding:const EdgeInsets.fromLTRB(5,0,5,8),child:Row(children:[
         for(final mode in [false,true])Expanded(child:Padding(padding:const EdgeInsets.symmetric(horizontal:3),child:TextButton(
-          onPressed:(){if(_horizontal.hasClients){_horizontal.jumpTo(0);}setState(()=>_distance=mode);},
+          onPressed:()=>setState(()=>_distance=mode),
           style:TextButton.styleFrom(foregroundColor:_distance==mode?gold:muted,
             backgroundColor:_distance==mode?const Color(0x664B391E):const Color(0x99081015),
-            shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8),side:BorderSide(color:_distance==mode?const Color(0xFFA78951):const Color(0xFF39464C),width:.8)),
-            padding:const EdgeInsets.symmetric(horizontal:5,vertical:10)),
-          child:Text(mode?'Пробег за день':'Показания одометра',textAlign:TextAlign.center,style:const TextStyle(fontSize:12))))),
+            shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(7),side:BorderSide(color:_distance==mode?const Color(0xFFA78951):const Color(0xFF39464C),width:.8)),
+            padding:const EdgeInsets.symmetric(horizontal:4,vertical:10)),
+          child:Text(mode?'Пробег за день':'Показания одометра',textAlign:TextAlign.center,style:const TextStyle(fontSize:11))))),
       ])),
-      Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Container(color:const Color(0xFF101A20),child:Column(children:[
-          _cell('Дата',54,header:true,left:true),
-          for(final d in rows)Semantics(button:true,label:'Сводка за ${_detailDate(d.date)}',child:InkWell(onTap:()=>_openDaySummary(context,d.date),
-            child:_cell('${d.date.day.toString().padLeft(2,'0')}.${d.date.month.toString().padLeft(2,'0')}',54,left:true))),
-          if(_expanded)_cell('Итого',54,total:true,left:true),
-        ])),
-        Expanded(child:Scrollbar(controller:_horizontal,thumbVisibility:true,notificationPredicate:(n)=>n.metrics.axis==Axis.horizontal,
-          child:SingleChildScrollView(controller:_horizontal,scrollDirection:Axis.horizontal,padding:const EdgeInsets.only(bottom:7),child:Column(children:[
-            Row(children:[if(distance)_cell('Пробег\nза день, км',104,header:true)else ...[_cell('Пробег\nна начало',86,header:true),_cell('Пробег\nна конец',86,header:true)],
-              _cell('Газ,\nл',60,header:true),_cell('Бензин,\nл',66,header:true),_cell('Направление',directionWidth,header:true,left:true)]),
-            for(final d in rows)Row(children:[if(distance)_cell('${_number(d.km)}${d.pending>0?' *':''}',104)else ...[
-              _cell(d.startKm==null?'—':_number(d.startKm!),86),_cell(d.endKm==null?'—':_number(d.endKm!),86)],
-              _cell(d.gas==0?'—':_number(d.gas),60),_cell(d.petrol==0?'—':_number(d.petrol),66),_cell(d.directions.isEmpty?'—':d.directions,directionWidth,left:true)]),
-            if(_expanded)Row(children:[_cell('${_number(r.km)} км',distance?104:172,total:true),_cell(_number(r.gas),60,total:true),_cell(_number(r.petrol),66,total:true),_cell('',directionWidth,total:true)]),
-          ])))),
-      ]),
-      if(r.days.isEmpty)const Padding(padding:EdgeInsets.all(16),child:Text('В этом месяце смен пока нет.',style:TextStyle(color:muted,fontSize:13))),
+      Padding(padding:const EdgeInsets.symmetric(horizontal:6),child:Table(
+        defaultVerticalAlignment:TableCellVerticalAlignment.middle,
+        border:TableBorder.all(color:const Color(0xFF28343A),width:.5,borderRadius:BorderRadius.circular(7)),
+        columnWidths:distance?const {0:FlexColumnWidth(12),1:FlexColumnWidth(21),2:FlexColumnWidth(12),3:FlexColumnWidth(13),4:FlexColumnWidth(42)}:
+          const {0:FlexColumnWidth(11),1:FlexColumnWidth(17),2:FlexColumnWidth(17),3:FlexColumnWidth(10),4:FlexColumnWidth(11),5:FlexColumnWidth(34)},
+        children:[
+          line(['Дата',if(distance)'Пробег\nза день, км'else ...['Начало,\nкм','Конец,\nкм'],'Газ,\nл','Бензин,\nл','Направление'],header:true),
+          for(final d in rows)line([
+            '${d.date.day.toString().padLeft(2,'0')}.${d.date.month.toString().padLeft(2,'0')}',
+            if(distance)'${_number(d.km)}${d.pending>0?' *':''}'else ...[d.startKm==null?'—':_number(d.startKm!),d.endKm==null?'—':_number(d.endKm!)],
+            d.gas==0?'—':_number(d.gas),d.petrol==0?'—':_number(d.petrol),d.directions.isEmpty?'—':d.directions,
+          ],day:d),
+          if(_expanded)line(['Итого',_number(r.km),if(!distance)'км',_number(r.gas),_number(r.petrol),''],total:true),
+        ],
+      )),
+      if(r.days.isEmpty)const Padding(padding:EdgeInsets.all(16),child:Text('В этом месяце смен пока нет.',style:TextStyle(color:muted,fontSize:12))),
       if(!_expanded&&r.days.isNotEmpty)TextButton(onPressed:_toggleTable,style:TextButton.styleFrom(foregroundColor:muted),
-        child:Text('Показано ${rows.length} из ${r.days.length} дней ⌄',style:const TextStyle(fontSize:11))),
-      if(_expanded)const Padding(padding:EdgeInsets.fromLTRB(10,5,10,10),child:Text('Колонки прокручиваются ↔ · Дата открывает сводку дня',style:TextStyle(color:muted,fontSize:10))),
-      if(r.pending>0)const Padding(padding:EdgeInsets.all(10),child:Text('* Учтён только сохранённый пробег; итог незавершённых смен может измениться.',style:TextStyle(color:muted,fontSize:11))),
+        child:Text('Показано ${rows.length} из ${r.days.length} дней ⌄',style:const TextStyle(fontSize:10))),
+      if(_expanded)const Padding(padding:EdgeInsets.all(10),child:Text('Нажмите строку, чтобы открыть сводку дня',style:TextStyle(color:muted,fontSize:10))),
+      if(r.pending>0)const Padding(padding:EdgeInsets.all(10),child:Text('* Учтён только сохранённый пробег; итог незавершённых смен может измениться.',style:TextStyle(color:muted,fontSize:10))),
     ]),padding:EdgeInsets.zero);
   }
   void _navigate(int index) {
