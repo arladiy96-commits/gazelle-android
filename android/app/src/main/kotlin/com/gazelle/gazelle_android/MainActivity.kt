@@ -18,6 +18,8 @@ import io.flutter.plugin.common.MethodChannel
 class MoneyShareFileProvider : FileProvider()
 
 class MainActivity : FlutterActivity() {
+    private var advanceChannel: MethodChannel? = null
+    private val advanceExport by lazy { AdvanceImageExport(this) }
     private var moneyShareChannel: MethodChannel? = null
     private var sharingMoney = false
     private var hoodPool: SoundPool? = null
@@ -28,6 +30,10 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        advanceChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "melnitsa/advance_image")
+        advanceChannel?.setMethodCallHandler { call, result ->
+            advanceExport.handle(call.method, call.arguments as? Map<*, *> ?: emptyMap<Any, Any>(), result)
+        }
         moneyShareChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "melnitsa/money_share")
         moneyShareChannel?.setMethodCallHandler { call, result ->
             if (call.method != "share") {
@@ -164,12 +170,20 @@ class MainActivity : FlutterActivity() {
         } finally { bitmap.recycle() }
     }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (!advanceExport.onResult(requestCode, resultCode, data)) {
+            super.onActivityResult(requestCode, resultCode, data)
+        }
+    }
+
     override fun onPause() {
         hoodPool?.autoPause()
         super.onPause()
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        advanceChannel?.setMethodCallHandler(null)
+        advanceChannel = null
         moneyShareChannel?.setMethodCallHandler(null)
         moneyShareChannel = null
         hoodChannel?.setMethodCallHandler(null)
