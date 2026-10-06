@@ -429,15 +429,6 @@ class _GasReportScreenState extends State<_GasReportScreen> {
       if(r.pending>0)const Padding(padding:EdgeInsets.all(10),child:Text('* Учтён только сохранённый пробег; итог незавершённых смен может измениться.',style:TextStyle(color:muted,fontSize:10))),
     ]),padding:EdgeInsets.zero);
   }
-  void _navigate(int index) {
-    if (index == 2) {
-      _showQuickAddMenu(context, widget.session);
-      return;
-    }
-    Navigator.of(context).pop();
-    widget.onNavigate(index);
-  }
-
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now(), r = _report;
@@ -562,10 +553,6 @@ class _GasReportScreenState extends State<_GasReportScreen> {
                               if(!_expanded)...[const SizedBox(height:12),_status(r)],
                             ],
                           ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 4, 8, 3),
-                    child: _MillDock(index: 4, onChanged: _navigate),
                   ),
                 ],
               ),
