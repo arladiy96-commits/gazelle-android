@@ -57,13 +57,13 @@ class MainActivity : FlutterActivity() {
                                     startActivity(Intent.createChooser(intent, "Поделиться покупюрником"))
                                     result.success(null)
                                 } catch (e: Exception) {
-                                    result.error("share_failed", "Не удалось открыть отправку", null)
+                                    result.error("share_failed", "Не удалось открыть отправку", "${e.javaClass.simpleName}: ${e.message}")
                                 } finally { sharingMoney = false }
                             }
                         } catch (e: Exception) {
                             runOnUiThread {
                                 sharingMoney = false
-                                result.error("export_failed", "Не удалось создать покупюрник", null)
+                                result.error("export_failed", "Не удалось создать покупюрник", "${e.javaClass.simpleName}: ${e.message}")
                             }
                         }
                     }.start()
