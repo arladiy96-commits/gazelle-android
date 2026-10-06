@@ -10,6 +10,10 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
     with WidgetsBindingObserver {
   static const gold = _CinematicMore.gold;
   static const muted = Color(0xFFB1B4B4);
+  static const _rateKey = 'gas_calculator_rate_v1';
+  static const _tankKey = 'gas_calculator_tank_v1';
+  double _rate = GasCalculation.rate, _tank = GasCalculation.tank;
+  bool _editingSetting = false;
   GasReport? _report;
   DateTime? _month;
   double? _firstKm;
@@ -44,6 +48,9 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
       final now = DateTime.now();
       final month = DateTime(now.year, now.month);
       final report = await GasReportRepository.load(month);
+      final prefs = await TestPreferences.getInstance();
+      final rate = prefs.getDouble(_rateKey);
+      final tank = prefs.getDouble(_tankKey);
       final book = await TestStore.load();
       final shifts =
           book.shifts
@@ -66,6 +73,12 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
         }
         _month = month;
         _report = report;
+        _rate = rate != null && rate.isFinite && rate > 0
+            ? rate
+            : GasCalculation.rate;
+        _tank = tank != null && tank.isFinite && tank >= 0
+            ? tank
+            : GasCalculation.tank;
         _firstKm = shifts.isEmpty
             ? null
             : (shifts.first['startKm'] as num).toDouble();
@@ -212,42 +225,144 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
     ),
   );
 
+  Widget _settingLine(String label, String value, bool rate) => Semantics(
+    button: true,
+    label: '$label, $value. Удерживайте для изменения',
+    child: InkWell(
+      onLongPress: () => _editSetting(rate),
+      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Удерживайте строку, чтобы изменить значение'),
+          duration: Duration(seconds: 2),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: _line(label, value),
+      ),
+    ),
+  );
+
+  Future<void> _editSetting(bool rate) async {
+    if (_editingSetting) return;
+    _editingSetting = true;
+    HapticFeedback.selectionClick();
+    final controller = TextEditingController(
+      text: _plain(rate ? _rate : _tank),
+    );
+    controller.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: controller.text.length,
+    );
+    String? error;
+    bool saving = false;
+    try {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialog) => StatefulBuilder(
+          builder: (dialog, update) => AlertDialog(
+            backgroundColor: const Color(0xFF141A1C),
+            title: Text(
+              rate ? 'Расход, л / 100 км' : 'Газ в баке, л',
+              style: const TextStyle(color: gold, fontSize: 18),
+            ),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              enabled: !saving,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                errorText: error,
+                helperText: 'Настройка только для калькулятора',
+                helperMaxLines: 2,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: saving ? null : () => Navigator.pop(dialog),
+                child: const Text('Отмена'),
+              ),
+              TextButton(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        final value = GasCalculation.parse(
+                          controller.text.trim(),
+                        );
+                        if (value == null || (rate && value <= 0)) {
+                          update(
+                            () => error = rate
+                                ? 'Введите расход больше нуля'
+                                : 'Введите число от нуля',
+                          );
+                          return;
+                        }
+                        update(() {
+                          saving = true;
+                          error = null;
+                        });
+                        try {
+                          final prefs = await TestPreferences.getInstance();
+                          final saved = await prefs.setDouble(
+                            rate ? _rateKey : _tankKey,
+                            value,
+                          );
+                          if (!saved) throw StateError('Не сохранено');
+                          if (mounted)
+                            setState(() {
+                              if (rate) {
+                                _rate = value;
+                              } else {
+                                _tank = value;
+                              }
+                            });
+                          if (dialog.mounted) Navigator.pop(dialog);
+                        } catch (_) {
+                          if (dialog.mounted)
+                            update(() {
+                              saving = false;
+                              error = 'Не удалось сохранить. Повторите.';
+                            });
+                        }
+                      },
+                child: const Text('Сохранить'),
+              ),
+            ],
+          ),
+        ),
+      );
+    } finally {
+      // Wait for the dialog's exit animation before releasing its controller.
+      Future<void>.delayed(
+        const Duration(milliseconds: 300),
+        controller.dispose,
+      );
+      _editingSetting = false;
+    }
+  }
+
   Widget _content(GasReport r) {
-    final km = _distance;
-    final hand = GasCalculation.parse(_hand);
-    final calculation = r.opening != null && km != null && hand != null
-        ? GasCalculation(
-            opening: r.opening!,
-            received: r.gas,
-            distance: km,
-            onHand: hand,
-          )
-        : null;
     final entered = GasCalculation.parse(_odometer);
     final badOdometer =
         !_manualMode &&
         entered != null &&
         _firstKm != null &&
         entered < _firstKm!;
-    final diff = calculation?.difference;
-    final result = diff == null
-        ? 'Заполните данные для расчёта'
-        : diff == 0
-        ? '✓ По норме'
-        : diff > 0
-        ? 'Излишек: +${_number(diff)} л'
-        : 'Недостача: −${_number(-diff)} л';
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
       children: [
         _panel(
           Column(
             children: [
-              _line('Остаток с прошлого месяца', _litres(r.opening)),
-              _line('Получено газа за месяц', _litres(r.gas)),
+              _settingLine('Расход', '${_number(_rate)} л / 100 км', true),
+              _settingLine('В баке', _litres(_tank), false),
               const Divider(color: Color(0x445F625D), height: 12),
               _line(
-                'Доступный газ',
+                'Газ за месяц',
                 _litres(r.opening == null ? null : r.opening! + r.gas),
                 strong: true,
               ),
@@ -342,66 +457,57 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
             ],
           ),
         ),
-        _panel(
-          Column(
-            children: [
-              _line(
-                'Пробег для расчёта',
-                km == null ? '—' : '${_number(km)} км',
-              ),
-              _line(
-                'Расход · 28 л / 100 км',
-                _litres(km == null ? null : km * GasCalculation.rate / 100),
-              ),
-              _line(
-                'Расчётный остаток',
-                _litres(
-                  r.opening == null || km == null
-                      ? null
-                      : r.opening! + r.gas - km * GasCalculation.rate / 100,
-                ),
-              ),
-              const Divider(color: Color(0x445F625D), height: 12),
-              _line('Газ на руках', _litres(hand)),
-              _line('В баке · автоматически', '+110 л'),
-              _line(
-                'Фактический остаток',
-                _litres(hand == null ? null : hand + GasCalculation.tank),
-                strong: true,
-              ),
-            ],
-          ),
-        ),
-        _panel(
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Фактический − расчётный остаток',
-                style: TextStyle(color: muted, fontSize: 11),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                result,
-                style: TextStyle(
-                  color: diff == null
-                      ? muted
-                      : diff < 0
-                      ? const Color(0xFFD49A86)
-                      : gold,
-                  fontSize: diff == null ? 16 : 23,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 5),
-              const Text(
-                'Только расчёт. Данные приложения не изменяются.',
-                style: TextStyle(color: muted, fontSize: 10),
-              ),
-            ],
-          ),
-        ),
       ],
+    );
+  }
+
+  Widget _result(GasReport r) {
+    final km = _distance;
+    final hand = GasCalculation.parse(_hand);
+    final calculation = r.opening != null && km != null && hand != null
+        ? GasCalculation(
+            opening: r.opening!,
+            received: r.gas,
+            distance: km,
+            onHand: hand,
+            consumptionRate: _rate,
+            tankLitres: _tank,
+          )
+        : null;
+    final diff = calculation?.difference;
+    final result = diff == null
+        ? 'Заполните данные для расчёта'
+        : diff == 0
+        ? '✓ По норме'
+        : diff > 0
+        ? 'Излишек: +${_number(diff)} л'
+        : 'Недостача: −${_number(-diff)} л';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: _panel(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Фактический − расчётный остаток',
+              style: TextStyle(color: muted, fontSize: 11),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              result,
+              style: TextStyle(
+                color: diff == null
+                    ? muted
+                    : diff < 0
+                    ? const Color(0xFFD49A86)
+                    : gold,
+                fontSize: diff == null ? 16 : 23,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -552,6 +658,8 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
                       ? const SizedBox.shrink()
                       : _content(_report!),
                 ),
+                if (!_loading && _error.isEmpty && _report != null)
+                  _result(_report!),
                 if (_keys && !_loading && _error.isEmpty) _keyboard(),
               ],
             ),
