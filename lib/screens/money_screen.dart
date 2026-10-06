@@ -245,13 +245,21 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
     setState(() => _busy = true);
     final record = _draft.snapshot(committed: true);
     final history = [record, ..._history.where((e) => e.id != record.id)];
+    final nextDraft = MoneyCount.empty();
     try {
-      await _repository.store(record, history);
+      // Archive and reset are persisted together, before clearing the screen.
+      await _repository.store(nextDraft, history);
       if (!mounted) return;
       setState(() {
-        _draft = record;
+        _draft = nextDraft;
         _history = history;
-        _saved = true;
+        _saved = false;
+        _cashMode = false;
+        _historyMode = false;
+        _opened = null;
+        _denomination = 20000;
+        _cashInput = '';
+        _replaceCash = true;
         _writeError = '';
       });
       _notice('Подсчёт сохранён в истории');
