@@ -253,43 +253,54 @@ class _GasReportScreenState extends State<_GasReportScreen> {
     }
   }
 
-  Widget _stat(String label,String value,IconData icon,{String? note,Color color=gold,VoidCallback? onTap}) {
-    final content=_GasMetalSurface(
-      compact:true,
-      padding:const EdgeInsets.fromLTRB(11,13,11,13),
-      child:Row(children:[
-          SizedBox(width:30,height:39,
-            child:Icon(icon,color:color,size:25,shadows:const [Shadow(color:Color(0xAA000000),offset:Offset(1,2),blurRadius:2)])),
-          const SizedBox(width:8),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-            Text(label,style:const TextStyle(color:Color(0xFFCBD2D4),fontSize:11,height:1.25)),
-            const SizedBox(height:6),FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,
-              child:Text(value,maxLines:1,style:const TextStyle(color:Color(0xFFF0F1EF),fontSize:20,fontWeight:FontWeight.w600))),
-            if(note!=null)Padding(padding:const EdgeInsets.only(top:4),child:Text(note,style:const TextStyle(color:muted,fontSize:9,height:1.2))),
-          ])),
-        ]));
-    return onTap==null?content:InkWell(borderRadius:BorderRadius.circular(11),onTap:onTap,child:content);
+  Widget _menuContent(String title, String subtitle, IconData icon,
+      VoidCallback? action, {IconData arrow = Icons.chevron_right}) => InkWell(
+    onTap: action,
+    borderRadius: BorderRadius.circular(12),
+    child: Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Row(children: [
+      Icon(icon, color: action == null ? muted : gold, size: 32),
+      const SizedBox(width: 14),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        Text(subtitle, style: const TextStyle(color: muted, fontSize: 12)),
+      ])),
+      const SizedBox(width: 6), Icon(arrow, color: action == null ? muted : gold, size: 24),
+    ])),
+  );
+
+  Widget _summary(GasReport r) {
+    Widget metric(String label, double? value, IconData icon, {bool negative = false}) => Expanded(
+      child: Padding(padding: const EdgeInsets.symmetric(horizontal: 5), child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [Icon(icon, size: 18, color: gold), const SizedBox(width: 4),
+            Flexible(child: Text(label, style: const TextStyle(color: muted, fontSize: 11)))]),
+          const SizedBox(height: 8),
+          FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+            child: Text(_litres(value), style: TextStyle(color: negative ? const Color(0xFFD29280) : Colors.white,
+              fontSize: 23, fontWeight: FontWeight.w600))),
+        ])),
+    );
+    return Column(children: [
+      _panel(Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        metric('Получено', r.gas, Icons.propane_tank_outlined),
+        metric('Расход', r.consumption, Icons.local_fire_department_outlined),
+        metric('Остаток', r.closing, Icons.propane_tank_outlined, negative: (r.closing ?? 0) < 0),
+      ])),
+      const SizedBox(height: 8),
+      _GasMetalSurface(compact: true, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        child: InkWell(onTap: _busy ? null : () => _opening(r), child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10), child: Row(children: [
+            const Text('На начало месяца: ', style: TextStyle(color: muted, fontSize: 13)),
+            Expanded(child: Text(r.opening == null ? 'Указать' : _litres(r.opening),
+              style: const TextStyle(color: gold, fontSize: 16, fontWeight: FontWeight.w600))),
+            const Icon(Icons.edit_outlined, color: gold, size: 19),
+          ])))),
+      if ((r.closing ?? 0) < 0) const Padding(padding: EdgeInsets.only(top: 7), child: Text(
+        'Отрицательный остаток: проверьте выдачи и начальный остаток.',
+        style: TextStyle(color: Color(0xFFD29280), fontSize: 11))),
+    ]);
   }
-  Widget _summary(GasReport r)=>_panel(Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    const Text('Итоги месяца',style:TextStyle(color:Colors.white,fontSize:19,fontWeight:FontWeight.w600)),const SizedBox(height:12),
-    IntrinsicHeight(child:Row(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-      Expanded(child:_stat('Остаток\nс прошлого месяца',_litres(r.opening),Icons.propane_tank_outlined,onTap:_busy?null:()=>_opening(r))),
-      const SizedBox(width:8),Expanded(child:_stat('Получено газа\nза месяц',_litres(r.gas),Icons.propane_tank_outlined)),
-    ])),const SizedBox(height:8),
-    IntrinsicHeight(child:Row(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-      Expanded(child:_stat('Пробег за месяц','${_number(r.km)} км',Icons.add_road_outlined,color:const Color(0xFFB9B7AE))),
-      const SizedBox(width:8),Expanded(child:_stat('Расход по норме',_litres(r.consumption),Icons.local_fire_department_outlined,
-        color:const Color(0xFFB9B7AE),note:'Норма 28 л / 100 км')),
-    ])),const SizedBox(height:9),
-    _GasMetalSurface(compact:true,padding:const EdgeInsets.symmetric(horizontal:13,vertical:12),
-      child:Row(children:[Icon(Icons.propane_tank_outlined,color:(r.closing??0)<0?const Color(0xFFD29280):const Color(0xFF86B7A2),size:32),
-        const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text('Текущий остаток',style:TextStyle(color:Color(0xFFD1DFDA),fontSize:13)),const SizedBox(height:4),
-          Text(_litres(r.closing),style:TextStyle(color:(r.closing??0)<0?const Color(0xFFD29280):const Color(0xFF80B79B),fontSize:27,fontWeight:FontWeight.w600)),
-        ])),const SizedBox(width:83,height:60,child:Icon(Icons.local_fire_department_outlined,color:Color(0x888F918D),size:44))])),
-    if((r.closing??0)<0)const Padding(padding:EdgeInsets.only(top:8),child:Text('Отрицательный остаток: проверьте выдачи и начальный остаток.',style:TextStyle(color:Color(0xFFD29280),fontSize:12))),
-    if(r.opening==null)_action('Указать остаток с прошлого месяца',_busy?null:()=>_opening(r),icon:Icons.edit_outlined)
-    else Padding(padding:const EdgeInsets.only(top:7),child:Text('Нажмите на начальный остаток, чтобы изменить его.',style:const TextStyle(color:muted,fontSize:10))),
-  ]),padding:const EdgeInsets.all(10));
   Widget _status(GasReport r) {
     final kept = _keptSignature == r.signature;
     return _panel(
@@ -349,12 +360,13 @@ class _GasReportScreenState extends State<_GasReportScreen> {
               style: const TextStyle(color: muted, fontSize: 13),
             ),
           ] else
-            _action(
+            _menuContent(
               'Отчёт сдан',
+              'Перенести остаток в следующий месяц',
+              Icons.check_circle_outline,
               _busy || r.pending > 0 || r.opening == null
                   ? null
                   : () => _submit(r),
-              icon: Icons.check_circle_outline,
             ),
           if (r.pending > 0)
             Padding(
@@ -376,6 +388,9 @@ class _GasReportScreenState extends State<_GasReportScreen> {
 
   void _toggleTable()=>setState(()=>_expanded=!_expanded);
   Widget _table(GasReport r){
+    if (!_expanded) return _panel(_menuContent('По дням',
+      '${r.days.length} дн. · ${_number(r.km)} км', Icons.format_list_bulleted,
+      _toggleTable, arrow: Icons.expand_more));
     final rows=_expanded?r.days:r.days.take(5).toList();
     final distance=_expanded&&_distance;
     Widget cell(String value,{bool header=false,bool total=false,bool left=false})=>Padding(
@@ -545,16 +560,20 @@ class _GasReportScreenState extends State<_GasReportScreen> {
                             ),
                           )
                         : ListView(
-                            key:ValueKey(_expanded),
+
                             padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
                             children: [
-                              if(!_expanded)...[_summary(r),const SizedBox(height:12)],
-                              _action('Создать картинку бланка', _busy ? null : () {
-                                Navigator.push(context, MaterialPageRoute<void>(builder: (_) =>
-                                  _GasFormPreview(report: r, name: widget.session.displayName, distance: _distance)));
-                              }, icon: Icons.image_outlined),
+                              _summary(r),
+                              const SizedBox(height: 12),
+                              _panel(_menuContent('Открыть бланк', 'Просмотр и сохранение картинки',
+                                Icons.description_outlined, _busy ? null : () {
+                                  Navigator.push(context, MaterialPageRoute<void>(builder: (_) =>
+                                    _GasFormPreview(report: r, name: widget.session.displayName, distance: _distance)));
+                                })),
+                              const SizedBox(height: 12),
                               _table(r),
-                              if(!_expanded)...[const SizedBox(height:12),_status(r)],
+                              const SizedBox(height: 12),
+                              _status(r),
                             ],
                           ),
                   ),
