@@ -332,129 +332,78 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
   }
 
   Widget _summary(AdvanceReport report) => _GasMetalSurface(
-    padding: const EdgeInsets.all(14),
+    padding: const EdgeInsets.all(16),
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _text(
-                'Мельничный комплекс · № ${report.number}',
-                color: gold,
-                size: 12,
-              ),
-            ),
-            _text(
-              _archive == null ? 'Текущий' : 'Сдан',
-              size: 11,
-              color: muted,
-            ),
-          ],
-        ),
-        const SizedBox(height: 5),
-        _text(widget.session.displayName, size: 12, color: muted),
-        const SizedBox(height: 4),
-        _text(
-          report.start == null
-              ? 'Новый отчёт'
-              : '${_date(report.start!)} — ${report.submittedAt == null ? 'по настоящее время' : _date(report.submittedAt!)}',
-          size: 11,
-          color: muted,
-        ),
-        const SizedBox(height: 12),
         InkWell(
           onTap: _archive != null || _busy ? null : _editCash,
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _text('Получено из кассы', size: 12, color: muted),
-                    _text(
-                      report.automaticCash
-                          ? 'Автоматически по расходам'
-                          : 'Указано вручную',
-                      size: 10,
-                      color: gold,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: FittedBox(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                Expanded(child: _text('Получено из кассы', color: muted)),
+                const SizedBox(width: 8),
+                Flexible(child: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: _text(_money(report.received), size: 23, bold: true),
-                ),
-              ),
-              if (_archive == null)
-                const Padding(
-                  padding: EdgeInsets.only(left: 8),
-                  child: Icon(Icons.edit_outlined, color: gold, size: 18),
-                ),
-            ],
+                )),
+                if (_archive == null) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.edit_outlined, color: gold, size: 18),
+                ],
+              ],
+            ),
           ),
         ),
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 10),
           child: Divider(height: 1, color: Color(0xFF4B4943)),
         ),
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _text('Расходы', size: 11, color: muted),
-                  const SizedBox(height: 3),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: _text(_money(report.expenses), size: 21, bold: true),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _text(
-                    report.balance < 0 ? 'Остаток · перерасход' : 'Остаток',
-                    size: 11,
-                    color: muted,
-                  ),
-                  const SizedBox(height: 3),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: _text(
-                      _money(report.balance),
-                      size: 21,
-                      bold: true,
-                      color: report.balance < 0
-                          ? const Color(0xFFD29280)
-                          : const Color(0xFFBFCABF),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        if (_archive != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: _text(
-              'Зафиксировано ${_date(report.submittedAt!)} · ${_detailTime(report.submittedAt!)}',
-              size: 10,
-              color: muted,
+        InkWell(
+          onTap: _busy ? null : () => setState(() => _expanded = true),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                Expanded(child: _text('Расходы', color: muted)),
+                const SizedBox(width: 8),
+                Flexible(child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: _text(_money(report.expenses), size: 23, bold: true),
+                )),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right, color: gold, size: 20),
+              ],
             ),
           ),
+        ),
       ],
     ),
   );
+
+  Widget _menuAction(String title, IconData icon, VoidCallback? action) =>
+      _GasMetalSurface(
+        compact: true,
+        padding: const EdgeInsets.all(8),
+        child: TextButton(
+          onPressed: _busy ? null : action,
+          style: TextButton.styleFrom(
+            foregroundColor: gold,
+            disabledForegroundColor: muted.withValues(alpha: .45),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 23),
+              const SizedBox(width: 12),
+              Expanded(child: Text(title,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600))),
+              const Icon(Icons.chevron_right, size: 20),
+            ],
+          ),
+        ),
+      );
+
   Widget _table(AdvanceReport report) {
     Widget cell(
       String text, {
@@ -548,95 +497,65 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
     );
   }
 
-  Widget _body(AdvanceReport report) => Column(
-    children: [
-      if (!_expanded) ...[_summary(report), const SizedBox(height: 10)],
-      _action('Создать картинку бланка', _busy ? null : () {
-        Navigator.push(context, MaterialPageRoute<void>(builder: (_) =>
-          _AdvanceImagePreview(report: report, name: widget.session.displayName)));
-      }, icon: Icons.image_outlined),
-      Expanded(
-        child: _GasMetalSurface(
-          padding: const EdgeInsets.fromLTRB(8, 7, 8, 8),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: _text(
-                      'Расходы · ${report.rows.length}',
-                      size: 15,
-                      bold: true,
-                    ),
-                  ),
-                  _action(
-                    _expanded ? 'Свернуть ↙' : 'Развернуть ↗',
-                    () => setState(() => _expanded = !_expanded),
-                  ),
-                ],
-              ),
-              if (_archive == null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: _text(
-                    'Нажмите строку для изменения · суммы в тенге',
-                    size: 10,
-                    color: muted,
-                  ),
-                ),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _table(report),
-                      if (report.rows.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 30,
-                            horizontal: 12,
-                          ),
-                          child: _text(
-                            'Расходов пока нет. Суточные появятся из рейсов в Кокшетау, Щучинск, Новоишимское и Саумалколь. Покупки добавьте кнопкой ниже.',
-                            size: 12,
-                            color: muted,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      if (_archive == null)
-        Padding(
-          padding: const EdgeInsets.only(top: 7),
-          child: _GasMetalSurface(
-            compact: true,
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
-            child: Row(
+  Widget _body(AdvanceReport report) {
+    if (_expanded) {
+      return _GasMetalSurface(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          children: [
+            Row(
               children: [
-                Expanded(
-                  child: _action(
-                    'Добавить расход',
-                    () => _editExpense(),
-                    icon: Icons.add,
-                  ),
-                ),
-                Expanded(
-                  child: _action(
-                    'Отчёт сдан',
-                    report.rows.isEmpty ? null : _submit,
-                    icon: Icons.check_circle_outline,
-                  ),
-                ),
+                Expanded(child: _text('Расходы · ${report.rows.length}',
+                  size: 16, bold: true)),
+                _action('Закрыть', () => setState(() => _expanded = false)),
               ],
             ),
-          ),
+            if (_archive == null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _text('Нажмите расход, чтобы изменить или удалить',
+                  size: 11, color: muted),
+              ),
+            Expanded(child: SingleChildScrollView(
+              child: report.rows.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 30),
+                      child: _text('Расходов пока нет', color: muted),
+                    )
+                  : _table(report),
+            )),
+            if (_archive == null)
+              _action('Добавить расход', () => _editExpense(), icon: Icons.add),
+          ],
         ),
-    ],
-  );
+      );
+    }
+    return ListView(
+      children: [
+        if (_archive != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _text('Сдан · № ${report.number} · ${_date(report.submittedAt!)}',
+              color: muted, size: 12),
+          ),
+        _summary(report),
+        const SizedBox(height: 12),
+        if (_archive == null) ...[
+          _menuAction('Добавить расход', Icons.add, () => _editExpense()),
+          const SizedBox(height: 12),
+        ],
+        _menuAction('Открыть бланк', Icons.description_outlined, () {
+          Navigator.push(context, MaterialPageRoute<void>(builder: (_) =>
+            _AdvanceImagePreview(report: report, name: widget.session.displayName)));
+        }),
+        if (_archive == null) ...[
+          const SizedBox(height: 12),
+          _menuAction('Отчёт сдан', Icons.check_circle_outline,
+            report.rows.isEmpty ? null : _submit),
+        ],
+      ],
+    );
+  }
   Widget _historyList() {
     final history = _data!.ledger.history;
     if (history.isEmpty)
