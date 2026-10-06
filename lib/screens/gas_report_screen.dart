@@ -276,16 +276,16 @@ class _GasReportScreenState extends State<_GasReportScreen> {
       const SizedBox(width:8),Expanded(child:_stat('Получено газа\nза месяц',_litres(r.gas),Icons.propane_tank_outlined)),
     ])),const SizedBox(height:8),
     IntrinsicHeight(child:Row(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-      Expanded(child:_stat('Пробег за месяц','${_number(r.km)} км',Icons.add_road_outlined,color:const Color(0xFF9AB9C8))),
+      Expanded(child:_stat('Пробег за месяц','${_number(r.km)} км',Icons.add_road_outlined,color:const Color(0xFFB9B7AE))),
       const SizedBox(width:8),Expanded(child:_stat('Расход по норме',_litres(r.consumption),Icons.local_fire_department_outlined,
-        color:const Color(0xFF9AB9C8),note:'Норма 28 л / 100 км')),
+        color:const Color(0xFFB9B7AE),note:'Норма 28 л / 100 км')),
     ])),const SizedBox(height:9),
     _GasMetalSurface(compact:true,padding:const EdgeInsets.symmetric(horizontal:13,vertical:12),
       child:Row(children:[Icon(Icons.propane_tank_outlined,color:(r.closing??0)<0?const Color(0xFFD29280):const Color(0xFF86B7A2),size:32),
         const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           const Text('Текущий остаток',style:TextStyle(color:Color(0xFFD1DFDA),fontSize:13)),const SizedBox(height:4),
           Text(_litres(r.closing),style:TextStyle(color:(r.closing??0)<0?const Color(0xFFD29280):const Color(0xFF80B79B),fontSize:27,fontWeight:FontWeight.w600)),
-        ])),const SizedBox(width:83,height:60,child:Icon(Icons.local_fire_department_outlined,color:Color(0x887D9AA8),size:44))])),
+        ])),const SizedBox(width:83,height:60,child:Icon(Icons.local_fire_department_outlined,color:Color(0x888F918D),size:44))])),
     if((r.closing??0)<0)const Padding(padding:EdgeInsets.only(top:8),child:Text('Отрицательный остаток: проверьте выдачи и начальный остаток.',style:TextStyle(color:Color(0xFFD29280),fontSize:12))),
     if(r.opening==null)_action('Указать остаток с прошлого месяца',_busy?null:()=>_opening(r),icon:Icons.edit_outlined)
     else Padding(padding:const EdgeInsets.only(top:7),child:Text('Нажмите на начальный остаток, чтобы изменить его.',style:const TextStyle(color:muted,fontSize:10))),
@@ -629,7 +629,7 @@ class _GasMetalPainter extends CustomPainter {
     if (image == null) {
       canvas.drawRRect(
         RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(12)),
-        Paint()..color = const Color(0xFF09151E),
+        Paint()..color = const Color(0xFF141719),
       );
       return;
     }
@@ -647,8 +647,14 @@ class _GasMetalPainter extends CustomPainter {
     final dy = [0.0, edge, size.height - edge, size.height];
     final paint = Paint()
       ..filterQuality = FilterQuality.medium
-      // Keep the Work material, with restrained highlights on a dense report.
-      ..colorFilter = const ColorFilter.mode(Color(0xFFD5D5D5), BlendMode.modulate);
+      // Neutral graphite surfaces and warm metal, matching the Home panels.
+      // Mix the blue reflections toward grey without tinting text or status colours.
+      ..colorFilter = const ColorFilter.matrix(<double>[
+        .84, .12, .04, 0, 0,
+        .08, .70, .06, 0, 0,
+        .04, .40, .24, 0, 0,
+        0, 0, 0, 1, 0,
+      ]);
     for (var row = 0; row < 3; row++) {
       for (var column = 0; column < 3; column++) {
         canvas.drawImageRect(
