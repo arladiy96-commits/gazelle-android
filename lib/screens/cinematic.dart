@@ -684,7 +684,7 @@ class _CinematicMore extends StatelessWidget {
   static const gold = Color(0xFFCEA15B);
   static const groups = <(String, IconData, List<(String,String,IconData,Color)>)>[
     ('РАБОЧЕЕ', Icons.bar_chart, [
-      ('Деньги','Касса и чеки',Icons.payments_outlined,gold),
+      ('Деньги','Накладные и сверка наличных',Icons.payments_outlined,gold),
       ('Авансовый отчёт','Расходы и архив',Icons.assignment_outlined,gold),
       ('Отчёт за газ','Выдача и расход',Icons.local_gas_station_outlined,Color(0xFFC96B50)),
       ('Расчёт газа','Расчёт по своим данным',Icons.calculate_outlined,gold),
@@ -720,6 +720,11 @@ class _CinematicMore extends StatelessWidget {
     child:Icon(icon,color:color,size:26,shadows:const [Shadow(color:Colors.black,offset:Offset(1,2),blurRadius:3)]));
   void open(BuildContext context,(String,String,IconData,Color) item) {
     HapticFeedback.selectionClick();
+    if(item.$1=='Деньги'){
+      Navigator.push(context,_SceneRoute<void>(builder:(_)=>MoneyScreen(
+        session:session,onNavigate:(i)=>navigate(context,i))));
+      return;
+    }
     if(item.$1=='Отчёт за газ'){
       Navigator.push(context,_SceneRoute<void>(builder:(_)=>_GasReportScreen(
         session:session,onNavigate:(i)=>navigate(context,i))));
