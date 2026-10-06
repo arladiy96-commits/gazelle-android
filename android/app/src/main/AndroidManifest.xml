@@ -7,6 +7,14 @@
         android:label="Мельница"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <provider
+            android:name=".MoneyShareFileProvider"
+            android:authorities="${applicationId}.money_files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/money_share_paths" />
+        </provider>
         <activity
             android:name=".MainActivity"
             android:exported="true"
