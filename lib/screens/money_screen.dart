@@ -735,6 +735,30 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
     );
   }
 
+  Future<void> _shareCount() async {
+    final count = _opened;
+    if (count == null || _busy) return;
+    setState(() => _busy = true);
+    try {
+      await const MethodChannel('melnitsa/money_share').invokeMethod<void>(
+        'share', {
+          'date': '${_detailDate(count.date)} · ${_detailTime(count.date)}',
+          'rows': [for (final nominal in MoneyCount.denominations)
+            [MoneyCount.format(nominal * 100), '${count.counts[nominal] ?? 0}',
+              MoneyCount.format(nominal * (count.counts[nominal] ?? 0) * 100)]],
+          'cash': MoneyCount.format(count.counted),
+          'invoices': MoneyCount.format(count.expected),
+          'invoiceCount': '${count.invoices.length}',
+          'difference': _difference(count),
+        },
+      );
+    } catch (_) {
+      if (mounted) _notice('Не удалось подготовить покупюрник. Попробуйте ещё раз.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Widget _historyList() => _history.isEmpty
       ? Center(child: _text('Сохранённых подсчётов пока нет', color: muted))
       : ListView.builder(
@@ -876,6 +900,8 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
                                     : Column(
                                         children: [
                                           _totals(),
+                                          if (_readOnly)
+                                            _button('Поделиться покупюрником', _busy ? null : _shareCount),
                                           if (_writeError.isNotEmpty)
                                             InkWell(
                                               onTap: () {
