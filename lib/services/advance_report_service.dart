@@ -28,7 +28,9 @@ class AdvanceReportRepository {
     );
   }
 
-  Future<void> _change(Future<AdvanceLedger> Function(AdvanceLedger) edit) {
+  Future<void> _change(
+    Future<AdvanceLedger> Function(AdvanceLedger ledger) edit,
+  ) {
     final task = _queue.then((_) async {
       final next = await edit(await _ledger());
       await (await TestPreferences.getInstance()).setString(
@@ -41,13 +43,14 @@ class AdvanceReportRepository {
   }
 
   Future<void> saveExpense(AdvanceRow row) =>
-      _change((ledger) async => ledger.withExpense(row));
+      _change((AdvanceLedger ledger) async => ledger.withExpense(row));
   Future<void> deleteExpense(String id) =>
-      _change((ledger) async => ledger.withoutExpense(id));
+      _change((AdvanceLedger ledger) async => ledger.withoutExpense(id));
   Future<void> setCash(int? value) =>
-      _change((ledger) async => ledger.withCash(value));
-  Future<void> submit(String expectedSignature) => _change((ledger) async {
-    final book = await TestStore.load();
-    return ledger.submit(book.records, expectedSignature, DateTime.now());
-  });
+      _change((AdvanceLedger ledger) async => ledger.withCash(value));
+  Future<void> submit(String expectedSignature) =>
+      _change((AdvanceLedger ledger) async {
+        final book = await TestStore.load();
+        return ledger.submit(book.records, expectedSignature, DateTime.now());
+      });
 }
