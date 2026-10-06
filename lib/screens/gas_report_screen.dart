@@ -551,7 +551,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
                               if(!_expanded)...[_summary(r),const SizedBox(height:12)],
                               _action('Создать картинку бланка', _busy ? null : () {
                                 Navigator.push(context, MaterialPageRoute<void>(builder: (_) =>
-                                  _GasFormPreview(report: r, name: widget.session.displayName)));
+                                  _GasFormPreview(report: r, name: widget.session.displayName, distance: _distance)));
                               }, icon: Icons.image_outlined),
                               _table(r),
                               if(!_expanded)...[const SizedBox(height:12),_status(r)],
@@ -681,12 +681,14 @@ class _GasMetalPainter extends CustomPainter {
 class _GasFormPreview extends StatefulWidget {
   final GasReport report;
   final String name;
-  const _GasFormPreview({required this.report, required this.name});
+  final bool distance;
+  const _GasFormPreview({required this.report, required this.name, this.distance = false});
   @override
   State<_GasFormPreview> createState() => _GasFormPreviewState();
 }
 class _GasFormPreviewState extends State<_GasFormPreview> {
   static const _channel = MethodChannel('melnitsa/advance_image');
+  late bool _distanceMode = widget.distance;
   final _organization = TextEditingController();
   final _vehicle = TextEditingController();
   late final _name = TextEditingController(text: widget.name);
@@ -710,13 +712,15 @@ class _GasFormPreviewState extends State<_GasFormPreview> {
       }
       final data = await _channel.invokeMethod<dynamic>('renderGas', {
         'organization': _organization.text.trim(), 'vehicle': _vehicle.text.trim(), 'name': _name.text.trim(),
+        'distanceMode': _distanceMode, 'km': _num(r.km),
         'month': '${_garageMonths[r.month.month - 1]} ${r.month.year}',
         'opening': _num(r.opening), 'closing': _num(r.closing), 'gas': _num(r.gas),
         'rows': [for (final d in r.days) [
           '${d.date.day.toString().padLeft(2, '0')}.${d.date.month.toString().padLeft(2, '0')}',
           missingHours.contains(TestState.dayKey(d.date)) ? '—' : _num(hours[TestState.dayKey(d.date)]),
-          _num(d.startKm), _num(d.endKm), _num(d.gas),
-          [d.directions, if (d.startKm == null || d.endKm == null) 'Пробег: ${_num(d.km)} км'].where((s) => s.isNotEmpty).join('; '),
+          if (_distanceMode) _num(d.km) else ...[_num(d.startKm), _num(d.endKm)],
+          _num(d.gas),
+          [d.directions, if (!_distanceMode && (d.startKm == null || d.endKm == null)) 'Пробег: ${_num(d.km)} км'].where((s) => s.isNotEmpty).join('; '),
         ]],
         'note': [if (r.opening == null) 'Начальный остаток не задан.',
           if (r.pending > 0) 'Есть незавершённые смены или неуказанный пробег.',
@@ -744,6 +748,15 @@ class _GasFormPreviewState extends State<_GasFormPreview> {
       if (_error != null) Padding(padding: const EdgeInsets.all(12), child: Text(_error!, style: const TextStyle(color: Colors.white))),
       Expanded(child: _bytes == null ? ListView(padding: const EdgeInsets.all(18), children: [
         _GasMetalSurface(padding: const EdgeInsets.all(16), child: Column(children: [
+          const Text('Пробег в бланке', style: TextStyle(color: Colors.white)),
+          RadioListTile<bool>(value: false, groupValue: _distanceMode,
+            activeColor: _CinematicMore.gold,
+            title: const Text('Показания одометра', style: TextStyle(color: Colors.white)),
+            onChanged: _busy ? null : (value) => setState(() => _distanceMode = value!)),
+          RadioListTile<bool>(value: true, groupValue: _distanceMode,
+            activeColor: _CinematicMore.gold,
+            title: const Text('Пробег за день', style: TextStyle(color: Colors.white)),
+            onChanged: _busy ? null : (value) => setState(() => _distanceMode = value!)),
           for (final field in [(_organization, 'Организация (можно оставить пустым)'), (_vehicle, 'Марка техники'), (_name, 'ФИО водителя')])
             Padding(padding: const EdgeInsets.only(bottom: 14), child: TextField(controller: field.$1,
               enabled: !_busy, maxLength: 120, style: const TextStyle(color: Colors.white),
