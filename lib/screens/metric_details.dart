@@ -1972,7 +1972,7 @@ class _MetricDetailsState extends State<_MetricDetails> {
                 ),
               ),
               TextButton(
-                onPressed: _salaryStatistics,
+                onPressed: () => _openSalaryReport(context, _month),
                 style: TextButton.styleFrom(
                   foregroundColor: _amber,
                   padding: EdgeInsets.zero,
@@ -1980,7 +1980,7 @@ class _MetricDetailsState extends State<_MetricDetails> {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('К показателям', style: TextStyle(fontSize: 11)),
+                    Text('Создать отчёт', style: TextStyle(fontSize: 11)),
                     SizedBox(width: 3),
                     Icon(Icons.chevron_right, size: 20),
                   ],
@@ -5871,14 +5871,14 @@ class _SalaryDashboardState extends State<_SalaryDashboard> {
                       272,
                       53,
                       tap(
-                        'К показателям',
-                        () => _openGarageSection(context, 'Статистика', ''),
+                        'Создать отчёт',
+                        () => _openSalaryReport(context, month),
                         Row(
                           children: [
                             const Icon(Icons.bar_chart, color: gold, size: 35),
                             const SizedBox(width: 22),
                             Expanded(
-                              child: text('К показателям', 23, color: gold),
+                              child: text('Создать отчёт', 23, color: gold),
                             ),
                             const Icon(
                               Icons.chevron_right,
@@ -6272,6 +6272,161 @@ class _SalaryRatesScreenState extends State<_SalaryRatesScreen> {
             ),
           ),
         ],
+      ),
+    ),
+  );
+}
+
+void _openSalaryReport(BuildContext context, DateTime month) => Navigator.push(
+  context,
+  MaterialPageRoute<void>(builder: (_) => _SalaryReportPreview(month: month)),
+);
+
+class _SalaryReportPreview extends StatefulWidget {
+  final DateTime month;
+  const _SalaryReportPreview({required this.month});
+  @override
+  State<_SalaryReportPreview> createState() => _SalaryReportPreviewState();
+}
+
+class _SalaryReportPreviewState extends State<_SalaryReportPreview> {
+  static const channel = MethodChannel('melnitsa/advance_image');
+  dynamic _bytes;
+  bool _loading = true, _sharing = false;
+  String? _error;
+  @override
+  void initState() {
+    super.initState();
+    _render();
+  }
+
+  Future<void> _render() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final b = await TestStore.load();
+      final month = widget.month;
+      final stats = b.statistics(month);
+      final shifts = b.shifts
+          .where((s) => b.inMonth(s['start'] as String, month))
+          .toList();
+      final ids = shifts.map((s) => s['id']).toSet();
+      final paid = b.records
+          .where(
+            (r) =>
+                ids.contains(r['shiftId']) &&
+                r['kind'] == 'trip' &&
+                r['isPaid'] == true,
+          )
+          .length;
+      final weekends = shifts
+          .map((s) => DateTime.parse(s['start'] as String))
+          .where((d) => d.weekday >= 6)
+          .map(TestState.dayKey)
+          .toSet()
+          .length;
+      String weight(double value) => '${_fmt1(value)} кг';
+      final data = await channel.invokeMethod<dynamic>('renderSalary', {
+        'month': '${_garageMonths[month.month - 1]} ${month.year}',
+        'rows': [
+          ['Городской вес', weight(stats['city_kg'] ?? 0)],
+          ['Районный вес', weight(stats['region_kg'] ?? 0)],
+          ['Платные поездки', '$paid'],
+          ['Отработано выходных', '$weekends'],
+        ],
+      });
+      if (mounted)
+        setState(() {
+          _bytes = data;
+          _loading = false;
+        });
+    } catch (_) {
+      if (mounted)
+        setState(() {
+          _error = 'Не удалось создать отчёт';
+          _loading = false;
+        });
+    }
+  }
+
+  Future<void> _share() async {
+    if (_bytes == null || _sharing) return;
+    setState(() => _sharing = true);
+    try {
+      await channel.invokeMethod<void>('shareSalary', {'bytes': _bytes});
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Не удалось открыть отправку. Попробуйте ещё раз.'),
+          ),
+        );
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => PopScope(
+    canPop: !_sharing,
+    child: Scaffold(
+      backgroundColor: const Color(0xFF111619),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF111619),
+        foregroundColor: Colors.white,
+        title: const Text('Отчёт для сверки'),
+        automaticallyImplyLeading: !_sharing,
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _error!,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          TextButton(
+                            onPressed: _render,
+                            child: const Text('Повторить'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : InteractiveViewer(
+                      minScale: 1,
+                      maxScale: 4,
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Image.memory(_bytes),
+                        ),
+                      ),
+                    ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: TextButton.icon(
+                onPressed: _loading || _sharing || _bytes == null
+                    ? null
+                    : _share,
+                style: TextButton.styleFrom(
+                  foregroundColor: _CinematicMore.gold,
+                ),
+                icon: const Icon(Icons.share_outlined),
+                label: Text(_sharing ? 'Подготовка…' : 'Поделиться картинкой'),
+              ),
+            ),
+          ],
+        ),
       ),
     ),
   );
