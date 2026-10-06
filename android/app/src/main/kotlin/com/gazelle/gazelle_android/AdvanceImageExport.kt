@@ -17,9 +17,9 @@ class AdvanceImageExport(private val activity: Activity) {
 
     fun handle(method: String, args: Map<*, *>, result: MethodChannel.Result) {
         when (method) {
-            "render" -> Thread {
+            "render", "renderGas" -> Thread {
                 try {
-                    val bytes = render(args)
+                    val bytes = if (method == "renderGas") GasImageForm.render(args) else render(args)
                     activity.runOnUiThread { result.success(bytes) }
                 } catch (e: Exception) {
                     activity.runOnUiThread { result.error("render", e.message, null) }
@@ -35,7 +35,7 @@ class AdvanceImageExport(private val activity: Activity) {
                     activity.startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                         addCategory(Intent.CATEGORY_OPENABLE)
                         type = "image/png"
-                        putExtra(Intent.EXTRA_TITLE, "avans_${System.currentTimeMillis()}.png")
+                        putExtra(Intent.EXTRA_TITLE, "${if (args["kind"] == "gas") "gas_report" else "avans"}_${System.currentTimeMillis()}.png")
                     }, requestCode)
                 } catch (e: Exception) {
                     pending = null; pendingBytes = null
