@@ -752,11 +752,27 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
           'difference': _difference(count),
         },
       );
-    } catch (_) {
-      if (mounted) _notice('Не удалось подготовить покупюрник. Попробуйте ещё раз.');
+    } on MissingPluginException {
+      await _shareError('В установленной сборке не найден Android-модуль отправки. '
+        'Проверьте замену MainActivity.kt и установку нового APK.');
+    } on PlatformException catch (e) {
+      await _shareError('${e.code}: ${e.message ?? "Ошибка Android"}'
+        '${e.details == null ? "" : "\n${e.details}"}');
+    } catch (e) {
+      await _shareError(e.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _shareError(String message) async {
+    if (!mounted) return;
+    await showDialog<void>(context: context, builder: (dialog) => AlertDialog(
+      backgroundColor: const Color(0xFF161A1C),
+      title: const Text('Не удалось отправить покупюрник'),
+      content: SingleChildScrollView(child: SelectableText(message)),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Закрыть'))],
+    ));
   }
 
   Widget _historyList() => _history.isEmpty
