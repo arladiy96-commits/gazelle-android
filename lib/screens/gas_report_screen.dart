@@ -102,8 +102,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
   Widget _panel(
     Widget child, {
     EdgeInsets padding = const EdgeInsets.all(14),
-  }) => Container(
-    decoration: _CinematicMore.panel(),
+  }) => _GasMetalSurface(
     padding: padding,
     child: child,
   );
@@ -255,18 +254,11 @@ class _GasReportScreenState extends State<_GasReportScreen> {
   }
 
   Widget _stat(String label,String value,IconData icon,{String? note,Color color=gold,VoidCallback? onTap}) {
-    final content=Container(padding:const EdgeInsets.all(2),decoration:BoxDecoration(
-      borderRadius:BorderRadius.circular(11),
-      gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF74634A),Color(0xFF35424A),Color(0xFF171F25),Color(0xFF5E503B)]),
-      boxShadow:const [BoxShadow(color:Color(0x65000000),blurRadius:5,offset:Offset(0,3))]),
-      child:Container(padding:const EdgeInsets.fromLTRB(9,11,9,11),decoration:BoxDecoration(
-        borderRadius:BorderRadius.circular(9),border:Border.all(color:const Color(0xFF424A4A),width:.5),
-        gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
-          colors:[Color(0xEF1D272B),Color(0xEB101B22),Color(0xF2071016)])),
-        child:Row(children:[
-          Container(width:30,height:39,alignment:Alignment.center,decoration:BoxDecoration(
-            borderRadius:BorderRadius.circular(7),border:Border.all(color:const Color(0x665F645E),width:.6),
-            gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF303A3C),Color(0xFF0D161D)])),
+    final content=_GasMetalSurface(
+      compact:true,
+      padding:const EdgeInsets.fromLTRB(11,13,11,13),
+      child:Row(children:[
+          SizedBox(width:30,height:39,
             child:Icon(icon,color:color,size:25,shadows:const [Shadow(color:Color(0xAA000000),offset:Offset(1,2),blurRadius:2)])),
           const SizedBox(width:8),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
             Text(label,style:const TextStyle(color:Color(0xFFCBD2D4),fontSize:11,height:1.25)),
@@ -274,19 +266,9 @@ class _GasReportScreenState extends State<_GasReportScreen> {
               child:Text(value,maxLines:1,style:const TextStyle(color:Color(0xFFF0F1EF),fontSize:20,fontWeight:FontWeight.w600))),
             if(note!=null)Padding(padding:const EdgeInsets.only(top:4),child:Text(note,style:const TextStyle(color:muted,fontSize:9,height:1.2))),
           ])),
-        ])));
+        ]));
     return onTap==null?content:InkWell(borderRadius:BorderRadius.circular(11),onTap:onTap,child:content);
   }
-  Widget _cylinders()=>SizedBox(width:83,height:60,child:Stack(alignment:Alignment.bottomCenter,children:[
-    for(var i=0;i<3;i++)Positioned(left:i*23.0,bottom:i==1?0:3,child:Column(children:[
-      Container(width:10,height:6,decoration:BoxDecoration(border:Border.all(color:i==0?const Color(0xFF71838B):gold,width:1.3),borderRadius:BorderRadius.circular(2))),
-      Container(width:26,height:i==1?48:42,decoration:BoxDecoration(borderRadius:BorderRadius.circular(8),
-        border:Border.all(color:const Color(0xFF73624B),width:.6),gradient:LinearGradient(colors:i==0?
-          const [Color(0xFF162129),Color(0xFF69777B),Color(0xFF14222B)]:
-          const [Color(0xFF342B20),Color(0xFF9C7A42),Color(0xFF2F281F)]),
-        boxShadow:const [BoxShadow(color:Color(0x99000000),blurRadius:4,offset:Offset(2,3))])),
-    ])),
-  ]));
   Widget _summary(GasReport r)=>_panel(Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
     const Text('Итоги месяца',style:TextStyle(color:Colors.white,fontSize:19,fontWeight:FontWeight.w600)),const SizedBox(height:12),
     IntrinsicHeight(child:Row(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
@@ -298,14 +280,12 @@ class _GasReportScreenState extends State<_GasReportScreen> {
       const SizedBox(width:8),Expanded(child:_stat('Расход по норме',_litres(r.consumption),Icons.local_fire_department_outlined,
         color:const Color(0xFF9AB9C8),note:'Норма 28 л / 100 км')),
     ])),const SizedBox(height:9),
-    Container(padding:const EdgeInsets.symmetric(horizontal:13,vertical:12),decoration:BoxDecoration(
-      borderRadius:BorderRadius.circular(12),border:Border.all(color:const Color(0xFFAD8A4D),width:.8),
-      gradient:const LinearGradient(colors:[Color(0xDB111E1E),Color(0xD2091419),Color(0xB333291B)])),
+    _GasMetalSurface(compact:true,padding:const EdgeInsets.symmetric(horizontal:13,vertical:12),
       child:Row(children:[Icon(Icons.propane_tank_outlined,color:(r.closing??0)<0?const Color(0xFFD29280):const Color(0xFF86B7A2),size:32),
         const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           const Text('Текущий остаток',style:TextStyle(color:Color(0xFFD1DFDA),fontSize:13)),const SizedBox(height:4),
           Text(_litres(r.closing),style:TextStyle(color:(r.closing??0)<0?const Color(0xFFD29280):const Color(0xFF80B79B),fontSize:27,fontWeight:FontWeight.w600)),
-        ])),_cylinders()])),
+        ])),const SizedBox(width:83,height:60,child:Icon(Icons.local_fire_department_outlined,color:Color(0x887D9AA8),size:44))])),
     if((r.closing??0)<0)const Padding(padding:EdgeInsets.only(top:8),child:Text('Отрицательный остаток: проверьте выдачи и начальный остаток.',style:TextStyle(color:Color(0xFFD29280),fontSize:12))),
     if(r.opening==null)_action('Указать остаток с прошлого месяца',_busy?null:()=>_opening(r),icon:Icons.edit_outlined)
     else Padding(padding:const EdgeInsets.only(top:7),child:Text('Нажмите на начальный остаток, чтобы изменить его.',style:const TextStyle(color:muted,fontSize:10))),
@@ -595,4 +575,107 @@ class _GasReportScreenState extends State<_GasReportScreen> {
       ),
     ));
   }
+}
+
+
+// Reuse the approved Work artwork directly. Nine-slice drawing preserves the
+// metal corners and rim thickness while the report keeps its adaptive layout.
+class _GasMetalSurface extends StatefulWidget {
+  final Widget child;
+  final EdgeInsets padding;
+  final bool compact;
+  const _GasMetalSurface({
+    required this.child,
+    this.padding = EdgeInsets.zero,
+    this.compact = false,
+  });
+
+  @override
+  State<_GasMetalSurface> createState() => _GasMetalSurfaceState();
+}
+
+class _GasMetalSurfaceState extends State<_GasMetalSurface> {
+  ImageStream? _stream;
+  ImageStreamListener? _listener;
+  ImageInfo? _artwork;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final stream = const AssetImage(
+      'assets/images/scenes/work_shift_scene.png',
+    ).resolve(createLocalImageConfiguration(context));
+    if (_stream?.key == stream.key) return;
+    if (_listener != null) _stream?.removeListener(_listener!);
+    _stream = stream;
+    _listener = ImageStreamListener((info, synchronousCall) {
+      final previous = _artwork;
+      setState(() => _artwork = info);
+      previous?.dispose();
+    });
+    stream.addListener(_listener!);
+  }
+
+  @override
+  void dispose() {
+    if (_listener != null) _stream?.removeListener(_listener!);
+    _artwork?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+    painter: _GasMetalPainter(_artwork, compact: widget.compact),
+    child: Padding(padding: widget.padding, child: widget.child),
+  );
+}
+
+class _GasMetalPainter extends CustomPainter {
+  final ImageInfo? artwork;
+  final bool compact;
+  const _GasMetalPainter(this.artwork, {required this.compact});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    final image = artwork?.image;
+    if (image == null) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(12)),
+        Paint()..color = const Color(0xFF09151E),
+      );
+      return;
+    }
+    // Source bounds include the complete rim, without neighbouring panels.
+    final source = compact
+        ? const Rect.fromLTRB(18, 632, 302, 844)
+        : const Rect.fromLTRB(17, 1057, 837, 1567);
+    final sx = image.width / 852;
+    final sy = image.height / 1846;
+    const corner = 34.0;
+    final edge = math.min(14.0, math.min(size.width, size.height) / 2);
+    final xs = [source.left, source.left + corner, source.right - corner, source.right];
+    final ys = [source.top, source.top + corner, source.bottom - corner, source.bottom];
+    final dx = [0.0, edge, size.width - edge, size.width];
+    final dy = [0.0, edge, size.height - edge, size.height];
+    final paint = Paint()
+      ..filterQuality = FilterQuality.medium
+      // Keep the Work material, with restrained highlights on a dense report.
+      ..colorFilter = const ColorFilter.mode(Color(0xFFD5D5D5), BlendMode.modulate);
+    for (var row = 0; row < 3; row++) {
+      for (var column = 0; column < 3; column++) {
+        canvas.drawImageRect(
+          image,
+          Rect.fromLTRB(xs[column] * sx, ys[row] * sy,
+              xs[column + 1] * sx, ys[row + 1] * sy),
+          Rect.fromLTRB(dx[column], dy[row], dx[column + 1], dy[row + 1]),
+          paint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _GasMetalPainter oldDelegate) =>
+      oldDelegate.artwork != artwork || oldDelegate.compact != compact;
 }
