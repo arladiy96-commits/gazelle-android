@@ -96,16 +96,19 @@ class AdvanceImageExport(private val activity: Activity) {
                 canvas.drawRect(x, y, x + w, y + h, paint)
                 paint.style = Paint.Style.FILL
             }
-            fun text(value: String, x: Float, y: Float, w: Int, h: Int, size: Float = 27f, bold: Boolean = false) {
+            fun text(value: String, x: Float, y: Float, w: Int, h: Int, size: Float = 27f, bold: Boolean = false, centered: Boolean = false) {
                 val p = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
                     color = Color.BLACK; textSize = size
                     typeface = Typeface.create("serif", if (bold) Typeface.BOLD else Typeface.NORMAL)
                 }
                 fun layout() = StaticLayout.Builder.obtain(value, 0, value.length, p, w)
-                    .setAlignment(Layout.Alignment.ALIGN_NORMAL).setIncludePad(false).build()
+                    .setAlignment(if (centered) Layout.Alignment.ALIGN_CENTER else Layout.Alignment.ALIGN_NORMAL)
+                    .setIncludePad(false).build()
                 var l = layout()
                 while (l.height > h && p.textSize > 10f) { p.textSize -= 1f; l = layout() }
-                canvas.save(); canvas.translate(x, y); l.draw(canvas); canvas.restore()
+                canvas.save()
+                canvas.translate(x, if (centered) y + (h - l.height) / 2f else y)
+                l.draw(canvas); canvas.restore()
             }
             text("АВАНСОВЫЙ ОТЧЁТ № ${v("number")}", 70f, 70f, 1080, 70, 44f, true)
             text("Мельничный комплекс", 1200f, 78f, 530, 60, 30f)
@@ -121,7 +124,9 @@ class AdvanceImageExport(private val activity: Activity) {
                 sx += width
             }
             canvas.drawLine(70f, 368f, 1730f, 368f, paint)
-            text(v("received"), 78f, 380f, 244, 60, 30f, true)
+            val summaryBodyHeight = summaryHeight - 78
+            text(v("received"), 78f, 368f, summaryWidths[0] - 16, summaryBodyHeight, 30f, true, true)
+            text(v("balance"), 1538f, 368f, summaryWidths[5] - 16, summaryBodyHeight, 28f, true, true)
             var dayY = 368f
             for ((index, day) in daily.withIndex()) {
                 val h = dailyHeights[index]
@@ -130,18 +135,23 @@ class AdvanceImageExport(private val activity: Activity) {
                 text(day.getOrElse(0) { "" }, 1113f, dayY + 10, 169, h - 16)
                 text(day.getOrElse(2) { "" }, 1298f, dayY + 10, 224, h - 16)
                 dayY += h
+                // Only these three columns have separate cells for each date.
+                var cellX = 330f
+                for (column in 1..3) {
+                    val cellEnd = cellX + summaryWidths[column]
+                    canvas.drawLine(cellX, dayY, cellEnd, dayY, paint)
+                    cellX = cellEnd
+                }
             }
             val totalY = 290f + summaryHeight - 76
             canvas.drawLine(1290f, totalY, 1530f, totalY, paint)
             if (args["dailyContinues"] == true) {
                 text("Продолжение на следующем листе", 338f, totalY + 12, 930, 54, 24f)
             } else {
-                text("Итого по всем датам", 523f, totalY + 12, 574, 54, 26f, true)
                 text(v("expenses"), 1298f, totalY + 12, 224, 54, 28f, true)
-                text(v("balance"), 1538f, totalY + 12, 184, 54, 28f, true)
             }
-            val widths = intArrayOf(65, 155, 500, 140, 220, 240, 340)
-            val headings = listOf("№", "Дата", "Наименование", "Кол-во", "Цена", "Сумма", "Направление")
+            val widths = intArrayOf(65, 655, 140, 220, 240, 340)
+            val headings = listOf("№", "Наименование", "Кол-во", "Цена", "Сумма", "Направление")
             fun row(values: List<String>, y: Float, height: Int, header: Boolean = false) {
                 var x = 70f
                 widths.forEachIndexed { i, width ->
@@ -154,7 +164,8 @@ class AdvanceImageExport(private val activity: Activity) {
             row(headings, 455f + extra, 58, true)
             for (i in 0 until 16) {
                 val values = (rows.getOrNull(i) as? List<*>)?.map { it?.toString() ?: "" } ?: emptyList()
-                row(values, 513f + extra + i * 108, 108)
+                // The payload retains dates for daily grouping; the paper detail table omits them.
+                row(values.filterIndexed { column, _ -> column != 1 }, 513f + extra + i * 108, 108)
             }
             text("Итого по отчёту: ${v("expenses")} тг", 70f, 2270f + extra, 1660, 60, 32f, true)
             text("Подотчётное лицо ____________________     Проверил ____________________", 70f, 2370f + extra, 1660, 60)
