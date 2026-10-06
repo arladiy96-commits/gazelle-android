@@ -8,6 +8,7 @@ import '../services/test_store.dart';
 import '../services/gas_report_service.dart';
 import '../services/money_service.dart';
 import '../models/advance_report.dart';
+import '../models/gas_calculation.dart';
 import '../services/advance_report_service.dart';
 import '../services/gps_tracker.dart';
 import '../widgets/shift_route_map.dart';
@@ -30,6 +31,7 @@ part 'statistics_dashboard.dart';
 part 'gas_report_screen.dart';
 part 'money_screen.dart';
 part 'advance_report_screen.dart';
+part 'gas_calculation_screen.dart';
 
 class AppShell extends StatefulWidget {
   final AppSession session;

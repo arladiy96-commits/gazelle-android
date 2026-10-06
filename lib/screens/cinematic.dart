@@ -720,6 +720,10 @@ class _CinematicMore extends StatelessWidget {
     child:Icon(icon,color:color,size:26,shadows:const [Shadow(color:Colors.black,offset:Offset(1,2),blurRadius:3)]));
   void open(BuildContext context,(String,String,IconData,Color) item) {
     HapticFeedback.selectionClick();
+    if(item.$1=='Расчёт газа'){
+      Navigator.push(context,_SceneRoute<void>(builder:(_)=>const _GasCalculationScreen()));
+      return;
+    }
     if(item.$1=='Авансовый отчёт'){
       Navigator.push(context,_SceneRoute<void>(builder:(_)=>_AdvanceReportScreen(session:session)));
       return;
