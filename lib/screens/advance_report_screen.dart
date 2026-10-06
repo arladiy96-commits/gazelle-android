@@ -551,6 +551,10 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
   Widget _body(AdvanceReport report) => Column(
     children: [
       if (!_expanded) ...[_summary(report), const SizedBox(height: 10)],
+      _action('Создать картинку бланка', _busy ? null : () {
+        Navigator.push(context, MaterialPageRoute<void>(builder: (_) =>
+          _AdvanceImagePreview(report: report, name: widget.session.displayName)));
+      }, icon: Icons.image_outlined),
       Expanded(
         child: _GasMetalSurface(
           padding: const EdgeInsets.fromLTRB(8, 7, 8, 8),
@@ -956,4 +960,83 @@ class _AdvanceExpenseEditorState extends State<_AdvanceExpenseEditor> {
       ),
     );
   }
+}
+
+
+class _AdvanceImagePreview extends StatefulWidget {
+  final AdvanceReport report;
+  final String name;
+  const _AdvanceImagePreview({required this.report, required this.name});
+  @override
+  State<_AdvanceImagePreview> createState() => _AdvanceImagePreviewState();
+}
+
+class _AdvanceImagePreviewState extends State<_AdvanceImagePreview> {
+  static const _channel = MethodChannel('melnitsa/advance_image');
+  int _page = 0;
+  bool _loading = true, _saving = false;
+  dynamic _bytes;
+  String? _error;
+  late final DateTime _end = widget.report.submittedAt ?? DateTime.now();
+  int get _pages => math.max(1, (widget.report.rows.length + 15) ~/ 16);
+  String _date(DateTime d) => '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+  @override
+  void initState() { super.initState(); _render(); }
+  Future<void> _render() async {
+    setState(() { _loading = true; _error = null; _bytes = null; });
+    try {
+      final r = widget.report;
+      final data = await _channel.invokeMethod<dynamic>('render', {
+        'name': widget.name, 'number': '${r.number}',
+        'period': '${r.start == null ? '—' : _date(r.start!)} — ${_date(_end)}',
+        'received': AdvanceRow.decimal(r.received, 2, grouped: true),
+        'expenses': AdvanceRow.decimal(r.expenses, 2, grouped: true),
+        'balance': AdvanceRow.decimal(r.balance, 2, grouped: true),
+        'page': '${_page + 1}', 'pages': '$_pages',
+        'status': r.submittedAt == null ? 'Текущий отчёт' : 'Сдан ${_date(r.submittedAt!)}',
+        'rows': [for (var i = _page * 16; i < math.min(r.rows.length, (_page + 1) * 16); i++)
+          ['${i + 1}', _date(r.rows[i].date), r.rows[i].name,
+            AdvanceRow.decimal(r.rows[i].quantity, 3),
+            AdvanceRow.decimal(r.rows[i].price, 2, grouped: true),
+            AdvanceRow.decimal(r.rows[i].total, 2, grouped: true), r.rows[i].direction]],
+      });
+      if (mounted) setState(() { _bytes = data; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _loading = false; _error = 'Не удалось создать бланк: $e'; });
+    }
+  }
+  Future<void> _saveImage() async {
+    if (_bytes == null || _saving) return;
+    setState(() => _saving = true);
+    try {
+      final saved = await _channel.invokeMethod<bool>('save', {'bytes': _bytes});
+      if (mounted && saved == true) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Картинка сохранена')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось сохранить: $e')));
+    } finally { if (mounted) setState(() => _saving = false); }
+  }
+  @override
+  Widget build(BuildContext context) => PopScope(canPop: !_saving, child: Scaffold(
+    backgroundColor: const Color(0xFF111619),
+    appBar: AppBar(backgroundColor: const Color(0xFF111619), foregroundColor: Colors.white,
+      title: const Text('Бланк отчёта'), automaticallyImplyLeading: !_saving),
+    body: SafeArea(child: Column(children: [
+      Expanded(child: _loading ? const Center(child: CircularProgressIndicator()) :
+        _error != null ? Center(child: Padding(padding: const EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [Text(_error!, style: const TextStyle(color: Colors.white)),
+            TextButton(onPressed: _render, child: const Text('Повторить'))]))) :
+        InteractiveViewer(key: ValueKey(_page), minScale: 1, maxScale: 6,
+          child: Center(child: Image.memory(_bytes, fit: BoxFit.contain)))),
+      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        IconButton(onPressed: _loading || _saving || _page == 0 ? null : () { _page--; _render(); },
+          icon: const Icon(Icons.chevron_left), color: _CinematicMore.gold),
+        Text('Лист ${_page + 1} из $_pages', style: const TextStyle(color: Colors.white)),
+        IconButton(onPressed: _loading || _saving || _page + 1 == _pages ? null : () { _page++; _render(); },
+          icon: const Icon(Icons.chevron_right), color: _CinematicMore.gold),
+      ]),
+      TextButton.icon(onPressed: _loading || _saving || _bytes == null ? null : _saveImage,
+        icon: const Icon(Icons.save_alt), label: Text(_saving ? 'Сохранение…' : 'Сохранить этот лист как картинку')),
+    ])),
+  ));
 }
