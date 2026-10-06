@@ -2,6 +2,9 @@ package com.gazelle.gazelle_android
 
 import android.app.Activity
 import android.content.Intent
+import android.content.ClipData
+import androidx.core.content.FileProvider
+import java.io.File
 import android.graphics.*
 import android.text.Layout
 import android.text.StaticLayout
@@ -17,14 +20,47 @@ class AdvanceImageExport(private val activity: Activity) {
 
     fun handle(method: String, args: Map<*, *>, result: MethodChannel.Result) {
         when (method) {
-            "render", "renderGas" -> Thread {
+            "render", "renderGas", "renderSalary" -> Thread {
                 try {
-                    val bytes = if (method == "renderGas") GasImageForm.render(args) else render(args)
+                    val bytes = when (method) {
+                        "renderGas" -> GasImageForm.render(args)
+                        "renderSalary" -> renderSalary(args)
+                        else -> render(args)
+                    }
                     activity.runOnUiThread { result.success(bytes) }
                 } catch (e: Exception) {
                     activity.runOnUiThread { result.error("render", e.message, null) }
                 }
             }.start()
+            "shareSalary" -> {
+                val bytes = args["bytes"] as? ByteArray
+                if (bytes == null) { result.error("empty", "Нет изображения", null); return }
+                Thread {
+                    try {
+                        val directory = File(activity.cacheDir, "money_exports")
+                        if (!directory.exists() && !directory.mkdirs()) error("Не удалось создать файл")
+                        val file = File.createTempFile("salary_report_", ".png", directory)
+                        file.outputStream().use { it.write(bytes) }
+                        activity.runOnUiThread {
+                            try {
+                                if (activity.isFinishing || activity.isDestroyed) error("Экран закрыт")
+                                val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.money_files", file)
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "image/png"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    putExtra(Intent.EXTRA_SUBJECT, "Данные для сверки зарплаты")
+                                    clipData = ClipData.newRawUri("Отчёт", uri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                activity.startActivity(Intent.createChooser(intent, "Поделиться отчётом"))
+                                result.success(null)
+                            } catch (e: Exception) { result.error("share", e.message, null) }
+                        }
+                    } catch (e: Exception) {
+                        activity.runOnUiThread { result.error("share", e.message, null) }
+                    }
+                }.start()
+            }
             "save" -> {
                 if (pending != null) { result.error("busy", "Сохранение уже открыто", null); return }
                 val bytes = args["bytes"] as? ByteArray
@@ -65,6 +101,52 @@ class AdvanceImageExport(private val activity: Activity) {
             }
         }.start()
         return true
+    }
+
+    private fun renderSalary(args: Map<*, *>): ByteArray {
+        val rows = args["rows"] as? List<*> ?: error("Нет данных отчёта")
+        require(rows.size == 4)
+        val bitmap = Bitmap.createBitmap(1080, 690, Bitmap.Config.ARGB_8888)
+        try {
+            val canvas = Canvas(bitmap)
+            canvas.drawColor(Color.WHITE)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+            val ink = Color.rgb(28, 33, 35)
+            val amber = Color.rgb(155, 112, 51)
+            fun text(value: String, x: Float, y: Float, size: Float,
+                     width: Float, bold: Boolean = false, right: Boolean = false) {
+                paint.color = ink
+                paint.textSize = size
+                paint.typeface = Typeface.create("sans-serif", if (bold) Typeface.BOLD else Typeface.NORMAL)
+                val measured = paint.measureText(value)
+                if (measured > width) paint.textSize *= width / measured
+                paint.textAlign = if (right) Paint.Align.RIGHT else Paint.Align.LEFT
+                canvas.drawText(value, x, y, paint)
+            }
+            paint.color = amber
+            canvas.drawRect(54f, 52f, 61f, 178f, paint)
+            text("ДАННЫЕ ДЛЯ СВЕРКИ ЗАРПЛАТЫ", 83f, 88f, 36f, 940f, true)
+            text((args["month"]?.toString() ?: "").take(80), 83f, 151f, 39f, 940f, true)
+            var y = 215f
+            rows.forEachIndexed { index, raw ->
+                val row = raw as? List<*> ?: error("Строка")
+                require(row.size == 2)
+                if (index % 2 == 0) {
+                    paint.color = Color.rgb(246, 246, 243)
+                    canvas.drawRect(54f, y, 1026f, y + 100f, paint)
+                }
+                text(row[0].toString().take(80), 76f, y + 63f, 31f, 525f)
+                text(row[1].toString().take(80), 1004f, y + 63f, 39f, 375f, true, true)
+                y += 100f
+                paint.color = Color.rgb(216, 216, 210)
+                paint.strokeWidth = 1f
+                canvas.drawLine(54f, y, 1026f, y, paint)
+            }
+            return ByteArrayOutputStream().use { out ->
+                check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, out))
+                out.toByteArray()
+            }
+        } finally { bitmap.recycle() }
     }
 
     private fun render(args: Map<*, *>): ByteArray {
