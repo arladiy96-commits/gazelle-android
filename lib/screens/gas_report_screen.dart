@@ -549,6 +549,10 @@ class _GasReportScreenState extends State<_GasReportScreen> {
                             padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
                             children: [
                               if(!_expanded)...[_summary(r),const SizedBox(height:12)],
+                              _action('Создать картинку бланка', _busy ? null : () {
+                                Navigator.push(context, MaterialPageRoute<void>(builder: (_) =>
+                                  _GasFormPreview(report: r, name: widget.session.displayName)));
+                              }, icon: Icons.image_outlined),
                               _table(r),
                               if(!_expanded)...[const SizedBox(height:12),_status(r)],
                             ],
@@ -671,4 +675,87 @@ class _GasMetalPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _GasMetalPainter oldDelegate) =>
       oldDelegate.artwork != artwork || oldDelegate.compact != compact;
+}
+
+
+class _GasFormPreview extends StatefulWidget {
+  final GasReport report;
+  final String name;
+  const _GasFormPreview({required this.report, required this.name});
+  @override
+  State<_GasFormPreview> createState() => _GasFormPreviewState();
+}
+class _GasFormPreviewState extends State<_GasFormPreview> {
+  static const _channel = MethodChannel('melnitsa/advance_image');
+  final _organization = TextEditingController();
+  final _vehicle = TextEditingController();
+  late final _name = TextEditingController(text: widget.name);
+  dynamic _bytes;
+  bool _busy = false;
+  String? _error;
+  String _num(double? n) => n == null ? '—' : n.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '').replaceAll('.', ',');
+  @override
+  void dispose() { _organization.dispose(); _vehicle.dispose(); _name.dispose(); super.dispose(); }
+  Future<void> _render() async {
+    setState(() { _busy = true; _error = null; });
+    try {
+      final r = widget.report;
+      final book = await TestStore.load();
+      final hours = <String, double>{};
+      final missingHours = <String>{};
+      for (final shift in book.shifts.where((s) => book.inMonth(s['start'] as String, r.month))) {
+        final key = TestState.dayKey(DateTime.parse(shift['start'] as String));
+        if (shift['hoursWorked'] is num) { hours[key] = (hours[key] ?? 0) + book.hours(shift); }
+        else { missingHours.add(key); }
+      }
+      final data = await _channel.invokeMethod<dynamic>('renderGas', {
+        'organization': _organization.text.trim(), 'vehicle': _vehicle.text.trim(), 'name': _name.text.trim(),
+        'month': '${_garageMonths[r.month.month - 1]} ${r.month.year}',
+        'opening': _num(r.opening), 'closing': _num(r.closing), 'gas': _num(r.gas),
+        'rows': [for (final d in r.days) [
+          '${d.date.day.toString().padLeft(2, '0')}.${d.date.month.toString().padLeft(2, '0')}',
+          missingHours.contains(TestState.dayKey(d.date)) ? '—' : _num(hours[TestState.dayKey(d.date)]),
+          _num(d.startKm), _num(d.endKm), _num(d.gas),
+          [d.directions, if (d.startKm == null || d.endKm == null) 'Пробег: ${_num(d.km)} км'].where((s) => s.isNotEmpty).join('; '),
+        ]],
+        'note': [if (r.opening == null) 'Начальный остаток не задан.',
+          if (r.pending > 0) 'Есть незавершённые смены или неуказанный пробег.',
+          if (missingHours.isNotEmpty) 'Неуказанные часы отмечены прочерком.',
+          if (r.changed) 'Данные сданного отчёта изменились. Показан текущий расчёт.'].join(' '),
+      });
+      if (mounted) setState(() => _bytes = data);
+    } catch (e) { if (mounted) setState(() => _error = 'Не удалось создать бланк: $e'); }
+    finally { if (mounted) setState(() => _busy = false); }
+  }
+  Future<void> _save() async {
+    setState(() => _busy = true);
+    try {
+      final saved = await _channel.invokeMethod<bool>('save', {'bytes': _bytes, 'kind': 'gas'});
+      if (mounted && saved == true) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Картинка сохранена')));
+    } catch (e) { if (mounted) setState(() => _error = 'Не удалось сохранить: $e'); }
+    finally { if (mounted) setState(() => _busy = false); }
+  }
+  @override
+  Widget build(BuildContext context) => PopScope(canPop: !_busy, child: Scaffold(
+    backgroundColor: const Color(0xFF111619),
+    appBar: AppBar(backgroundColor: const Color(0xFF111619), foregroundColor: Colors.white,
+      automaticallyImplyLeading: !_busy, title: const Text('Карточка водителя')),
+    body: SafeArea(child: Column(children: [
+      if (_error != null) Padding(padding: const EdgeInsets.all(12), child: Text(_error!, style: const TextStyle(color: Colors.white))),
+      Expanded(child: _bytes == null ? ListView(padding: const EdgeInsets.all(18), children: [
+        _GasMetalSurface(padding: const EdgeInsets.all(16), child: Column(children: [
+          for (final field in [(_organization, 'Организация (можно оставить пустым)'), (_vehicle, 'Марка техники'), (_name, 'ФИО водителя')])
+            Padding(padding: const EdgeInsets.only(bottom: 14), child: TextField(controller: field.$1,
+              enabled: !_busy, maxLength: 120, style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(labelText: field.$2, counterText: '', labelStyle: const TextStyle(color: Color(0xFFB1B4B4))))),
+          TextButton(onPressed: _busy ? null : () { FocusScope.of(context).unfocus(); _render(); }, child: const Text('Сформировать бланк')),
+        ])),
+      ]) : InteractiveViewer(minScale: 1, maxScale: 6, child: Center(child: Image.memory(_bytes, fit: BoxFit.contain)))),
+      if (_busy) const LinearProgressIndicator(),
+      if (_bytes != null) Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        TextButton(onPressed: _busy ? null : () => setState(() { _bytes = null; _error = null; }), child: const Text('Реквизиты')),
+        TextButton.icon(onPressed: _busy ? null : _save, icon: const Icon(Icons.save_alt), label: const Text('Сохранить картинку')),
+      ]),
+    ])),
+  ));
 }
