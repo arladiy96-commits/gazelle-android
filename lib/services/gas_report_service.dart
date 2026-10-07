@@ -9,6 +9,8 @@ class GasReportDay {
   final double km, gas, petrol;
   final String directions;
   final int pending;
+  final double? consumptionOverride;
+  double get consumption => consumptionOverride ?? km * 28 / 100;
   const GasReportDay({
     required this.date,
     required this.startKm,
@@ -18,6 +20,7 @@ class GasReportDay {
     required this.petrol,
     required this.directions,
     required this.pending,
+    this.consumptionOverride,
   });
   List<Object?> get signatureValues => [
     TestState.dayKey(date),
@@ -28,12 +31,14 @@ class GasReportDay {
     petrol,
     directions,
     pending,
+    if ((consumption - km * 28 / 100).abs() > 0.00000001) consumption,
   ];
 }
 
 class GasReport {
   static const rate = 28.0;
   final DateTime month;
+  final String normDescription;
   final List<GasReportDay> days;
   final double? opening, fixedClosing, carriedOpening;
   final String? openingFrom, submittedSignature;
@@ -41,6 +46,7 @@ class GasReport {
   final bool manualOpening;
   const GasReport({
     required this.month,
+    this.normDescription = '28 л / 100 км',
     required this.days,
     required this.opening,
     required this.manualOpening,
@@ -53,7 +59,7 @@ class GasReport {
   double get km => days.fold(0.0, (a, d) => a + d.km);
   double get gas => days.fold(0.0, (a, d) => a + d.gas);
   double get petrol => days.fold(0.0, (a, d) => a + d.petrol);
-  double get consumption => km * rate / 100;
+  double get consumption => days.fold(0.0, (sum, day) => sum + day.consumption);
   double? get closing => opening == null ? null : opening! + gas - consumption;
   int get pending => days.fold(0, (a, d) => a + d.pending);
   bool get submitted => submittedAt != null && fixedClosing != null;
@@ -183,6 +189,10 @@ class GasReportRepository {
             0,
             (a, s) => a + (book.hasRecordedMileage(s) ? book.mileage(s) : 0),
           ),
+          consumptionOverride: ss.fold<double>(
+            0,
+            (sum, s) => sum + book.gasConsumption(s),
+          ),
           gas: fuel('Газ'),
           petrol: fuel('Бензин'),
           directions: [if (city) 'Город', ...names].join(', '),
@@ -192,7 +202,19 @@ class GasReportRepository {
         ),
       );
     }
+    final norms = <double>{
+      for (final s in shifts)
+        (book.settingsFor(s)['gasReportRate'] as num).toDouble(),
+      for (final s in shifts)
+        for (final band in s['gasKmBands'] as List? ?? [])
+          ((band as Map)['rate'] as num).toDouble(),
+    };
+    if (norms.isEmpty)
+      norms.add((book.calculationSettings['gasReportRate'] as num).toDouble());
+    final sortedNorms = norms.toList()..sort();
     return GasReport(
+      normDescription:
+          '${sortedNorms.map((n) => n.toString().replaceFirst(RegExp(r'\.0$'), '')).join(' / ')} л / 100 км',
       month: selected,
       days: days,
       opening: override ?? carried,
