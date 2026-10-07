@@ -53,9 +53,6 @@ class _ReferenceHomeDashboard extends StatelessWidget {
             day: DateTime(month.year, month.month, i + 1)));
     List<double> series(String key) => daily.map((day) => day[key] ?? 0.0).toList();
     void details(String metric) => _openMetricDetails(context, metric, month);
-    void summary() => _testOpen(context, shiftId: (active ?? last)?['id'] as String?);
-    void records(String page) => _testOpen(context, page: page,
-        shiftId: active?['id'] as String?);
     final name = session.displayName.trim().isEmpty ? 'Водитель' : session.displayName;
     final initials = name.split(RegExp(r'\s+')).take(2).map((s) => s[0]).join();
     Widget place(double x, double y, double w, double h, Widget child) =>
@@ -99,19 +96,19 @@ class _ReferenceHomeDashboard extends StatelessWidget {
                 weight: FontWeight.w600),
           ])))),
       place(70, 1305, 154, 120, _MillStatus(icon: Icons.settings_outlined,
-        title: active == null ? 'Смена закрыта' : 'Смена открыта', onTap: summary,
+        title: active == null ? 'Смена закрыта' : 'Смена открыта',
         child: _MillClock(start: active?['start'] as String?))),
       place(250, 1305, 158, 120, _MillStatus(icon: Icons.local_shipping_outlined,
-        title: 'Рейсы', onTap: () => records('Рейсы'),
+        title: 'Рейсы',
         child: _MillValue(value: trips.toDouble(), unit: _millTripUnit(trips), size: 25, color: _millGold))),
       place(447, 1305, 165, 120, _MillStatus(icon: Icons.local_gas_station_outlined,
-        title: 'Топливо', onTap: () => records('Топливо'),
+        title: 'Топливо',
         child: Column(children: [
           _MillValue(value: fuel('Газ'), prefix: 'Газ ', unit: ' л', size: 19, color: _millGold),
           _MillValue(value: fuel('Бензин'), prefix: 'Бензин ', unit: ' л', size: 19, color: _millGold),
         ]))),
       place(642, 1305, 144, 120, _MillStatus(icon: Icons.flag_outlined,
-        title: 'Завершение', onTap: summary,
+        title: 'Завершение',
         child: AnimatedSwitcher(duration: const Duration(milliseconds: 120), child:
           _millText(active != null ? 'Ожидание' : last == null ? 'Нет итогов' :
             '${_fmt1(book.mileage(last))} км\n${_fmt1(book.hours(last))} ч', 23,
@@ -491,10 +488,9 @@ class _MillStatus extends StatelessWidget {
   final IconData icon;
   final String title;
   final Widget child;
-  final VoidCallback onTap;
-  const _MillStatus({required this.icon, required this.title, required this.child, required this.onTap});
+  const _MillStatus({required this.icon, required this.title, required this.child});
   @override
-  Widget build(BuildContext context) => _MillPress(label:title,onTap:onTap,
+  Widget build(BuildContext context) => Semantics(container: true,
     child:CustomPaint(painter:const _MillInsetPlate(),child:Padding(
       padding:const EdgeInsets.fromLTRB(8,7,8,7),child:Column(children:[
         Container(width:34,height:34,decoration:BoxDecoration(shape:BoxShape.circle,
