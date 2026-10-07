@@ -10,7 +10,7 @@ class _GasReportScreen extends StatefulWidget {
 
 class _GasReportScreenState extends State<_GasReportScreen> {
   static const gold = _CinematicMore.gold;
-  static const muted = Color(0xFFA9B2B6);
+  static const muted = Color(0xFF90999E);
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
   GasReport? _report;
   String? _error, _keptSignature;
@@ -102,7 +102,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
   Widget _panel(
     Widget child, {
     EdgeInsets padding = const EdgeInsets.all(14),
-  }) => _GasMetalSurface(padding: padding, child: child);
+  }) => _GasReportMoreSurface(padding: padding, child: child);
   Widget _action(
     String label,
     VoidCallback? onPressed, {
@@ -131,7 +131,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
       context: context,
       builder: (dialog) => StatefulBuilder(
         builder: (dialog, update) => AlertDialog(
-          backgroundColor: const Color(0xFF10191E),
+          backgroundColor: const Color(0xFF11181C),
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(17),
@@ -156,7 +156,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: Color(0xFFE9EAEB)),
                 decoration: InputDecoration(
                   suffixText: 'л',
                   errorText: error,
@@ -211,7 +211,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
     final yes = await showDialog<bool>(
       context: context,
       builder: (dialog) => AlertDialog(
-        backgroundColor: const Color(0xFF10191E),
+        backgroundColor: const Color(0xFF11181C),
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(17),
@@ -219,7 +219,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
         ),
         title: const Text(
           'Подтверждение',
-          style: TextStyle(color: Colors.white, fontSize: 20),
+          style: TextStyle(color: Color(0xFFE9EAEB), fontSize: 20),
         ),
         content: Text(
           '${report.submitted ? 'Обновить сданный отчёт' : 'Отметить отчёт'} за ${_monthName(report.month)}${report.submitted ? '?' : ' как сданный?'}\n\n'
@@ -263,7 +263,13 @@ class _GasReportScreenState extends State<_GasReportScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, color: action == null ? muted : gold, size: 32),
+          SizedBox(
+            width: 32,
+            height: 32,
+            child: FittedBox(
+              child: _CinematicMore.badge(icon, action == null ? muted : gold),
+            ),
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -272,7 +278,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
                 Text(
                   title,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: Color(0xFFE9EAEB),
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                   ),
@@ -286,7 +292,11 @@ class _GasReportScreenState extends State<_GasReportScreen> {
             ),
           ),
           const SizedBox(width: 6),
-          Icon(arrow, color: action == null ? muted : gold, size: 24),
+          Icon(
+            arrow,
+            color: action == null ? muted : const Color(0xFFBDC3C5),
+            size: 24,
+          ),
         ],
       ),
     ),
@@ -323,7 +333,9 @@ class _GasReportScreenState extends State<_GasReportScreen> {
               child: Text(
                 _litres(value),
                 style: TextStyle(
-                  color: negative ? const Color(0xFFD29280) : Colors.white,
+                  color: negative
+                      ? const Color(0xFFD29280)
+                      : const Color(0xFFE9EAEB),
                   fontSize: 23,
                   fontWeight: FontWeight.w600,
                 ),
@@ -355,8 +367,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        _GasMetalSurface(
-          compact: true,
+        _GasReportMoreSurface(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           child: InkWell(
             onTap: _busy ? null : () => _opening(r),
@@ -508,10 +519,10 @@ class _GasReportScreenState extends State<_GasReportScreen> {
         softWrap: true,
         style: TextStyle(
           color: header
-              ? const Color(0xFFBDC7CB)
+              ? const Color(0xFF90999E)
               : total
               ? gold
-              : const Color(0xFFE3E8E9),
+              : const Color(0xFFE9EAEB),
           fontSize: header ? 9.5 : 10.5,
           height: 1.2,
           fontWeight: total ? FontWeight.w600 : FontWeight.w400,
@@ -559,7 +570,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
                   child: Text(
                     _expanded ? 'Журнал за месяц' : 'По дням',
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: Color(0xFFE9EAEB),
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
@@ -630,7 +641,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
             child: Table(
               defaultVerticalAlignment: TableCellVerticalAlignment.middle,
               border: TableBorder.all(
-                color: const Color(0xFF28343A),
+                color: const Color(0xFF353A3D),
                 width: .5,
                 borderRadius: BorderRadius.circular(7),
               ),
@@ -810,7 +821,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
                                 _monthName(_month),
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
-                                  color: Colors.white,
+                                  color: Color(0xFFE9EAEB),
                                   fontSize: 17,
                                 ),
                               ),
@@ -897,6 +908,22 @@ class _GasReportScreenState extends State<_GasReportScreen> {
       ),
     );
   }
+}
+
+// Reuse More styling without changing report dimensions or shared gas surfaces.
+class _GasReportMoreSurface extends StatelessWidget {
+  final Widget child;
+  final EdgeInsets padding;
+  const _GasReportMoreSurface({
+    required this.child,
+    this.padding = EdgeInsets.zero,
+  });
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: _CinematicMore.panel(),
+    child: Padding(padding: padding, child: child),
+  );
 }
 
 // Reuse the approved Work artwork directly. Nine-slice drawing preserves the
