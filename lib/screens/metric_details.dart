@@ -1956,21 +1956,7 @@ class _MetricDetailsState extends State<_MetricDetails> {
           const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: _salaryExplain,
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    alignment: Alignment.centerLeft,
-                    foregroundColor: const Color(0xFFB7B9BC),
-                  ),
-                  icon: const Icon(Icons.info_outline, size: 19),
-                  label: const Text(
-                    'Пример расчёта',
-                    style: TextStyle(fontSize: 11),
-                  ),
-                ),
-              ),
+              const Spacer(),
               TextButton(
                 onPressed: () => _openSalaryReport(context, _month),
                 style: TextButton.styleFrom(
@@ -1994,11 +1980,6 @@ class _MetricDetailsState extends State<_MetricDetails> {
   }
 
   void _salaryStatistics() => _openGarageSection(context, 'Статистика', '');
-
-  void _salaryExplain() => Navigator.push(
-    context,
-    MaterialPageRoute<void>(builder: (_) => const _SalaryRatesScreen()),
-  );
 
   List<Widget> _content() {
     final total = _total!;
@@ -5643,10 +5624,6 @@ class _SalaryDashboardState extends State<_SalaryDashboard> {
     alignment: Alignment.centerLeft,
     child: text(s, size, color: color),
   );
-  void explain(Map<String, double> stats) => Navigator.push(
-    context,
-    MaterialPageRoute<void>(builder: (_) => const _SalaryRatesScreen()),
-  );
   void days() => showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -6056,32 +6033,6 @@ class _SalaryDashboardState extends State<_SalaryDashboard> {
                       ),
                     ),
                     at(
-                      105,
-                      1347,
-                      287,
-                      53,
-                      tap(
-                        'Пример расчёта',
-                        () => explain(stats),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.info_outline,
-                              color: Colors.white60,
-                              size: 33,
-                            ),
-                            const SizedBox(width: 22),
-                            Expanded(child: text('Пример расчёта', 22)),
-                            const Icon(
-                              Icons.chevron_right,
-                              color: white,
-                              size: 32,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    at(
                       487,
                       1347,
                       272,
@@ -6209,210 +6160,6 @@ class _SalaryDashboardState extends State<_SalaryDashboard> {
     );
     if (selected != null && mounted) setState(() => month = selected);
   }
-}
-
-class _SalaryRatesScreen extends StatefulWidget {
-  const _SalaryRatesScreen();
-  @override
-  State<_SalaryRatesScreen> createState() => _SalaryRatesScreenState();
-}
-
-class _SalaryRatesScreenState extends State<_SalaryRatesScreen> {
-  static const gold = Color(0xFFCEA15B), muted = Color(0xFFB1B4B4);
-  static const items = [
-    (
-      'base',
-      'Основной оклад',
-      '₸ / месяц',
-      'Оклад × часы в рабочие дни ÷ норма месяца. Оплата сверх нормы зависит от настроек календаря.',
-    ),
-    (
-      'weekend',
-      'Выходные',
-      '₸ / день',
-      'Ставка × количество отработанных выходных. Один день учитывается один раз.',
-    ),
-    (
-      'holiday',
-      'Праздники',
-      '₸ / день',
-      'Ставка × количество отработанных праздничных дней.',
-    ),
-    ('paid', 'Платный рейс', '₸ / рейс', 'Ставка × количество платных рейсов.'),
-    (
-      'city',
-      'Городской вес',
-      '₸ / кг',
-      'Ставка × перевезённый городской вес в килограммах.',
-    ),
-    (
-      'region',
-      'Районный вес',
-      '₸ / кг',
-      'Ставка × перевезённый районный вес в килограммах.',
-    ),
-  ];
-  bool _saving = false;
-  String _value(double v) => v
-      .toStringAsFixed(2)
-      .replaceFirst(RegExp(r'\.?0+$'), '')
-      .replaceAll('.', ',');
-  Future<void> _edit(
-    String key,
-    String title,
-    String unit,
-    double current,
-  ) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-        builder: (_) => const _CalculationSettingsScreen(group: 'Зарплата'),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) => PopScope(
-    canPop: !_saving,
-    child: Scaffold(
-      backgroundColor: const Color(0xFF101517),
-      body: Stack(
-        children: [
-          _CinematicMore.backdrop(),
-          SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: _saving
-                            ? null
-                            : () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back, color: gold),
-                      ),
-                      const Expanded(
-                        child: Text(
-                          'Как считается зарплата',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 21,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_saving)
-                  const LinearProgressIndicator(color: gold, minHeight: 2),
-                Expanded(
-                  child: _TestLive(
-                    builder: (b) {
-                      final rates = b.currentSalaryRates;
-                      return ListView(
-                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
-                        children: [
-                          for (final item in items)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: _GasMetalSurface(
-                                padding: const EdgeInsets.all(15),
-                                child: InkWell(
-                                  onTap: _saving
-                                      ? null
-                                      : () => _edit(
-                                          item.$1,
-                                          item.$2,
-                                          item.$3,
-                                          rates[item.$1]!,
-                                        ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              item.$2,
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                          const Icon(
-                                            Icons.edit_outlined,
-                                            color: gold,
-                                            size: 19,
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        '${_value(rates[item.$1]!)} ${item.$3}',
-                                        style: const TextStyle(
-                                          color: gold,
-                                          fontSize: 21,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        item.$4,
-                                        style: const TextStyle(
-                                          color: muted,
-                                          fontSize: 12,
-                                          height: 1.35,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          const Padding(
-                            padding: EdgeInsets.all(8),
-                            child: Text(
-                              'Нажмите на ставку, чтобы открыть параметры зарплаты. '
-                              'Уже внесённые рейсы и начисленные часы сохраняют свои ставки. '
-                              'В открытой смене новые часы после изменения оклада считаются по новой ставке. '
-                              'Оплата выходного и праздника фиксируется при первой смене дня. '
-                              'Совпадение праздника с выходным оплачивается по сохранённому правилу календаря.',
-                              style: TextStyle(
-                                color: muted,
-                                fontSize: 12,
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-                          if (b.salaryRateHistory.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.all(8),
-                              child: Text(
-                                'Последнее изменение: ${_detailDate(DateTime.parse(b.salaryRateHistory.last['at'] as String))} '
-                                '${_detailTime(DateTime.parse(b.salaryRateHistory.last['at'] as String))}',
-                                style: const TextStyle(
-                                  color: gold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
 }
 
 void _openSalaryReport(BuildContext context, DateTime month) => Navigator.push(
