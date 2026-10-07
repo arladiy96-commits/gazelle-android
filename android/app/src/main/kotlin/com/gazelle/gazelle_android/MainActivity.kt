@@ -108,7 +108,8 @@ class MainActivity : FlutterActivity() {
         fun value(key: String) = (args[key] as? String ?: "").take(160)
         val width = 1080
         val rowHeight = 62f
-        val height = (610 + rows.size * rowHeight).toInt()
+        val hasKaspi = (value("kaspiCount").toIntOrNull() ?: 0) > 0
+        val height = (610 + (if (hasKaspi) 180 else 0) + rows.size * rowHeight).toInt()
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         try {
             val canvas = Canvas(bitmap)
@@ -153,6 +154,17 @@ class MainActivity : FlutterActivity() {
             y += 60f
             text("По накладным (" + value("invoiceCount") + ")", 55f, y, maxWidth = 450f)
             text(value("invoices") + " ₸", 1025f, y, 32f, false, true, 490f)
+            if (hasKaspi) {
+                y += 60f
+                text("Каспи (" + value("kaspiCount") + " накл.)", 55f, y, maxWidth = 450f)
+                text(value("kaspi") + " ₸", 1025f, y, 32f, false, true, 490f)
+                y += 60f
+                text("К получению наличными", 55f, y, maxWidth = 450f)
+                text(value("cashExpected") + " ₸", 1025f, y, 32f, false, true, 490f)
+                y += 60f
+                text("НАЛИЧНЫЕ + КАСПИ", 55f, y, 30f, true, maxWidth = 450f)
+                text(value("received") + " ₸", 1025f, y, 32f, true, true, 490f)
+            }
             y += 32f
             rule(y)
             y += 59f
