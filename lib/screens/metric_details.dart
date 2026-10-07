@@ -2541,14 +2541,14 @@ class _DayDetails extends StatelessWidget {
                           onLongPress: (i == 3 || i == 6) && shifts.isNotEmpty
                               ? () {
                                   HapticFeedback.mediumImpact();
-                                  Navigator.of(context).push<void>(
-                                    _SceneRoute<void>(
-                                      builder: (_) => _DayMetricEditor(
-                                        day: date,
-                                        mileage: i == 3,
-                                        book: b,
-                                        shifts: shifts,
-                                      ),
+                                  showDialog<void>(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (_) => _DayMetricEditor(
+                                      day: date,
+                                      mileage: i == 3,
+                                      book: b,
+                                      shifts: shifts,
                                     ),
                                   );
                                 }
@@ -2788,50 +2788,163 @@ class _DayMetricEditorState extends State<_DayMetricEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => _DetailFrame(
-    title: widget.mileage ? 'Изменить пробег' : 'Изменить часы',
-    children: [
-      _dt('${_detailDate(widget.day)} ${widget.day.year}'),
-      const SizedBox(height: 16),
-      for (final s in widget.shifts) ...[
-        if (widget.shifts.length > 1)
-          _dt('Смена с ${_detailTime(DateTime.parse(s['start'] as String))}'),
-        _testField(
-          fields[s['id']]!,
-          widget.mileage ? 'Пробег за смену, км' : 'Отработано часов',
-          numeric: true,
-          integer: widget.mileage,
+  void initState() {
+    super.initState();
+    for (final controller in fields.values) {
+      controller.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: controller.text.length,
+      );
+    }
+  }
+
+  Future<void> save() async {
+    if (busy) return;
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      await TestStore.correctShiftMetrics({
+        for (final e in fields.entries)
+          if (e.value.text != initial[e.key])
+            e.key:
+                double.tryParse(e.value.text.trim().replaceAll(',', '.')) ??
+                double.nan,
+      }, mileage: widget.mileage);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted)
+        setState(() {
+          busy = false;
+          error = _testError(e);
+        });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => PopScope(
+    canPop: !busy,
+    child: AlertDialog(
+      backgroundColor: const Color(0xFF11191D),
+      surfaceTintColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: Color(0xFF776044), width: .8),
+      ),
+      titlePadding: const EdgeInsets.fromLTRB(22, 20, 22, 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 22),
+      actionsPadding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+      scrollable: true,
+      title: Text(
+        widget.mileage ? 'Пробег, км' : 'Отработано часов',
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFFE6E9EA),
+        ),
+      ),
+      content: SizedBox(
+        width: 300,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${_detailDate(widget.day)} ${widget.day.year}',
+              style: const TextStyle(fontSize: 13, color: Color(0xFF929B9F)),
+            ),
+            const SizedBox(height: 14),
+            for (var i = 0; i < widget.shifts.length; i++) ...[
+              if (widget.shifts.length > 1)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    'Смена с ${_detailTime(DateTime.parse(widget.shifts[i]['start'] as String))}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF929B9F),
+                    ),
+                  ),
+                ),
+              TextField(
+                controller: fields[widget.shifts[i]['id']],
+                autofocus: i == 0,
+                enabled: !busy,
+                keyboardType: TextInputType.numberWithOptions(
+                  decimal: !widget.mileage,
+                ),
+                textInputAction: i == widget.shifts.length - 1
+                    ? TextInputAction.done
+                    : TextInputAction.next,
+                onSubmitted: (_) {
+                  if (i == widget.shifts.length - 1) {
+                    save();
+                  } else {
+                    FocusScope.of(context).nextFocus();
+                  }
+                },
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(
+                    widget.mileage ? RegExp(r'[0-9]') : RegExp(r'[0-9.,]'),
+                  ),
+                ],
+                style: const TextStyle(fontSize: 26, color: Color(0xFFE6E9EA)),
+                cursorColor: const Color(0xFFD8AC65),
+                decoration: InputDecoration(
+                  isDense: true,
+                  filled: true,
+                  fillColor: const Color(0xFF0B1216),
+                  suffixText: widget.mileage ? 'км' : 'ч',
+                  suffixStyle: const TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF929B9F),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFF60523F)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFD8AC65)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+            if (error != null)
+              Text(
+                error!,
+                style: const TextStyle(fontSize: 13, color: Color(0xFFD59C89)),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: busy ? null : () => Navigator.pop(context),
+          child: const Text(
+            'Отмена',
+            style: TextStyle(color: Color(0xFF929B9F)),
+          ),
+        ),
+        TextButton(
+          onPressed: busy ? null : save,
+          child: Text(
+            busy ? 'Сохранение…' : 'Сохранить',
+            style: const TextStyle(
+              color: Color(0xFFD8AC65),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
       ],
-      if (widget.mileage)
-        _dt(
-          'Для смены с одометром конечное показание изменится вместе с пробегом.',
-        ),
-      if (error != null) _dt(error!, color: _amber),
-      _detailButton(busy ? 'Сохранение…' : 'Сохранить', () async {
-        if (busy) return;
-        setState(() {
-          busy = true;
-          error = null;
-        });
-        try {
-          await TestStore.correctShiftMetrics({
-            for (final e in fields.entries)
-              if (e.value.text != initial[e.key])
-                e.key:
-                    double.tryParse(e.value.text.trim().replaceAll(',', '.')) ??
-                    double.nan,
-          }, mileage: widget.mileage);
-          if (context.mounted) Navigator.pop(context);
-        } catch (e) {
-          if (mounted)
-            setState(() {
-              busy = false;
-              error = _testError(e);
-            });
-        }
-      }),
-    ],
+    ),
   );
 }
 
