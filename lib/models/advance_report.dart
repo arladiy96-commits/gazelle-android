@@ -1,3 +1,5 @@
+import 'calculation_settings.dart';
+
 import 'dart:convert';
 
 /// Money is stored as integer tiyn, quantities as thousandths of a unit.
@@ -136,8 +138,10 @@ class AdvanceLedger {
 
   AdvanceReport current(Iterable<Map<String, dynamic>> records) {
     final rows = <AdvanceRow>[...manual];
-    final seen = <String>{};
-    for (final record in records) {
+    final seen = <String>{}, allowanceDays = <String>{};
+    final ordered = records.toList()
+      ..sort((a, b) => '${a['date']}'.compareTo('${b['date']}'));
+    for (final record in ordered) {
       if (record['kind'] != 'trip') continue;
       final id = record['id'] as String?;
       final date = DateTime.tryParse(record['date'] as String? ?? '');
@@ -151,15 +155,23 @@ class AdvanceLedger {
       name = name
           .replaceFirst(RegExp(r'^(г\.|г |город |с\.|с |село )\s*'), '')
           .trim();
-      final direction = destinations[name];
-      if (direction == null) continue;
+      final settings = CalculationSettings.decode(
+        record['calculationSettings'],
+      );
+      final names = (settings['allowanceDirections'] as List).map((v) => '$v');
+      final matches = names.where((v) => CalculationSettings.name(v) == name);
+      if (matches.isEmpty) continue;
+      final direction = matches.first;
+      if (settings['allowancePerDay'] == true &&
+          !allowanceDays.add(CalculationSettings.day(date)))
+        continue;
       rows.add(
         AdvanceRow(
           id: 'trip:$id',
           date: date,
           name: 'Суточные',
           quantity: 1000,
-          price: 250000,
+          price: ((settings['allowance'] as num) * 100).round(),
           direction: direction,
           tripId: id,
         ),
