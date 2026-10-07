@@ -42,13 +42,19 @@ class MoneyCount {
     final now = DateTime.now();
     return MoneyCount(id: now.microsecondsSinceEpoch.toString(), date: now);
   }
-  int get expected => invoices.fold(0, (a, b) => a + b);
+  int get invoiceCount => invoices.length - kaspiInvoices.length;
+  int get expected {
+    var total = 0;
+    for (var i = 0; i < invoices.length; i++) {
+      if (!kaspiInvoices.contains(i)) total += invoices[i];
+    }
+    return total;
+  }
+
   int get counted =>
       counts.entries.fold(0, (a, b) => a + b.key * b.value * 100);
   int get kaspi => kaspiInvoices.fold(0, (sum, index) => sum + invoices[index]);
-  int get cashExpected => expected - kaspi;
-  int get received => counted + kaspi;
-  int get difference => received - expected;
+  int get difference => counted - expected;
   bool get hasData =>
       invoices.isNotEmpty ||
       counts.values.any((v) => v > 0) ||
