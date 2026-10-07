@@ -209,7 +209,7 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
           surfaceTintColor: Colors.transparent,
           title: const Text('Суточные из рейса'),
           content: Text(
-            '${source.direction} · ${_date(source.date)}\n1 × 2 500 ₸ = 2 500 ₸\n\nСтрока обновляется вместе с исходным рейсом.',
+            '${source.direction} · ${_date(source.date)}\n1 × ${_money(source.price)} = ${_money(source.total)}\n\nСтрока обновляется вместе с исходным рейсом.',
           ),
           actions: [
             TextButton(
@@ -343,10 +343,12 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
               children: [
                 Expanded(child: _text('Получено из кассы', color: muted)),
                 const SizedBox(width: 8),
-                Flexible(child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: _text(_money(report.received), size: 23, bold: true),
-                )),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: _text(_money(report.received), size: 23, bold: true),
+                  ),
+                ),
                 if (_archive == null) ...[
                   const SizedBox(width: 8),
                   const Icon(Icons.edit_outlined, color: gold, size: 18),
@@ -367,10 +369,12 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
               children: [
                 Expanded(child: _text('Расходы', color: muted)),
                 const SizedBox(width: 8),
-                Flexible(child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: _text(_money(report.expenses), size: 23, bold: true),
-                )),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: _text(_money(report.expenses), size: 23, bold: true),
+                  ),
+                ),
                 const SizedBox(width: 8),
                 const Icon(Icons.chevron_right, color: gold, size: 20),
               ],
@@ -396,8 +400,15 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
             children: [
               Icon(icon, size: 23),
               const SizedBox(width: 12),
-              Expanded(child: Text(title,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600))),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
               const Icon(Icons.chevron_right, size: 20),
             ],
           ),
@@ -505,25 +516,35 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
           children: [
             Row(
               children: [
-                Expanded(child: _text('Расходы · ${report.rows.length}',
-                  size: 16, bold: true)),
+                Expanded(
+                  child: _text(
+                    'Расходы · ${report.rows.length}',
+                    size: 16,
+                    bold: true,
+                  ),
+                ),
                 _action('Закрыть', () => setState(() => _expanded = false)),
               ],
             ),
             if (_archive == null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: _text('Нажмите расход, чтобы изменить или удалить',
-                  size: 11, color: muted),
+                child: _text(
+                  'Нажмите расход, чтобы изменить или удалить',
+                  size: 11,
+                  color: muted,
+                ),
               ),
-            Expanded(child: SingleChildScrollView(
-              child: report.rows.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 30),
-                      child: _text('Расходов пока нет', color: muted),
-                    )
-                  : _table(report),
-            )),
+            Expanded(
+              child: SingleChildScrollView(
+                child: report.rows.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 30),
+                        child: _text('Расходов пока нет', color: muted),
+                      )
+                    : _table(report),
+              ),
+            ),
             if (_archive == null)
               _action('Добавить расход', () => _editExpense(), icon: Icons.add),
           ],
@@ -535,8 +556,11 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
         if (_archive != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
-            child: _text('Сдан · № ${report.number} · ${_date(report.submittedAt!)}',
-              color: muted, size: 12),
+            child: _text(
+              'Сдан · № ${report.number} · ${_date(report.submittedAt!)}',
+              color: muted,
+              size: 12,
+            ),
           ),
         _summary(report),
         const SizedBox(height: 12),
@@ -545,17 +569,28 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
           const SizedBox(height: 12),
         ],
         _menuAction('Открыть бланк', Icons.description_outlined, () {
-          Navigator.push(context, MaterialPageRoute<void>(builder: (_) =>
-            _AdvanceImagePreview(report: report, name: widget.session.displayName)));
+          Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) => _AdvanceImagePreview(
+                report: report,
+                name: widget.session.displayName,
+              ),
+            ),
+          );
         }),
         if (_archive == null) ...[
           const SizedBox(height: 12),
-          _menuAction('Отчёт сдан', Icons.check_circle_outline,
-            report.rows.isEmpty ? null : _submit),
+          _menuAction(
+            'Отчёт сдан',
+            Icons.check_circle_outline,
+            report.rows.isEmpty ? null : _submit,
+          ),
         ],
       ],
     );
   }
+
   Widget _historyList() {
     final history = _data!.ledger.history;
     if (history.isEmpty)
@@ -881,7 +916,6 @@ class _AdvanceExpenseEditorState extends State<_AdvanceExpenseEditor> {
   }
 }
 
-
 class _AdvanceImagePreview extends StatefulWidget {
   final AdvanceReport report;
   final String name;
@@ -898,74 +932,192 @@ class _AdvanceImagePreviewState extends State<_AdvanceImagePreview> {
   String? _error;
   late final DateTime _end = widget.report.submittedAt ?? DateTime.now();
   int get _pages => math.max(1, (widget.report.rows.length + 15) ~/ 16);
-  String _date(DateTime d) => '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+  String _date(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
   @override
-  void initState() { super.initState(); _render(); }
+  void initState() {
+    super.initState();
+    _render();
+  }
+
   Future<void> _render() async {
-    setState(() { _loading = true; _error = null; _bytes = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+      _bytes = null;
+    });
     try {
       final r = widget.report;
       final daily = <String, List<AdvanceRow>>{};
-      final ordered = List<AdvanceRow>.of(r.rows)..sort((a, b) => a.date.compareTo(b.date));
+      final ordered = List<AdvanceRow>.of(r.rows)
+        ..sort((a, b) => a.date.compareTo(b.date));
       for (final row in ordered) {
         daily.putIfAbsent(_date(row.date), () => []).add(row);
       }
       final days = daily.entries.toList();
       final data = await _channel.invokeMethod<dynamic>('render', {
-        'name': widget.name, 'number': '${r.number}',
+        'name': widget.name,
+        'number': '${r.number}',
         'period': '${r.start == null ? '—' : _date(r.start!)} — ${_date(_end)}',
-        'daily': [for (final day in days.skip(_page * 16).take(16))
-          [day.key, day.value.map((row) => AdvanceRow.decimal(row.total, 2, grouped: true)).join(' + '),
-           AdvanceRow.decimal(day.value.fold<int>(0, (sum, row) => sum + row.total), 2, grouped: true)]],
+        'daily': [
+          for (final day in days.skip(_page * 16).take(16))
+            [
+              day.key,
+              day.value
+                  .map((row) => AdvanceRow.decimal(row.total, 2, grouped: true))
+                  .join(' + '),
+              AdvanceRow.decimal(
+                day.value.fold<int>(0, (sum, row) => sum + row.total),
+                2,
+                grouped: true,
+              ),
+            ],
+        ],
         'dailyContinues': days.length > (_page + 1) * 16,
         'received': AdvanceRow.decimal(r.received, 2, grouped: true),
         'expenses': AdvanceRow.decimal(r.expenses, 2, grouped: true),
         'balance': AdvanceRow.decimal(r.balance, 2, grouped: true),
-        'page': '${_page + 1}', 'pages': '$_pages',
-        'status': r.submittedAt == null ? 'Текущий отчёт' : 'Сдан ${_date(r.submittedAt!)}',
-        'rows': [for (var i = _page * 16; i < math.min(r.rows.length, (_page + 1) * 16); i++)
-          ['${i + 1}', _date(r.rows[i].date), r.rows[i].name,
-            AdvanceRow.decimal(r.rows[i].quantity, 3),
-            AdvanceRow.decimal(r.rows[i].price, 2, grouped: true),
-            AdvanceRow.decimal(r.rows[i].total, 2, grouped: true), r.rows[i].direction]],
+        'page': '${_page + 1}',
+        'pages': '$_pages',
+        'status': r.submittedAt == null
+            ? 'Текущий отчёт'
+            : 'Сдан ${_date(r.submittedAt!)}',
+        'rows': [
+          for (
+            var i = _page * 16;
+            i < math.min(r.rows.length, (_page + 1) * 16);
+            i++
+          )
+            [
+              '${i + 1}',
+              _date(r.rows[i].date),
+              r.rows[i].name,
+              AdvanceRow.decimal(r.rows[i].quantity, 3),
+              AdvanceRow.decimal(r.rows[i].price, 2, grouped: true),
+              AdvanceRow.decimal(r.rows[i].total, 2, grouped: true),
+              r.rows[i].direction,
+            ],
+        ],
       });
-      if (mounted) setState(() { _bytes = data; _loading = false; });
+      if (mounted)
+        setState(() {
+          _bytes = data;
+          _loading = false;
+        });
     } catch (e) {
-      if (mounted) setState(() { _loading = false; _error = 'Не удалось создать бланк: $e'; });
+      if (mounted)
+        setState(() {
+          _loading = false;
+          _error = 'Не удалось создать бланк: $e';
+        });
     }
   }
+
   Future<void> _saveImage() async {
     if (_bytes == null || _saving) return;
     setState(() => _saving = true);
     try {
-      final saved = await _channel.invokeMethod<bool>('save', {'bytes': _bytes});
-      if (mounted && saved == true) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Картинка сохранена')));
+      final saved = await _channel.invokeMethod<bool>('save', {
+        'bytes': _bytes,
+      });
+      if (mounted && saved == true)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Картинка сохранена')));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось сохранить: $e')));
-    } finally { if (mounted) setState(() => _saving = false); }
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Не удалось сохранить: $e')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
+
   @override
-  Widget build(BuildContext context) => PopScope(canPop: !_saving, child: Scaffold(
-    backgroundColor: const Color(0xFF111619),
-    appBar: AppBar(backgroundColor: const Color(0xFF111619), foregroundColor: Colors.white,
-      title: const Text('Бланк отчёта'), automaticallyImplyLeading: !_saving),
-    body: SafeArea(child: Column(children: [
-      Expanded(child: _loading ? const Center(child: CircularProgressIndicator()) :
-        _error != null ? Center(child: Padding(padding: const EdgeInsets.all(20),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [Text(_error!, style: const TextStyle(color: Colors.white)),
-            TextButton(onPressed: _render, child: const Text('Повторить'))]))) :
-        InteractiveViewer(key: ValueKey(_page), minScale: 1, maxScale: 6,
-          child: Center(child: Image.memory(_bytes, fit: BoxFit.contain)))),
-      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        IconButton(onPressed: _loading || _saving || _page == 0 ? null : () { _page--; _render(); },
-          icon: const Icon(Icons.chevron_left), color: _CinematicMore.gold),
-        Text('Лист ${_page + 1} из $_pages', style: const TextStyle(color: Colors.white)),
-        IconButton(onPressed: _loading || _saving || _page + 1 == _pages ? null : () { _page++; _render(); },
-          icon: const Icon(Icons.chevron_right), color: _CinematicMore.gold),
-      ]),
-      TextButton.icon(onPressed: _loading || _saving || _bytes == null ? null : _saveImage,
-        icon: const Icon(Icons.save_alt), label: Text(_saving ? 'Сохранение…' : 'Сохранить этот лист как картинку')),
-    ])),
-  ));
+  Widget build(BuildContext context) => PopScope(
+    canPop: !_saving,
+    child: Scaffold(
+      backgroundColor: const Color(0xFF111619),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF111619),
+        foregroundColor: Colors.white,
+        title: const Text('Бланк отчёта'),
+        automaticallyImplyLeading: !_saving,
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _error!,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            TextButton(
+                              onPressed: _render,
+                              child: const Text('Повторить'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : InteractiveViewer(
+                      key: ValueKey(_page),
+                      minScale: 1,
+                      maxScale: 6,
+                      child: Center(
+                        child: Image.memory(_bytes, fit: BoxFit.contain),
+                      ),
+                    ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  onPressed: _loading || _saving || _page == 0
+                      ? null
+                      : () {
+                          _page--;
+                          _render();
+                        },
+                  icon: const Icon(Icons.chevron_left),
+                  color: _CinematicMore.gold,
+                ),
+                Text(
+                  'Лист ${_page + 1} из $_pages',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                IconButton(
+                  onPressed: _loading || _saving || _page + 1 == _pages
+                      ? null
+                      : () {
+                          _page++;
+                          _render();
+                        },
+                  icon: const Icon(Icons.chevron_right),
+                  color: _CinematicMore.gold,
+                ),
+              ],
+            ),
+            TextButton.icon(
+              onPressed: _loading || _saving || _bytes == null
+                  ? null
+                  : _saveImage,
+              icon: const Icon(Icons.save_alt),
+              label: Text(
+                _saving ? 'Сохранение…' : 'Сохранить этот лист как картинку',
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }

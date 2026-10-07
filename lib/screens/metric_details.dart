@@ -6008,7 +6008,7 @@ class _SalaryRatesScreenState extends State<_SalaryRatesScreen> {
       'base',
       'Основной оклад',
       '₸ / месяц',
-      'Оклад × часы в рабочие дни ÷ норма часов месяца. Оплата ограничена нормой месяца.',
+      'Оклад × часы в рабочие дни ÷ норма месяца. Оплата сверх нормы зависит от настроек календаря.',
     ),
     (
       'weekend',
@@ -6047,90 +6047,12 @@ class _SalaryRatesScreenState extends State<_SalaryRatesScreen> {
     String unit,
     double current,
   ) async {
-    if (_saving) return;
-    final controller = TextEditingController(text: _value(current));
-    String? error;
-    final selected = await showDialog<double>(
-      context: context,
-      builder: (dialog) => StatefulBuilder(
-        builder: (c, update) => AlertDialog(
-          backgroundColor: const Color(0xFF161A1C),
-          surfaceTintColor: Colors.transparent,
-          title: Text(title),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: controller,
-                autofocus: true,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: InputDecoration(
-                  labelText: 'Новая ставка',
-                  suffixText: unit,
-                  errorText: error,
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Действует с момента сохранения. Прежние начисления остаются по прежним ставкам.',
-                style: TextStyle(fontSize: 13, color: muted),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialog),
-              child: const Text('Отмена'),
-            ),
-            TextButton(
-              onPressed: () {
-                final input = controller.text
-                    .trim()
-                    .replaceAll(' ', '')
-                    .replaceAll(',', '.');
-                final value = double.tryParse(input);
-                if (!RegExp(r'^\d+(?:\.\d{1,2})?$').hasMatch(input) ||
-                    value == null ||
-                    !value.isFinite ||
-                    value < 0 ||
-                    value > 999999999) {
-                  update(
-                    () => error =
-                        'От 0 до 999 999 999, до двух знаков после запятой',
-                  );
-                  return;
-                }
-                Navigator.pop(dialog, value);
-              },
-              child: const Text('Сохранить'),
-            ),
-          ],
-        ),
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => const _CalculationSettingsScreen(group: 'Зарплата'),
       ),
     );
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    controller.dispose();
-    if (!mounted || selected == null || selected == current) return;
-    setState(() => _saving = true);
-    try {
-      await TestStore.setSalaryRate(key, selected);
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Новая ставка сохранена')));
-    } catch (_) {
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Не удалось сохранить ставку. Повторите ещё раз.'),
-          ),
-        );
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
   }
 
   @override
@@ -6239,11 +6161,11 @@ class _SalaryRatesScreenState extends State<_SalaryRatesScreen> {
                           const Padding(
                             padding: EdgeInsets.all(8),
                             child: Text(
-                              'Нажмите на ставку, чтобы изменить её. Новые ставки действуют с момента сохранения. '
+                              'Нажмите на ставку, чтобы открыть параметры зарплаты. '
                               'Уже внесённые рейсы и начисленные часы сохраняют свои ставки. '
                               'В открытой смене новые часы после изменения оклада считаются по новой ставке. '
                               'Оплата выходного и праздника фиксируется при первой смене дня. '
-                              'Если праздник совпал с выходным, обе выплаты складываются.',
+                              'Совпадение праздника с выходным оплачивается по сохранённому правилу календаря.',
                               style: TextStyle(
                                 color: muted,
                                 fontSize: 12,
@@ -6323,7 +6245,14 @@ class _SalaryReportPreviewState extends State<_SalaryReportPreview> {
           .length;
       final weekends = shifts
           .map((s) => DateTime.parse(s['start'] as String))
-          .where((d) => d.weekday >= 6)
+          .where(
+            (d) => shifts.any(
+              (s) =>
+                  TestState.dayKey(DateTime.parse(s['start'] as String)) ==
+                      TestState.dayKey(d) &&
+                  b.weekendShift(s),
+            ),
+          )
           .map(TestState.dayKey)
           .toSet()
           .length;

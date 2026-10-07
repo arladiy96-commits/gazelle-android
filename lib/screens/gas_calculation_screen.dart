@@ -10,8 +10,6 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
     with WidgetsBindingObserver {
   static const gold = _CinematicMore.gold;
   static const muted = Color(0xFFB1B4B4);
-  static const _rateKey = 'gas_calculator_rate_v1';
-  static const _tankKey = 'gas_calculator_tank_v1';
   double _rate = GasCalculation.rate, _tank = GasCalculation.tank;
   bool _editingSetting = false;
   GasReport? _report;
@@ -48,10 +46,10 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
       final now = DateTime.now();
       final month = DateTime(now.year, now.month);
       final report = await GasReportRepository.load(month);
-      final prefs = await TestPreferences.getInstance();
-      final rate = prefs.getDouble(_rateKey);
-      final tank = prefs.getDouble(_tankKey);
       final book = await TestStore.load();
+      final rate = (book.calculationSettings['gasCalculatorRate'] as num?)
+          ?.toDouble();
+      final tank = (book.calculationSettings['gasTank'] as num?)?.toDouble();
       final shifts =
           book.shifts
               .where(
@@ -306,12 +304,10 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
                           error = null;
                         });
                         try {
-                          final prefs = await TestPreferences.getInstance();
-                          final saved = await prefs.setDouble(
-                            rate ? _rateKey : _tankKey,
+                          await TestStore.setCalculationSetting(
+                            rate ? 'gasCalculatorRate' : 'gasTank',
                             value,
                           );
-                          if (!saved) throw StateError('Не сохранено');
                           if (mounted)
                             setState(() {
                               if (rate) {

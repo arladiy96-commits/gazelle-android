@@ -4,10 +4,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../services/test_store.dart';
 import '../services/gas_report_service.dart';
 import '../services/money_service.dart';
 import '../models/advance_report.dart';
+import '../models/calculation_settings.dart';
 import '../models/gas_calculation.dart';
 import '../services/advance_report_service.dart';
 import '../services/gps_tracker.dart';
@@ -32,14 +34,12 @@ part 'gas_report_screen.dart';
 part 'money_screen.dart';
 part 'advance_report_screen.dart';
 part 'gas_calculation_screen.dart';
+part 'calculation_settings_screen.dart';
 
 class AppShell extends StatefulWidget {
   final AppSession session;
 
-  const AppShell({
-    super.key,
-    required this.session,
-  });
+  const AppShell({super.key, required this.session});
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -65,7 +65,6 @@ class _AppShellState extends State<AppShell> {
     GpsTrackerController.instance.dispose();
     super.dispose();
   }
-
 
   List<_NavItem> get _items {
     if (widget.session.role == AppRole.loader) {
@@ -126,18 +125,34 @@ class _AppShellState extends State<AppShell> {
         onNavigate: _selectTab,
         onQuickAdd: _openQuickAdd,
       ),
-      if (_index == 1) WorkPage(session: widget.session,
-        onNavigate: _selectTab, onQuickAdd: _openQuickAdd) else const SizedBox.shrink(),
+      if (_index == 1)
+        WorkPage(
+          session: widget.session,
+          onNavigate: _selectTab,
+          onQuickAdd: _openQuickAdd,
+        )
+      else
+        const SizedBox.shrink(),
       const SizedBox.shrink(),
-      _MillStatistics(session:widget.session,onHome:()=>setState(()=>_index=0)),
-      _CinematicMore(session:widget.session,onNavigate:_selectTab,showNavigation:false),
+      _MillStatistics(
+        session: widget.session,
+        onHome: () => setState(() => _index = 0),
+      ),
+      _CinematicMore(
+        session: widget.session,
+        onNavigate: _selectTab,
+        showNavigation: false,
+      ),
     ];
   }
 
   void _selectTab(int index) {
-    if(index==2){_openQuickAdd();return;}
-    if(index<0||index>4||index==_index)return;
-    setState(()=>_index=index);
+    if (index == 2) {
+      _openQuickAdd();
+      return;
+    }
+    if (index < 0 || index > 4 || index == _index) return;
+    setState(() => _index = index);
   }
 
   void _openQuickAdd() {
@@ -152,9 +167,7 @@ class _AppShellState extends State<AppShell> {
     if (!mounted) return;
 
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(
-        builder: (_) => const LoginScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
       (_) => false,
     );
   }
@@ -163,60 +176,81 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final items = _items;
     final pages = _pages;
-    final extendDock=widget.session.role!=AppRole.loader&&(_index==3||_index==4);
-    final dockExtent=extendDock?83.0+MediaQuery.viewPaddingOf(context).bottom:0.0;
+    final extendDock =
+        widget.session.role != AppRole.loader && (_index == 3 || _index == 4);
+    final dockExtent = extendDock
+        ? 83.0 + MediaQuery.viewPaddingOf(context).bottom
+        : 0.0;
 
     if (_index >= pages.length) {
       _index = 0;
     }
 
     return PopScope(
-      canPop:widget.session.role==AppRole.loader||_index==0,
-      onPopInvokedWithResult:(didPop,result){if(!didPop)_selectTab(0);},
-      child:Scaffold(
-      extendBody:extendDock,
-      body: Stack(
-        children: [
-          if (widget.session.role != AppRole.loader && (_index==0||_index==3||_index==4))
-            Positioned.fill(child:_ExtendedArtwork(
-              asset:_index==0?'assets/images/scenes/mill_home.png':_index==3?'assets/images/scenes/statistics_dashboard.png':'assets/images/scenes/more_dashboard.png',
-              topInset:_index==4?0:MediaQuery.paddingOf(context).top,bottomInset:dockExtent,
-              fit:_index==0?BoxFit.fitWidth:BoxFit.cover))
-          else if (widget.session.role != AppRole.loader)
-            const Positioned.fill(child: ColoredBox(color: Color(0xFF071017)))
-          else
-            const _AppBackground(),
-          Padding(padding:EdgeInsets.only(bottom:dockExtent),
-            child:MediaQuery.removePadding(context:context,removeBottom:extendDock,child:SafeArea(
-            top: !(widget.session.role != AppRole.loader && (_index == 1 || _index == 4)),
-            bottom: false,
-            child: _SceneTabStage(
-              index: _index,
-              children: pages,
+      canPop: widget.session.role == AppRole.loader || _index == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _selectTab(0);
+      },
+      child: Scaffold(
+        extendBody: extendDock,
+        body: Stack(
+          children: [
+            if (widget.session.role != AppRole.loader &&
+                (_index == 0 || _index == 3 || _index == 4))
+              Positioned.fill(
+                child: _ExtendedArtwork(
+                  asset: _index == 0
+                      ? 'assets/images/scenes/mill_home.png'
+                      : _index == 3
+                      ? 'assets/images/scenes/statistics_dashboard.png'
+                      : 'assets/images/scenes/more_dashboard.png',
+                  topInset: _index == 4 ? 0 : MediaQuery.paddingOf(context).top,
+                  bottomInset: dockExtent,
+                  fit: _index == 0 ? BoxFit.fitWidth : BoxFit.cover,
+                ),
+              )
+            else if (widget.session.role != AppRole.loader)
+              const Positioned.fill(child: ColoredBox(color: Color(0xFF071017)))
+            else
+              const _AppBackground(),
+            Padding(
+              padding: EdgeInsets.only(bottom: dockExtent),
+              child: MediaQuery.removePadding(
+                context: context,
+                removeBottom: extendDock,
+                child: SafeArea(
+                  top:
+                      !(widget.session.role != AppRole.loader &&
+                          (_index == 1 || _index == 4)),
+                  bottom: false,
+                  child: _SceneTabStage(index: _index, children: pages),
+                ),
+              ),
             ),
-          ))),
-        ],
+          ],
+        ),
+        bottomNavigationBar:
+            widget.session.role != AppRole.loader && _index <= 1
+            ? null
+            : _BottomNavigation(
+                items: items,
+                index: _index,
+                onChanged: (value) {
+                  if (widget.session.role != AppRole.loader && value == 2) {
+                    _openQuickAdd();
+                    return;
+                  }
+                  if (widget.session.role != AppRole.loader && value == 4) {
+                    _selectTab(4);
+                    return;
+                  }
+                  HapticFeedback.selectionClick();
+                  setState(() => _index = value);
+                },
+                onLongPressLogo: _logout,
+              ),
       ),
-      bottomNavigationBar: widget.session.role != AppRole.loader && _index <= 1
-          ? null
-          : _BottomNavigation(
-        items: items,
-        index: _index,
-        onChanged: (value) {
-          if (widget.session.role != AppRole.loader && value == 2) {
-            _openQuickAdd();
-            return;
-          }
-          if (widget.session.role != AppRole.loader && value == 4) {
-            _selectTab(4);
-            return;
-          }
-          HapticFeedback.selectionClick();
-          setState(() => _index = value);
-        },
-        onLongPressLogo: _logout,
-      ),
-    ));
+    );
   }
 }
 
@@ -231,7 +265,6 @@ class _NavItem {
     required this.activeIcon,
   });
 }
-
 
 class _BottomNavigation extends StatelessWidget {
   final List<_NavItem> items;
@@ -249,9 +282,18 @@ class _BottomNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasAdd = items.length == 5 && items[2].label == 'Добавить';
-    if(hasAdd)return SafeArea(top:false,child:Padding(
-      padding:const EdgeInsets.fromLTRB(8,4,8,3),
-      child:_MillDock(index:index,onChanged:onChanged,onLongPressHome:onLongPressLogo)));
+    if (hasAdd)
+      return SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 4, 8, 3),
+          child: _MillDock(
+            index: index,
+            onChanged: onChanged,
+            onLongPressHome: onLongPressLogo,
+          ),
+        ),
+      );
 
     return ClipRect(
       child: BackdropFilter(
@@ -354,8 +396,9 @@ class _BottomNavigation extends StatelessWidget {
                                       ? AppColors.orangeSoft
                                       : const Color(0xFF777D86),
                                   fontSize: 8.2,
-                                  fontWeight:
-                                      active ? FontWeight.w800 : FontWeight.w600,
+                                  fontWeight: active
+                                      ? FontWeight.w800
+                                      : FontWeight.w600,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -391,12 +434,6 @@ class _BottomNavigation extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
 
 class _ChromeRailPainter extends CustomPainter {
   const _ChromeRailPainter();
@@ -442,8 +479,6 @@ class _ChromeRailPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-
-
 class _BottomAddOrb extends StatelessWidget {
   const _BottomAddOrb();
 
@@ -481,11 +516,7 @@ class _MiniChromeOrbPainter extends CustomPainter {
     final fill = Paint()
       ..shader = const RadialGradient(
         center: Alignment(-.35, -.45),
-        colors: [
-          Color(0xFF5B6068),
-          Color(0xFF25292E),
-          Color(0xFF07080A),
-        ],
+        colors: [Color(0xFF5B6068), Color(0xFF25292E), Color(0xFF07080A)],
         stops: [0, .46, 1],
       ).createShader(fillRect);
     canvas.drawCircle(c, r - 5, fill);
@@ -519,8 +550,6 @@ class _MiniChromeOrbPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-
-
 final ValueNotifier<int> _homeDataRevision = TestStore.revision;
 
 class _HomeMonthData {
@@ -552,23 +581,40 @@ class _HomeMonthData {
   }
 
   static Future<_HomeMonthData> load([DateTime? month]) async {
-    final now=DateTime.now();final d=month??now;
-    final b=await TestStore.load();final journal=await ActivityRepository.load(d);
-    final stats=b.statistics(d);
-    return _HomeMonthData(gas:journal.total('gas'),petrol:journal.total('petrol'),tonnage:journal.total('tonnage'),trips:journal.total('trips').round(),
-      mileage:stats['mileage']!,salary:stats['salary']!,
-      city:journal.total('city_tonnage'),region:journal.total('region_tonnage'),todaySalary:b.statistics(now,day:now)['salary']!);
+    final now = DateTime.now();
+    final d = month ?? now;
+    final b = await TestStore.load();
+    final journal = await ActivityRepository.load(d);
+    final stats = b.statistics(d);
+    return _HomeMonthData(
+      gas: journal.total('gas'),
+      petrol: journal.total('petrol'),
+      tonnage: journal.total('tonnage'),
+      trips: journal.total('trips').round(),
+      mileage: stats['mileage']!,
+      salary: stats['salary']!,
+      city: journal.total('city_tonnage'),
+      region: journal.total('region_tonnage'),
+      todaySalary: b.statistics(now, day: now)['salary']!,
+    );
   }
 
-  static Future<void> addFuel(String fuel,double litres) async {
-    await ActivityRepository.add(kind:'fuel',type:fuel,amount:litres);
-
-  }
-  static Future<void> addTrip(double tonnage,{String type='Город',String direction=''}) async {
-    await ActivityRepository.add(kind:'trip',type:type,amount:tonnage,direction:direction);
-
+  static Future<void> addFuel(String fuel, double litres) async {
+    await ActivityRepository.add(kind: 'fuel', type: fuel, amount: litres);
   }
 
+  static Future<void> addTrip(
+    double tonnage, {
+    String type = 'Город',
+    String direction = '',
+  }) async {
+    await ActivityRepository.add(
+      kind: 'trip',
+      type: type,
+      amount: tonnage,
+      direction: direction,
+    );
+  }
 }
 
 String _fmt1(double value) {
@@ -590,7 +636,12 @@ class HomePage extends StatefulWidget {
   final AppSession session;
   final ValueChanged<int> onNavigate;
   final VoidCallback onQuickAdd;
-  const HomePage({super.key, required this.session, required this.onNavigate, required this.onQuickAdd});
+  const HomePage({
+    super.key,
+    required this.session,
+    required this.onNavigate,
+    required this.onQuickAdd,
+  });
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -604,32 +655,64 @@ class _HomePageState extends State<HomePage> {
     _data = _HomeMonthData.load(_month);
     _homeDataRevision.addListener(_reload);
   }
+
   void _reload() {
     if (mounted) setState(() => _data = _HomeMonthData.load(_month));
   }
+
   void _selectMonth(DateTime month) {
-    setState(() { _month = DateTime(month.year, month.month); _data = _HomeMonthData.load(_month); });
+    setState(() {
+      _month = DateTime(month.year, month.month);
+      _data = _HomeMonthData.load(_month);
+    });
   }
+
   @override
-  void dispose() { _homeDataRevision.removeListener(_reload); super.dispose(); }
+  void dispose() {
+    _homeDataRevision.removeListener(_reload);
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => FutureBuilder<_HomeMonthData>(
     future: _data,
     builder: (context, snap) {
-      if(snap.hasError)return Center(child:_detailButton('Не удалось прочитать тестовые данные. Повторить',_reload));
-      final data = snap.data ?? const _HomeMonthData(gas: 0, petrol: 0,tonnage: 0, trips: 0, mileage: 0, salary: 0);
-      return LayoutBuilder(builder: (context, c) => _ReferenceHomeDashboard(
-        session: widget.session, data: data, month: _month, onMonthChanged: _selectMonth,
-        size: Size(c.maxWidth, c.maxHeight), onNavigate: widget.onNavigate, onQuickAdd: widget.onQuickAdd));
-    });
+      if (snap.hasError)
+        return Center(
+          child: _detailButton(
+            'Не удалось прочитать тестовые данные. Повторить',
+            _reload,
+          ),
+        );
+      final data =
+          snap.data ??
+          const _HomeMonthData(
+            gas: 0,
+            petrol: 0,
+            tonnage: 0,
+            trips: 0,
+            mileage: 0,
+            salary: 0,
+          );
+      return LayoutBuilder(
+        builder: (context, c) => _ReferenceHomeDashboard(
+          session: widget.session,
+          data: data,
+          month: _month,
+          onMonthChanged: _selectMonth,
+          size: Size(c.maxWidth, c.maxHeight),
+          onNavigate: widget.onNavigate,
+          onQuickAdd: widget.onQuickAdd,
+        ),
+      );
+    },
+  );
 }
 
 class _HomeTopBar extends StatelessWidget {
   final AppSession session;
 
-  const _HomeTopBar({
-    required this.session,
-  });
+  const _HomeTopBar({required this.session});
 
   @override
   Widget build(BuildContext context) {
@@ -697,20 +780,11 @@ class _HomeTopBar extends StatelessWidget {
   }
 }
 
-
-
-
-
-
-
 class _HomeTruckHero extends StatelessWidget {
   final double height;
   final VoidCallback onTap;
 
-  const _HomeTruckHero({
-    required this.height,
-    required this.onTap,
-  });
+  const _HomeTruckHero({required this.height, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -828,11 +902,7 @@ class _HomeTruckHero extends StatelessWidget {
                   ],
                 ),
               ),
-              const Positioned(
-                right: 14,
-                bottom: 14,
-                child: _HomeSalaryRing(),
-              ),
+              const Positioned(right: 14, bottom: 14, child: _HomeSalaryRing()),
             ],
           ),
         ),
@@ -841,22 +911,11 @@ class _HomeTruckHero extends StatelessWidget {
   }
 }
 
-
-
-
-
-
-
-
-
 class _HomeSalaryCard extends StatelessWidget {
   final double gap;
   final VoidCallback onPaidRoutesTap;
 
-  const _HomeSalaryCard({
-    required this.gap,
-    required this.onPaidRoutesTap,
-  });
+  const _HomeSalaryCard({required this.gap, required this.onPaidRoutesTap});
 
   @override
   Widget build(BuildContext context) {
@@ -900,14 +959,6 @@ class _HomeSalaryCard extends StatelessWidget {
   }
 }
 
-
-
-
-
-
-
-
-
 class _HomeSalaryRing extends StatelessWidget {
   const _HomeSalaryRing();
 
@@ -948,15 +999,10 @@ class _HomeSalaryRing extends StatelessWidget {
   }
 }
 
-
-
-
 class _HomeRingPainter extends CustomPainter {
   final double progress;
 
-  const _HomeRingPainter({
-    required this.progress,
-  });
+  const _HomeRingPainter({required this.progress});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -993,13 +1039,7 @@ class _HomeRingPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..color = const Color(0x60FF7418)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-    canvas.drawArc(
-      rect,
-      -math.pi / 2,
-      math.pi * 2 * progress,
-      false,
-      glow,
-    );
+    canvas.drawArc(rect, -math.pi / 2, math.pi * 2 * progress, false, glow);
 
     final fg = Paint()
       ..style = PaintingStyle.stroke
@@ -1013,13 +1053,7 @@ class _HomeRingPainter extends CustomPainter {
           Color(0xFFFF5A00),
         ],
       ).createShader(rect);
-    canvas.drawArc(
-      rect,
-      -math.pi / 2,
-      math.pi * 2 * progress,
-      false,
-      fg,
-    );
+    canvas.drawArc(rect, -math.pi / 2, math.pi * 2 * progress, false, fg);
 
     final white = Paint()
       ..style = PaintingStyle.stroke
@@ -1040,11 +1074,6 @@ class _HomeRingPainter extends CustomPainter {
     return oldDelegate.progress != progress;
   }
 }
-
-
-
-
-
 
 class _HomeMaintenanceCard extends StatelessWidget {
   const _HomeMaintenanceCard();
@@ -1107,12 +1136,6 @@ class _HomeMaintenanceCard extends StatelessWidget {
   }
 }
 
-
-
-
-
-
-
 class _HomeTonnageCard extends StatelessWidget {
   const _HomeTonnageCard();
 
@@ -1148,12 +1171,6 @@ class _HomeTonnageCard extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
 
 class _HomeDynamicsCard extends StatelessWidget {
   const _HomeDynamicsCard();
@@ -1226,13 +1243,25 @@ class _HomeDynamicsCard extends StatelessWidget {
               const SizedBox(height: 5),
               const Row(
                 children: [
-                  Text('1 нед', style: TextStyle(color: Color(0xFF777A80), fontSize: 6.8)),
+                  Text(
+                    '1 нед',
+                    style: TextStyle(color: Color(0xFF777A80), fontSize: 6.8),
+                  ),
                   Spacer(),
-                  Text('2 нед', style: TextStyle(color: Color(0xFF777A80), fontSize: 6.8)),
+                  Text(
+                    '2 нед',
+                    style: TextStyle(color: Color(0xFF777A80), fontSize: 6.8),
+                  ),
                   Spacer(),
-                  Text('3 нед', style: TextStyle(color: Color(0xFF777A80), fontSize: 6.8)),
+                  Text(
+                    '3 нед',
+                    style: TextStyle(color: Color(0xFF777A80), fontSize: 6.8),
+                  ),
                   Spacer(),
-                  Text('4 нед', style: TextStyle(color: Color(0xFF777A80), fontSize: 6.8)),
+                  Text(
+                    '4 нед',
+                    style: TextStyle(color: Color(0xFF777A80), fontSize: 6.8),
+                  ),
                 ],
               ),
             ],
@@ -1242,12 +1271,6 @@ class _HomeDynamicsCard extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
 
 class _RefHomeTile extends StatelessWidget {
   final Widget child;
@@ -1284,7 +1307,10 @@ class _RefHomeTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(radius),
         child: CustomPaint(
           painter: _RefHomeGlassPainter(radius: radius, accent: accent),
-          foregroundPainter: _RefHomeFramePainter(radius: radius, accent: accent),
+          foregroundPainter: _RefHomeFramePainter(
+            radius: radius,
+            accent: accent,
+          ),
           child: child,
         ),
       ),
@@ -1304,7 +1330,6 @@ class _RefHomeTile extends StatelessWidget {
     return tile;
   }
 }
-
 
 class _RefMetricTile extends StatelessWidget {
   final String title;
@@ -1362,11 +1387,7 @@ class _RefMetricTile extends StatelessWidget {
                   Positioned(
                     right: 0,
                     top: 0,
-                    child: _RefNeonIcon(
-                      icon: icon,
-                      color: accent,
-                      size: 19,
-                    ),
+                    child: _RefNeonIcon(icon: icon, color: accent, size: 19),
                   ),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1435,9 +1456,6 @@ class _RefMetricTile extends StatelessWidget {
   }
 }
 
-
-
-
 class _RefGaugeTile extends StatelessWidget {
   final String title;
   final String value;
@@ -1471,9 +1489,7 @@ class _RefGaugeTile extends StatelessWidget {
           children: [
             const Positioned.fill(
               child: IgnorePointer(
-                child: CustomPaint(
-                  painter: _RefGaugeGlassSwooshPainter(),
-                ),
+                child: CustomPaint(painter: _RefGaugeGlassSwooshPainter()),
               ),
             ),
             Padding(
@@ -1574,9 +1590,6 @@ class _RefGaugeTile extends StatelessWidget {
   }
 }
 
-
-
-
 class _RefGaugeGlassSwooshPainter extends CustomPainter {
   const _RefGaugeGlassSwooshPainter();
 
@@ -1614,11 +1627,7 @@ class _RefGaugeGlassSwooshPainter extends CustomPainter {
       ..strokeWidth = .65
       ..strokeCap = StrokeCap.round
       ..shader = const LinearGradient(
-        colors: [
-          Color(0x00FFFFFF),
-          Color(0xA8FFFFFF),
-          Color(0x10FFFFFF),
-        ],
+        colors: [Color(0x00FFFFFF), Color(0xA8FFFFFF), Color(0x10FFFFFF)],
       ).createShader(Offset.zero & size);
     canvas.drawPath(p, thin);
 
@@ -1644,9 +1653,7 @@ class _RefGaugeGlassSwooshPainter extends CustomPainter {
 class _RefGaugePainter extends CustomPainter {
   final double progress;
 
-  const _RefGaugePainter({
-    required this.progress,
-  });
+  const _RefGaugePainter({required this.progress});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1692,11 +1699,7 @@ class _RefGaugePainter extends CustomPainter {
       ..strokeWidth = 8.5
       ..strokeCap = StrokeCap.round
       ..shader = const LinearGradient(
-        colors: [
-          Color(0xFFFFB650),
-          Color(0xFFFF7B18),
-          Color(0xFFFF5300),
-        ],
+        colors: [Color(0xFFFFB650), Color(0xFFFF7B18), Color(0xFFFF5300)],
       ).createShader(rect);
     canvas.drawArc(rect, start, sweep * progress, false, active);
 
@@ -1719,7 +1722,6 @@ class _RefGaugePainter extends CustomPainter {
     return oldDelegate.progress != progress;
   }
 }
-
 
 class _RefHeaderButton extends StatelessWidget {
   final IconData icon;
@@ -1761,13 +1763,7 @@ class _RefHeaderButton extends StatelessWidget {
                 ),
               ),
             ),
-            Center(
-              child: Icon(
-                icon,
-                color: AppColors.text,
-                size: 22,
-              ),
-            ),
+            Center(child: Icon(icon, color: AppColors.text, size: 22)),
             if (showDot)
               const Positioned(
                 right: -1,
@@ -1780,10 +1776,7 @@ class _RefHeaderButton extends StatelessWidget {
                       color: AppColors.orange,
                       shape: BoxShape.circle,
                       boxShadow: [
-                        BoxShadow(
-                          color: Color(0xCCFF7418),
-                          blurRadius: 8,
-                        ),
+                        BoxShadow(color: Color(0xCCFF7418), blurRadius: 8),
                       ],
                     ),
                   ),
@@ -1795,8 +1788,6 @@ class _RefHeaderButton extends StatelessWidget {
     );
   }
 }
-
-
 
 class _RefIconPlate extends StatelessWidget {
   final IconData icon;
@@ -1818,11 +1809,7 @@ class _RefIconPlate extends StatelessWidget {
         radius: 13,
         accent: accent,
         child: Center(
-          child: _RefNeonIcon(
-            icon: icon,
-            color: accent,
-            size: 20,
-          ),
+          child: _RefNeonIcon(icon: icon, color: accent, size: 20),
         ),
       ),
     );
@@ -1847,14 +1834,8 @@ class _RefNeonIcon extends StatelessWidget {
       color: color,
       size: size,
       shadows: [
-        Shadow(
-          color: color.withValues(alpha: .95),
-          blurRadius: 9,
-        ),
-        Shadow(
-          color: color.withValues(alpha: .45),
-          blurRadius: 18,
-        ),
+        Shadow(color: color.withValues(alpha: .95), blurRadius: 9),
+        Shadow(color: color.withValues(alpha: .45), blurRadius: 18),
       ],
     );
   }
@@ -1864,10 +1845,7 @@ class _RefSegment extends StatelessWidget {
   final String text;
   final bool active;
 
-  const _RefSegment({
-    required this.text,
-    required this.active,
-  });
+  const _RefSegment({required this.text, required this.active});
 
   @override
   Widget build(BuildContext context) {
@@ -1877,25 +1855,15 @@ class _RefSegment extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         gradient: active
             ? const LinearGradient(
-                colors: [
-                  Color(0xFF3C281A),
-                  Color(0xFF160F0B),
-                ],
+                colors: [Color(0xFF3C281A), Color(0xFF160F0B)],
               )
             : null,
         border: Border.all(
-          color: active
-              ? const Color(0xFF9A5C2B)
-              : const Color(0xFF34373C),
+          color: active ? const Color(0xFF9A5C2B) : const Color(0xFF34373C),
           width: .7,
         ),
         boxShadow: active
-            ? const [
-                BoxShadow(
-                  color: Color(0x36FF7418),
-                  blurRadius: 8,
-                ),
-              ]
+            ? const [BoxShadow(color: Color(0x36FF7418), blurRadius: 8)]
             : null,
       ),
       child: Text(
@@ -1910,15 +1878,11 @@ class _RefSegment extends StatelessWidget {
   }
 }
 
-
 class _RefHomeGlassPainter extends CustomPainter {
   final double radius;
   final Color accent;
 
-  const _RefHomeGlassPainter({
-    required this.radius,
-    required this.accent,
-  });
+  const _RefHomeGlassPainter({required this.radius, required this.accent});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2065,17 +2029,11 @@ class _RefHomeGlassPainter extends CustomPainter {
   }
 }
 
-
-
-
 class _RefHomeFramePainter extends CustomPainter {
   final double radius;
   final Color accent;
 
-  const _RefHomeFramePainter({
-    required this.radius,
-    required this.accent,
-  });
+  const _RefHomeFramePainter({required this.radius, required this.accent});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2197,9 +2155,6 @@ class _RefHomeFramePainter extends CustomPainter {
   }
 }
 
-
-
-
 BoxDecoration _homePanelDecoration({
   required double radius,
   Color borderColor = AppColors.line,
@@ -2224,11 +2179,7 @@ BoxDecoration _homePanelDecoration({
         blurRadius: 22,
         offset: Offset(0, 12),
       ),
-      BoxShadow(
-        color: Color(0x14000000),
-        blurRadius: 22,
-        spreadRadius: -3,
-      ),
+      BoxShadow(color: Color(0x14000000), blurRadius: 22, spreadRadius: -3),
       BoxShadow(
         color: Color(0x2AFFFFFF),
         blurRadius: 1,
@@ -2238,12 +2189,17 @@ BoxDecoration _homePanelDecoration({
   );
 }
 
-Future<void> _openHomeMenu(BuildContext context,AppSession session) async {
-  final shell=context.findAncestorStateOfType<_AppShellState>();
-  if(shell!=null){shell._selectTab(4);return;}
-  await Navigator.push(context,_SceneRoute<void>(builder:(_)=>_CinematicMore(session:session)));
+Future<void> _openHomeMenu(BuildContext context, AppSession session) async {
+  final shell = context.findAncestorStateOfType<_AppShellState>();
+  if (shell != null) {
+    shell._selectTab(4);
+    return;
+  }
+  await Navigator.push(
+    context,
+    _SceneRoute<void>(builder: (_) => _CinematicMore(session: session)),
+  );
 }
-
 
 void _showSalarySheet(BuildContext context) {
   const rows = [
@@ -2284,10 +2240,7 @@ void _showSalarySheet(BuildContext context) {
               SizedBox(height: 4),
               Text(
                 'Итого за сентябрь 2026 г.',
-                style: TextStyle(
-                  color: AppColors.textSoft,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: AppColors.textSoft, fontSize: 12),
               ),
             ],
           ),
@@ -2298,20 +2251,14 @@ void _showSalarySheet(BuildContext context) {
           flexes: [3, 2],
         ),
         ...rows.map(
-          (row) => _HomeSheetRow(
-            cells: [row.$1, row.$2],
-            flexes: const [3, 2],
-          ),
+          (row) => _HomeSheetRow(cells: [row.$1, row.$2], flexes: const [3, 2]),
         ),
         const SizedBox(height: 8),
         const Align(
           alignment: Alignment.centerLeft,
           child: Text(
             'Часы: 154 / 176 ч',
-            style: TextStyle(
-              color: AppColors.textSoft,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: AppColors.textSoft, fontSize: 12),
           ),
         ),
       ],
@@ -2339,10 +2286,7 @@ void _showGasSheet(BuildContext context) {
           flexes: [2, 2, 2],
         ),
         ...rows.map(
-          (row) => _HomeSheetRow(
-            cells: row,
-            flexes: const [2, 2, 2],
-          ),
+          (row) => _HomeSheetRow(cells: row, flexes: const [2, 2, 2]),
         ),
       ],
     ),
@@ -2368,10 +2312,7 @@ void _showPaidRoutesSheet(BuildContext context) {
           flexes: [2, 3, 2, 2],
         ),
         ...rows.map(
-          (row) => _HomeSheetRow(
-            cells: row,
-            flexes: const [2, 3, 2, 2],
-          ),
+          (row) => _HomeSheetRow(cells: row, flexes: const [2, 3, 2, 2]),
         ),
       ],
     ),
@@ -2404,13 +2345,8 @@ Future<void> _showHomeSheet(
               child: GestureDetector(
                 onTap: () => Navigator.of(dialogContext).pop(),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(
-                    sigmaX: 3,
-                    sigmaY: 3,
-                  ),
-                  child: Container(
-                    color: Colors.black.withValues(alpha: 0.66),
-                  ),
+                  filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+                  child: Container(color: Colors.black.withValues(alpha: 0.66)),
                 ),
               ),
             ),
@@ -2440,10 +2376,7 @@ Future<void> _showHomeSheet(
                         blurRadius: 34,
                         offset: Offset(0, -10),
                       ),
-                      BoxShadow(
-                        color: Color(0x22FF7418),
-                        blurRadius: 32,
-                      ),
+                      BoxShadow(color: Color(0x22FF7418), blurRadius: 32),
                     ],
                   ),
                   child: Column(
@@ -2480,13 +2413,10 @@ Future<void> _showHomeSheet(
                             ),
                           ),
                           IconButton(
-                            onPressed: () =>
-                                Navigator.of(dialogContext).pop(),
+                            onPressed: () => Navigator.of(dialogContext).pop(),
                             style: IconButton.styleFrom(
                               backgroundColor: const Color(0xFF171719),
-                              side: const BorderSide(
-                                color: Color(0xFF4B3525),
-                              ),
+                              side: const BorderSide(color: Color(0xFF4B3525)),
                             ),
                             icon: const Icon(
                               Icons.close_rounded,
@@ -2496,10 +2426,7 @@ Future<void> _showHomeSheet(
                         ],
                       ),
                       const SizedBox(height: 14),
-                      const Divider(
-                        height: 1,
-                        color: Color(0xFF3D281A),
-                      ),
+                      const Divider(height: 1, color: Color(0xFF3D281A)),
                       const SizedBox(height: 10),
                       Flexible(
                         child: SingleChildScrollView(
@@ -2516,12 +2443,7 @@ Future<void> _showHomeSheet(
         ),
       );
     },
-    transitionBuilder: (
-      context,
-      animation,
-      secondaryAnimation,
-      child,
-    ) {
+    transitionBuilder: (context, animation, secondaryAnimation, child) {
       final curved = CurvedAnimation(
         parent: animation,
         curve: Curves.easeOutCubic,
@@ -2541,7 +2463,6 @@ Future<void> _showHomeSheet(
     },
   );
 }
-
 
 class _NeonIcon extends StatelessWidget {
   final IconData icon;
@@ -2563,19 +2484,13 @@ class _NeonIcon extends StatelessWidget {
           icon,
           color: color.withValues(alpha: .42),
           size: size + 7,
-          shadows: [
-            Shadow(
-              color: color.withValues(alpha: .7),
-              blurRadius: 12,
-            ),
-          ],
+          shadows: [Shadow(color: color.withValues(alpha: .7), blurRadius: 12)],
         ),
         Icon(icon, color: color, size: size),
       ],
     );
   }
 }
-
 
 class _ChromeGlassSurface extends StatelessWidget {
   final Widget child;
@@ -2615,18 +2530,12 @@ class _ChromeGlassSurface extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
           child: CustomPaint(
-            painter: _LuxuryGlassFillPainter(
-              radius: radius,
-              accent: accent,
-            ),
+            painter: _LuxuryGlassFillPainter(radius: radius, accent: accent),
             foregroundPainter: _LuxuryChromeFramePainter(
               radius: radius,
               accent: accent,
             ),
-            child: Padding(
-              padding: padding,
-              child: child,
-            ),
+            child: Padding(padding: padding, child: child),
           ),
         ),
       ),
@@ -2647,27 +2556,16 @@ class _ChromeGlassSurface extends StatelessWidget {
   }
 }
 
-
-
-
-
-
 class _LuxuryGlassFillPainter extends CustomPainter {
   final double radius;
   final Color accent;
 
-  const _LuxuryGlassFillPainter({
-    required this.radius,
-    required this.accent,
-  });
+  const _LuxuryGlassFillPainter({required this.radius, required this.accent});
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
-    final rr = RRect.fromRectAndRadius(
-      rect,
-      Radius.circular(radius),
-    );
+    final rr = RRect.fromRectAndRadius(rect, Radius.circular(radius));
 
     canvas.save();
     canvas.clipRRect(rr);
@@ -2828,23 +2726,16 @@ class _LuxuryGlassFillPainter extends CustomPainter {
   }
 }
 
-
 class _LuxuryChromeFramePainter extends CustomPainter {
   final double radius;
   final Color accent;
 
-  const _LuxuryChromeFramePainter({
-    required this.radius,
-    required this.accent,
-  });
+  const _LuxuryChromeFramePainter({required this.radius, required this.accent});
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Rect.fromLTWH(.8, .8, size.width - 1.6, size.height - 1.6);
-    final rr = RRect.fromRectAndRadius(
-      rect,
-      Radius.circular(radius),
-    );
+    final rr = RRect.fromRectAndRadius(rect, Radius.circular(radius));
 
     // Основная кромка почти черная — как в референсе.
     final darkMetal = Paint()
@@ -2989,31 +2880,18 @@ class _LuxuryChromeFramePainter extends CustomPainter {
   }
 }
 
-
-
-
 class _HomeSheetHeader extends StatelessWidget {
   final List<String> columns;
   final List<int> flexes;
 
-  const _HomeSheetHeader({
-    required this.columns,
-    required this.flexes,
-  });
+  const _HomeSheetHeader({required this.columns, required this.flexes});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 6,
-        vertical: 10,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
       decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: Color(0xFF3B281B),
-          ),
-        ),
+        border: Border(bottom: BorderSide(color: Color(0xFF3B281B))),
       ),
       child: Row(
         children: List.generate(columns.length, (index) {
@@ -3038,24 +2916,14 @@ class _HomeSheetRow extends StatelessWidget {
   final List<String> cells;
   final List<int> flexes;
 
-  const _HomeSheetRow({
-    required this.cells,
-    required this.flexes,
-  });
+  const _HomeSheetRow({required this.cells, required this.flexes});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 6,
-        vertical: 13,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 13),
       decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: Color(0xFF332217),
-          ),
-        ),
+        border: Border(bottom: BorderSide(color: Color(0xFF332217))),
       ),
       child: Row(
         children: List.generate(cells.length, (index) {
@@ -3076,93 +2944,338 @@ class _HomeSheetRow extends StatelessWidget {
   }
 }
 
+Future<void> _showQuickAddMenu(BuildContext context, AppSession session) async {
+  var selected = false;
+  final route = PageRouteBuilder<String>(
+    transitionDuration: const Duration(milliseconds: 180),
+    reverseTransitionDuration: const Duration(milliseconds: 140),
+    pageBuilder: (c, animation, secondary) {
+      void choose(String value) {
+        if (selected) return;
+        selected = true;
+        Navigator.pop(c, value);
+      }
 
-Future<void> _showQuickAddMenu(BuildContext context,AppSession session) async {
-  var selected=false;
-  final route=PageRouteBuilder<String>(
-    transitionDuration:const Duration(milliseconds:180),reverseTransitionDuration:const Duration(milliseconds:140),
-    pageBuilder:(c,animation,secondary){
-      void choose(String value){if(selected)return;selected=true;Navigator.pop(c,value);}
-      return _QuickAddMenu(onTrip:()=>choose('trip'),onFuel:()=>choose('fuel'),onInvoice:()=>choose('invoice'));
+      return _QuickAddMenu(
+        onTrip: () => choose('trip'),
+        onFuel: () => choose('fuel'),
+        onInvoice: () => choose('invoice'),
+      );
     },
-    transitionsBuilder:(c,animation,secondary,child)=>MediaQuery.disableAnimationsOf(c)?child:
-      SlideTransition(position:Tween<Offset>(begin:const Offset(0,1),end:Offset.zero)
-        .animate(CurvedAnimation(parent:animation,curve:Curves.easeOutCubic,reverseCurve:Curves.easeInCubic)),child:child));
-  final choice=await Navigator.of(context).push<String>(route);
+    transitionsBuilder: (c, animation, secondary, child) =>
+        MediaQuery.disableAnimationsOf(c)
+        ? child
+        : SlideTransition(
+            position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
+                .animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                    reverseCurve: Curves.easeInCubic,
+                  ),
+                ),
+            child: child,
+          ),
+  );
+  final choice = await Navigator.of(context).push<String>(route);
   await route.completed;
-  if(choice!=null&&context.mounted)await _testEditor(context,choice);
+  if (choice != null && context.mounted) await _testEditor(context, choice);
 }
 
 class _QuickAddMenu extends StatelessWidget {
-  final VoidCallback onTrip,onFuel,onInvoice;
-  const _QuickAddMenu({required this.onTrip,required this.onFuel,required this.onInvoice});
+  final VoidCallback onTrip, onFuel, onInvoice;
+  const _QuickAddMenu({
+    required this.onTrip,
+    required this.onFuel,
+    required this.onInvoice,
+  });
   @override
-  Widget build(BuildContext context)=>AnnotatedRegion<SystemUiOverlayStyle>(
-    value:const SystemUiOverlayStyle(statusBarColor:Colors.transparent,statusBarIconBrightness:Brightness.light,
-      systemNavigationBarColor:Colors.transparent,systemNavigationBarIconBrightness:Brightness.light),
-    child:Scaffold(resizeToAvoidBottomInset:false,backgroundColor:const Color(0xFF071016),
-      body:LayoutBuilder(builder:(context,box){
-        final scale=box.maxWidth/864;
-        final top=math.max(0.0,MediaQuery.viewPaddingOf(context).top-75*scale);
-        Widget at(double x,double y,double w,double h,Widget child)=>Positioned(left:x,top:y,width:w,height:h,child:child);
-        Widget label(String value,double size,Color color)=>Text(value,maxLines:1,overflow:TextOverflow.ellipsis,
-          style:TextStyle(color:color,fontSize:size,height:1.15,fontWeight:FontWeight.w500));
-        Widget action(double y,String title,String subtitle,VoidCallback tap)=>at(96,y,670,255,
-          Semantics(button:true,label:'$title. $subtitle',child:Material(color:Colors.transparent,
-            child:InkWell(onTap:(){HapticFeedback.selectionClick();tap();},borderRadius:BorderRadius.circular(54),
-              splashColor:const Color(0x22E6B668),highlightColor:const Color(0x0FE6B668),
-              child:Padding(padding:const EdgeInsets.only(left:288,right:73),child:Column(
-                mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.start,children:[
-                  label(title,42,const Color(0xFFEAEDEF)),const SizedBox(height:15),
-                  label(subtitle,29,const Color(0xFFB1C1CA)),
-                ]))))));
-        final controls=SizedBox(width:864,height:1536,child:Stack(children:[
-          at(44,123,68,68,IconButton(tooltip:'Закрыть',onPressed:()=>Navigator.pop(context),
-            padding:EdgeInsets.zero,icon:const Icon(Icons.close,color:Color(0xFFEAEDEF),size:48))),
-          at(137,135,650,61,label('Новое действие',44,const Color(0xFFEAEDEF))),
-          at(140,252,584,61,Center(child:label('Добавить',47,const Color(0xFFEAEDEF)))),
-          at(140,318,584,47,Center(child:label('Выберите действие',31,const Color(0xFFB1C1CA)))),
-          action(438,'Рейс','Город или район',onTrip),
-          action(750,'Топливо','Газ или бензин',onFuel),
-          action(1059,'Накладная','Создать накладную',onInvoice),
-        ]));
-        return SingleChildScrollView(child:SizedBox(width:box.maxWidth,
-          height:math.max(box.maxHeight,1536*scale+top),child:Stack(children:[
-            Positioned.fill(child:RepaintBoundary(child:_ExtendedArtwork(asset:'assets/images/scenes/quick_add.png',topInset:top))),
-            Positioned(top:top,left:0,width:box.maxWidth,height:1536*scale,
-              child:FittedBox(fit:BoxFit.contain,child:MediaQuery.withClampedTextScaling(minScaleFactor:1,maxScaleFactor:1,child:controls))),
-          ])));
-      })));
+  Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
+    value: const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.light,
+    ),
+    child: Scaffold(
+      resizeToAvoidBottomInset: false,
+      backgroundColor: const Color(0xFF071016),
+      body: LayoutBuilder(
+        builder: (context, box) {
+          final scale = box.maxWidth / 864;
+          final top = math.max(
+            0.0,
+            MediaQuery.viewPaddingOf(context).top - 75 * scale,
+          );
+          Widget at(double x, double y, double w, double h, Widget child) =>
+              Positioned(left: x, top: y, width: w, height: h, child: child);
+          Widget label(String value, double size, Color color) => Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: size,
+              height: 1.15,
+              fontWeight: FontWeight.w500,
+            ),
+          );
+          Widget action(
+            double y,
+            String title,
+            String subtitle,
+            VoidCallback tap,
+          ) => at(
+            96,
+            y,
+            670,
+            255,
+            Semantics(
+              button: true,
+              label: '$title. $subtitle',
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    tap();
+                  },
+                  borderRadius: BorderRadius.circular(54),
+                  splashColor: const Color(0x22E6B668),
+                  highlightColor: const Color(0x0FE6B668),
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 288, right: 73),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        label(title, 42, const Color(0xFFEAEDEF)),
+                        const SizedBox(height: 15),
+                        label(subtitle, 29, const Color(0xFFB1C1CA)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+          final controls = SizedBox(
+            width: 864,
+            height: 1536,
+            child: Stack(
+              children: [
+                at(
+                  44,
+                  123,
+                  68,
+                  68,
+                  IconButton(
+                    tooltip: 'Закрыть',
+                    onPressed: () => Navigator.pop(context),
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(
+                      Icons.close,
+                      color: Color(0xFFEAEDEF),
+                      size: 48,
+                    ),
+                  ),
+                ),
+                at(
+                  137,
+                  135,
+                  650,
+                  61,
+                  label('Новое действие', 44, const Color(0xFFEAEDEF)),
+                ),
+                at(
+                  140,
+                  252,
+                  584,
+                  61,
+                  Center(child: label('Добавить', 47, const Color(0xFFEAEDEF))),
+                ),
+                at(
+                  140,
+                  318,
+                  584,
+                  47,
+                  Center(
+                    child: label(
+                      'Выберите действие',
+                      31,
+                      const Color(0xFFB1C1CA),
+                    ),
+                  ),
+                ),
+                action(438, 'Рейс', 'Город или район', onTrip),
+                action(750, 'Топливо', 'Газ или бензин', onFuel),
+                action(1059, 'Накладная', 'Создать накладную', onInvoice),
+              ],
+            ),
+          );
+          return SingleChildScrollView(
+            child: SizedBox(
+              width: box.maxWidth,
+              height: math.max(box.maxHeight, 1536 * scale + top),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: RepaintBoundary(
+                      child: _ExtendedArtwork(
+                        asset: 'assets/images/scenes/quick_add.png',
+                        topInset: top,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: top,
+                    left: 0,
+                    width: box.maxWidth,
+                    height: 1536 * scale,
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      child: MediaQuery.withClampedTextScaling(
+                        minScaleFactor: 1,
+                        maxScaleFactor: 1,
+                        child: controls,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    ),
+  );
 }
 
 class _QuickActionOrb extends StatefulWidget {
-  final IconData icon;final String title,subtitle;final VoidCallback onTap;
-  const _QuickActionOrb({required this.icon,required this.title,required this.subtitle,required this.onTap});
+  final IconData icon;
+  final String title, subtitle;
+  final VoidCallback onTap;
+  const _QuickActionOrb({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
   @override
-  State<_QuickActionOrb> createState()=>_QuickActionOrbState();
+  State<_QuickActionOrb> createState() => _QuickActionOrbState();
 }
+
 class _QuickActionOrbState extends State<_QuickActionOrb> {
-  bool _pressed=false;
+  bool _pressed = false;
   @override
-  Widget build(BuildContext context)=>Semantics(button:true,label:widget.title,child:GestureDetector(
-    onTapDown:(_)=>setState(()=>_pressed=true),onTapCancel:()=>setState(()=>_pressed=false),
-    onTapUp:(_)=>setState(()=>_pressed=false),onTap:(){HapticFeedback.selectionClick();widget.onTap();},
-    child:AnimatedScale(scale:_pressed ? 0.95 : 1.0,duration:const Duration(milliseconds:180),curve:Curves.easeOutCubic,
-      child:Container(width:144,height:144,decoration:BoxDecoration(shape:BoxShape.circle,
-        gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF556168),Color(0xFF24343D),Color(0xFF070C10),Color(0xFFC78832)]),
-        boxShadow:const [BoxShadow(color:Color(0xCC000000),blurRadius:16,offset:Offset(0,10)),BoxShadow(color:Color(0x44FFAD35),blurRadius:25,spreadRadius:1)]),
-        padding:const EdgeInsets.all(4),child:Container(decoration:BoxDecoration(shape:BoxShape.circle,border:Border.all(color:const Color(0xD9FFBD5A)),
-          gradient:const RadialGradient(center:Alignment(-.5,-.7),radius:1.2,colors:[Color(0xFF314752),Color(0xFF0D1D25),Color(0xFF02090E)])),
-          child:Stack(alignment:Alignment.center,children:[Positioned(top:9,left:27,right:27,child:Container(height:31,decoration:const BoxDecoration(
-            borderRadius:BorderRadius.all(Radius.elliptical(70,30)),gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[Color(0x3375E4EF),Color(0x0075E4EF)])))),
-            Column(mainAxisSize:MainAxisSize.min,children:[Icon(widget.icon,color:widget.title=='Топливо'?_ice:_amber,size:32,shadows:const [Shadow(color:Color(0x66FFB542),blurRadius:12)]),
-              const SizedBox(height:12),_dt(widget.title,size:17,weight:FontWeight.w500),const SizedBox(height:6),_dt(widget.subtitle,size:11,color:const Color(0xFFB6C5CE))])]))))));
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: widget.title,
+    child: GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        widget.onTap();
+      },
+      child: AnimatedScale(
+        scale: _pressed ? 0.95 : 1.0,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        child: Container(
+          width: 144,
+          height: 144,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF556168),
+                Color(0xFF24343D),
+                Color(0xFF070C10),
+                Color(0xFFC78832),
+              ],
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0xCC000000),
+                blurRadius: 16,
+                offset: Offset(0, 10),
+              ),
+              BoxShadow(
+                color: Color(0x44FFAD35),
+                blurRadius: 25,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(4),
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xD9FFBD5A)),
+              gradient: const RadialGradient(
+                center: Alignment(-.5, -.7),
+                radius: 1.2,
+                colors: [
+                  Color(0xFF314752),
+                  Color(0xFF0D1D25),
+                  Color(0xFF02090E),
+                ],
+              ),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned(
+                  top: 9,
+                  left: 27,
+                  right: 27,
+                  child: Container(
+                    height: 31,
+                    decoration: const BoxDecoration(
+                      borderRadius: BorderRadius.all(Radius.elliptical(70, 30)),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0x3375E4EF), Color(0x0075E4EF)],
+                      ),
+                    ),
+                  ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      widget.icon,
+                      color: widget.title == 'Топливо' ? _ice : _amber,
+                      size: 32,
+                      shadows: const [
+                        Shadow(color: Color(0x66FFB542), blurRadius: 12),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _dt(widget.title, size: 17, weight: FontWeight.w500),
+                    const SizedBox(height: 6),
+                    _dt(
+                      widget.subtitle,
+                      size: 11,
+                      color: const Color(0xFFB6C5CE),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
-void _openTripEntry(BuildContext context) => _testEditor(context,'trip');
-
-
-
+void _openTripEntry(BuildContext context) => _testEditor(context, 'trip');
 
 class _FullScreenChromePainter extends CustomPainter {
   const _FullScreenChromePainter();
@@ -3206,8 +3319,6 @@ class _FullScreenChromePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-
-
 
 class _ChromeOrbPainter extends CustomPainter {
   const _ChromeOrbPainter();
@@ -3338,10 +3449,6 @@ class _ChromeOrbPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-
-
-
-
 class _ChromeCloseOrb extends StatelessWidget {
   const _ChromeCloseOrb();
 
@@ -3352,16 +3459,11 @@ class _ChromeCloseOrb extends StatelessWidget {
       height: 58,
       child: CustomPaint(
         painter: const _ChromeOrbPainter(),
-        child: const Icon(
-          Icons.close_rounded,
-          color: AppColors.text,
-          size: 25,
-        ),
+        child: const Icon(Icons.close_rounded, color: AppColors.text, size: 25),
       ),
     );
   }
 }
-
 
 class _TripEntrySheet extends StatefulWidget {
   const _TripEntrySheet();
@@ -3371,7 +3473,7 @@ class _TripEntrySheet extends StatefulWidget {
 }
 
 class _TripEntrySheetState extends State<_TripEntrySheet> {
-  bool _saving=false;
+  bool _saving = false;
   String _type = 'Город';
   String _direction = 'Петропавловск';
   final TextEditingController _tonnageController = TextEditingController();
@@ -3419,20 +3521,36 @@ class _TripEntrySheetState extends State<_TripEntrySheet> {
             },
           ),
           const SizedBox(height: 14),
-          _QuickNumberField(
-            controller: _tonnageController,
-            hint: 'Тоннаж, т',
-          ),
+          _QuickNumberField(controller: _tonnageController, hint: 'Тоннаж, т'),
           const SizedBox(height: 18),
           _QuickSaveButton(
             text: 'Добавить рейс',
             onTap: () async {
               HapticFeedback.mediumImpact();
-              final tonnage = double.tryParse(_tonnageController.text.replaceAll(',', '.')) ?? 0;
+              final tonnage =
+                  double.tryParse(
+                    _tonnageController.text.replaceAll(',', '.'),
+                  ) ??
+                  0;
               if (!tonnage.isFinite || tonnage <= 0) return;
-              if(_saving)return;_saving=true;
-              try {await _HomeMonthData.addTrip(tonnage, type: _type, direction: _direction);}
-              catch(_){_saving=false;if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Рейс не сохранён. Повторите попытку.')));return;}
+              if (_saving) return;
+              _saving = true;
+              try {
+                await _HomeMonthData.addTrip(
+                  tonnage,
+                  type: _type,
+                  direction: _direction,
+                );
+              } catch (_) {
+                _saving = false;
+                if (context.mounted)
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Рейс не сохранён. Повторите попытку.'),
+                    ),
+                  );
+                return;
+              }
               if (context.mounted) Navigator.pop(context);
             },
           ),
@@ -3442,7 +3560,7 @@ class _TripEntrySheetState extends State<_TripEntrySheet> {
   }
 }
 
-void _openFuelEntry(BuildContext context) => _testEditor(context,'fuel');
+void _openFuelEntry(BuildContext context) => _testEditor(context, 'fuel');
 
 class _FuelEntrySheet extends StatefulWidget {
   const _FuelEntrySheet();
@@ -3452,7 +3570,7 @@ class _FuelEntrySheet extends StatefulWidget {
 }
 
 class _FuelEntrySheetState extends State<_FuelEntrySheet> {
-  bool _saving=false;
+  bool _saving = false;
   String _fuel = 'Газ';
   final TextEditingController _controller = TextEditingController();
 
@@ -3477,19 +3595,30 @@ class _FuelEntrySheetState extends State<_FuelEntrySheet> {
             },
           ),
           const SizedBox(height: 14),
-          _QuickNumberField(
-            controller: _controller,
-            hint: 'Литры',
-          ),
+          _QuickNumberField(controller: _controller, hint: 'Литры'),
           const SizedBox(height: 18),
           _QuickSaveButton(
             text: 'Сохранить',
             onTap: () async {
               HapticFeedback.mediumImpact();
-              final litres = double.tryParse(_controller.text.replaceAll(',', '.')) ?? 0;
-              if(!litres.isFinite||litres<=0||_saving)return;_saving=true;
-              try {await _HomeMonthData.addFuel(_fuel, litres);}
-              catch(_){_saving=false;if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Заправка не сохранена. Повторите попытку.')));return;}
+              final litres =
+                  double.tryParse(_controller.text.replaceAll(',', '.')) ?? 0;
+              if (!litres.isFinite || litres <= 0 || _saving) return;
+              _saving = true;
+              try {
+                await _HomeMonthData.addFuel(_fuel, litres);
+              } catch (_) {
+                _saving = false;
+                if (context.mounted)
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Заправка не сохранена. Повторите попытку.',
+                      ),
+                    ),
+                  );
+                return;
+              }
               if (context.mounted) Navigator.pop(context);
             },
           ),
@@ -3500,15 +3629,65 @@ class _FuelEntrySheetState extends State<_FuelEntrySheet> {
 }
 
 class _QuickEntryShell extends StatelessWidget {
-  final String title;final IconData icon;final Widget child;
-  const _QuickEntryShell({required this.title,required this.icon,required this.child});
-  @override Widget build(BuildContext context){final mq=MediaQuery.of(context);
-    return Padding(padding:EdgeInsets.only(bottom:mq.viewInsets.bottom),
-      child:ConstrainedBox(constraints:BoxConstraints(maxHeight:math.max(140,mq.size.height-mq.viewInsets.bottom-mq.padding.top-24)),
-        child:SingleChildScrollView(padding:const EdgeInsets.fromLTRB(12,8,12,12),child:_DetailGlass(accent:true,padding:const EdgeInsets.all(14),child:Column(mainAxisSize:MainAxisSize.min,children:[
-          Container(width:32,height:3,decoration:BoxDecoration(color:const Color(0xFF67747B),borderRadius:BorderRadius.circular(3))),const SizedBox(height:4),
-          Row(children:[Icon(icon,color:_amber,size:21),const SizedBox(width:10),Expanded(child:_dt(title,size:16,weight:FontWeight.w500)),
-            IconButton(tooltip:'Закрыть',onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close,color:_paper,size:21))]),const SizedBox(height:8),child])))));
+  final String title;
+  final IconData icon;
+  final Widget child;
+  const _QuickEntryShell({
+    required this.title,
+    required this.icon,
+    required this.child,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    return Padding(
+      padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: math.max(
+            140,
+            mq.size.height - mq.viewInsets.bottom - mq.padding.top - 24,
+          ),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          child: _DetailGlass(
+            accent: true,
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 32,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF67747B),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(icon, color: _amber, size: 21),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _dt(title, size: 16, weight: FontWeight.w500),
+                    ),
+                    IconButton(
+                      tooltip: 'Закрыть',
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close, color: _paper, size: 21),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                child,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -3552,17 +3731,13 @@ class _QuickSegment extends StatelessWidget {
                       : const Color(0x88061119),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: active
-                        ? _amber
-                        : const Color(0x667A929F),
+                    color: active ? _amber : const Color(0x667A929F),
                   ),
                 ),
                 child: Text(
                   value,
                   style: TextStyle(
-                    color: active
-                        ? _amber
-                        : AppColors.textSoft,
+                    color: active ? _amber : AppColors.textSoft,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -3619,16 +3794,13 @@ class _QuickSelectField extends StatelessWidget {
                     style: const TextStyle(
                       color: AppColors.text,
                       fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: _amber,
-            ),
+            const Icon(Icons.keyboard_arrow_down_rounded, color: _amber),
           ],
         ),
       ),
@@ -3636,19 +3808,32 @@ class _QuickSelectField extends StatelessWidget {
   }
 }
 
-Future<String?> _pickQuickValue(BuildContext context,String title,List<String> values)=>showModalBottomSheet<String>(
-  context:context,isScrollControlled:true,backgroundColor:Colors.transparent,
-  builder:(c)=>_QuickEntryShell(title:title,icon:Icons.list_alt,child:Column(mainAxisSize:MainAxisSize.min,children:[
-    for(final value in values)_detailRow(value,'',onTap:()=>Navigator.pop(c,value))])));
+Future<String?> _pickQuickValue(
+  BuildContext context,
+  String title,
+  List<String> values,
+) => showModalBottomSheet<String>(
+  context: context,
+  isScrollControlled: true,
+  backgroundColor: Colors.transparent,
+  builder: (c) => _QuickEntryShell(
+    title: title,
+    icon: Icons.list_alt,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final value in values)
+          _detailRow(value, '', onTap: () => Navigator.pop(c, value)),
+      ],
+    ),
+  ),
+);
 
 class _QuickNumberField extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
 
-  const _QuickNumberField({
-    required this.controller,
-    required this.hint,
-  });
+  const _QuickNumberField({required this.controller, required this.hint});
 
   @override
   Widget build(BuildContext context) {
@@ -3656,20 +3841,21 @@ class _QuickNumberField extends StatelessWidget {
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [
-        TextInputFormatter.withFunction((oldValue, newValue) =>
-          RegExp(r'^\d*([.,]\d*)?$').hasMatch(newValue.text) ? newValue : oldValue),
+        TextInputFormatter.withFunction(
+          (oldValue, newValue) =>
+              RegExp(r'^\d*([.,]\d*)?$').hasMatch(newValue.text)
+              ? newValue
+              : oldValue,
+        ),
       ],
       style: const TextStyle(
         color: AppColors.text,
         fontSize: 16,
-                    fontWeight: FontWeight.w500,
+        fontWeight: FontWeight.w500,
       ),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(
-          color: AppColors.textDim,
-          fontSize: 14,
-        ),
+        hintStyle: const TextStyle(color: AppColors.textDim, fontSize: 14),
         filled: true,
         fillColor: const Color(0x88061119),
         contentPadding: const EdgeInsets.symmetric(
@@ -3678,15 +3864,11 @@ class _QuickNumberField extends StatelessWidget {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(17),
-          borderSide: const BorderSide(
-            color: Color(0x667A929F),
-          ),
+          borderSide: const BorderSide(color: Color(0x667A929F)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(17),
-          borderSide: const BorderSide(
-            color: _amber,
-          ),
+          borderSide: const BorderSide(color: _amber),
         ),
       ),
     );
@@ -3697,10 +3879,7 @@ class _QuickSaveButton extends StatelessWidget {
   final String text;
   final VoidCallback onTap;
 
-  const _QuickSaveButton({
-    required this.text,
-    required this.onTap,
-  });
+  const _QuickSaveButton({required this.text, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -3711,26 +3890,19 @@ class _QuickSaveButton extends StatelessWidget {
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
           foregroundColor: _amber,
-          side: const BorderSide(
-            color: _amber,
-          ),
+          side: const BorderSide(color: _amber),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(17),
           ),
         ),
         child: Text(
           text,
-          style: const TextStyle(
-            fontSize: 14,
-                    fontWeight: FontWeight.w500,
-          ),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
       ),
     );
   }
 }
-
-
 
 class _ShiftTimelineCard extends StatelessWidget {
   const _ShiftTimelineCard();
@@ -3754,25 +3926,50 @@ class _ShiftTimelineCard extends StatelessWidget {
                 ),
               ),
               Spacer(),
-              Text('Смотреть все', style: TextStyle(color: AppColors.textDim, fontSize: 8.5)),
+              Text(
+                'Смотреть все',
+                style: TextStyle(color: AppColors.textDim, fontSize: 8.5),
+              ),
               SizedBox(width: 3),
-              Icon(Icons.arrow_forward_rounded, color: AppColors.orange, size: 16),
+              Icon(
+                Icons.arrow_forward_rounded,
+                color: AppColors.orange,
+                size: 16,
+              ),
             ],
           ),
           SizedBox(height: 9),
-          _TimelineRow(icon: Icons.radio_button_checked, time: '05:48', text: 'Смена открыта', active: true),
-          _TimelineRow(icon: Icons.local_shipping_outlined, time: '06:15', text: 'Рейс: Петропавл → Щучинск'),
-          _TimelineRow(icon: Icons.local_gas_station_outlined, time: '08:20', text: 'Заправка: 400 л • АЗС'),
-          _TimelineRow(icon: Icons.route_outlined, time: '11:10', text: 'Щучинск → Новоишимское'),
-          _TimelineRow(icon: Icons.flag_outlined, time: '14:53', text: 'Прибытие по маршруту'),
+          _TimelineRow(
+            icon: Icons.radio_button_checked,
+            time: '05:48',
+            text: 'Смена открыта',
+            active: true,
+          ),
+          _TimelineRow(
+            icon: Icons.local_shipping_outlined,
+            time: '06:15',
+            text: 'Рейс: Петропавл → Щучинск',
+          ),
+          _TimelineRow(
+            icon: Icons.local_gas_station_outlined,
+            time: '08:20',
+            text: 'Заправка: 400 л • АЗС',
+          ),
+          _TimelineRow(
+            icon: Icons.route_outlined,
+            time: '11:10',
+            text: 'Щучинск → Новоишимское',
+          ),
+          _TimelineRow(
+            icon: Icons.flag_outlined,
+            time: '14:53',
+            text: 'Прибытие по маршруту',
+          ),
         ],
       ),
     );
   }
 }
-
-
-
 
 class _MapMetric extends StatelessWidget {
   final IconData icon;
@@ -3857,7 +4054,11 @@ class _WorkGpsStrip extends StatelessWidget {
             ),
           ),
           Spacer(),
-          Icon(Icons.signal_cellular_alt_rounded, color: Color(0xFF55E66B), size: 18),
+          Icon(
+            Icons.signal_cellular_alt_rounded,
+            color: Color(0xFF55E66B),
+            size: 18,
+          ),
           SizedBox(width: 10),
           Text(
             '18,96 км',
@@ -3868,7 +4069,10 @@ class _WorkGpsStrip extends StatelessWidget {
             ),
           ),
           SizedBox(width: 4),
-          Text('пробег смены', style: TextStyle(color: AppColors.textDim, fontSize: 7.5)),
+          Text(
+            'пробег смены',
+            style: TextStyle(color: AppColors.textDim, fontSize: 7.5),
+          ),
           SizedBox(width: 4),
           Icon(Icons.chevron_right_rounded, color: AppColors.orange, size: 18),
         ],
@@ -3877,37 +4081,56 @@ class _WorkGpsStrip extends StatelessWidget {
   }
 }
 
-
 class _TimelineRow extends StatelessWidget {
   final IconData icon;
   final String time;
   final String text;
   final bool active;
-  const _TimelineRow({required this.icon, required this.time, required this.text, this.active = false});
+  const _TimelineRow({
+    required this.icon,
+    required this.time,
+    required this.text,
+    this.active = false,
+  });
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: active ? const Color(0xFF55E66B) : AppColors.orange),
+          Icon(
+            icon,
+            size: 16,
+            color: active ? const Color(0xFF55E66B) : AppColors.orange,
+          ),
           const SizedBox(width: 10),
-          SizedBox(width: 42, child: Text(time, style: const TextStyle(color: AppColors.textSoft, fontSize: 10))),
-          Expanded(child: Text(text, style: const TextStyle(color: AppColors.text, fontSize: 11.5, fontWeight: FontWeight.w600))),
+          SizedBox(
+            width: 42,
+            child: Text(
+              time,
+              style: const TextStyle(color: AppColors.textSoft, fontSize: 10),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: AppColors.text,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-
 class InvoicesPage extends StatelessWidget {
   final AppSession session;
 
-  const InvoicesPage({
-    super.key,
-    required this.session,
-  });
+  const InvoicesPage({super.key, required this.session});
 
   @override
   Widget build(BuildContext context) {
@@ -3978,10 +4201,7 @@ class InvoicesPage extends StatelessWidget {
 class StatisticsPage extends StatelessWidget {
   final AppSession session;
 
-  const StatisticsPage({
-    super.key,
-    required this.session,
-  });
+  const StatisticsPage({super.key, required this.session});
 
   @override
   Widget build(BuildContext context) {
@@ -3994,61 +4214,73 @@ class StatisticsPage extends StatelessWidget {
         SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _StatPremiumTile(
-              title: 'Пробег',
-              value: '0 км',
-              caption: 'за месяц',
-              icon: Icons.route_rounded,
-              accent: AppColors.blue,
-            )),
+            Expanded(
+              child: _StatPremiumTile(
+                title: 'Пробег',
+                value: '0 км',
+                caption: 'за месяц',
+                icon: Icons.route_rounded,
+                accent: AppColors.blue,
+              ),
+            ),
             SizedBox(width: 10),
-            Expanded(child: _StatPremiumTile(
-              title: 'Рейсы',
-              value: '29',
-              caption: 'выполнено',
-              icon: Icons.local_shipping_outlined,
-              accent: AppColors.orange,
-            )),
+            Expanded(
+              child: _StatPremiumTile(
+                title: 'Рейсы',
+                value: '29',
+                caption: 'выполнено',
+                icon: Icons.local_shipping_outlined,
+                accent: AppColors.orange,
+              ),
+            ),
           ],
         ),
         SizedBox(height: 10),
         Row(
           children: [
-            Expanded(child: _StatPremiumTile(
-              title: 'Город',
-              value: '58 800 кг',
-              caption: '59%',
-              icon: Icons.apartment_rounded,
-              accent: Color(0xFF67E56A),
-            )),
+            Expanded(
+              child: _StatPremiumTile(
+                title: 'Город',
+                value: '58 800 кг',
+                caption: '59%',
+                icon: Icons.apartment_rounded,
+                accent: Color(0xFF67E56A),
+              ),
+            ),
             SizedBox(width: 10),
-            Expanded(child: _StatPremiumTile(
-              title: 'Район',
-              value: '41 082 кг',
-              caption: '41%',
-              icon: Icons.landscape_outlined,
-              accent: AppColors.amber,
-            )),
+            Expanded(
+              child: _StatPremiumTile(
+                title: 'Район',
+                value: '41 082 кг',
+                caption: '41%',
+                icon: Icons.landscape_outlined,
+                accent: AppColors.amber,
+              ),
+            ),
           ],
         ),
         SizedBox(height: 10),
         Row(
           children: [
-            Expanded(child: _StatPremiumTile(
-              title: 'Газ',
-              value: '1 545 л',
-              caption: 'за месяц',
-              icon: Icons.local_gas_station_outlined,
-              accent: AppColors.blue,
-            )),
+            Expanded(
+              child: _StatPremiumTile(
+                title: 'Газ',
+                value: '1 545 л',
+                caption: 'за месяц',
+                icon: Icons.local_gas_station_outlined,
+                accent: AppColors.blue,
+              ),
+            ),
             SizedBox(width: 10),
-            Expanded(child: _StatPremiumTile(
-              title: 'Бензин',
-              value: '20 л',
-              caption: 'за месяц',
-              icon: Icons.local_gas_station_rounded,
-              accent: AppColors.violet,
-            )),
+            Expanded(
+              child: _StatPremiumTile(
+                title: 'Бензин',
+                value: '20 л',
+                caption: 'за месяц',
+                icon: Icons.local_gas_station_rounded,
+                accent: AppColors.violet,
+              ),
+            ),
           ],
         ),
         SizedBox(height: 10),
@@ -4079,45 +4311,87 @@ class _InvoiceSummaryCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const _SquareIcon(icon: Icons.receipt_long_rounded, color: AppColors.orange),
+              const _SquareIcon(
+                icon: Icons.receipt_long_rounded,
+                color: AppColors.orange,
+              ),
               const SizedBox(width: 13),
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Документы смены', style: TextStyle(color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w800)),
+                    Text(
+                      'Документы смены',
+                      style: TextStyle(
+                        color: AppColors.text,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     SizedBox(height: 3),
-                    Text('3 накладные • 12 383 кг', style: TextStyle(color: AppColors.textSoft, fontSize: 11)),
+                    Text(
+                      '3 накладные • 12 383 кг',
+                      style: TextStyle(color: AppColors.textSoft, fontSize: 11),
+                    ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0x1AFF7A1A),
                   borderRadius: BorderRadius.circular(99),
                   border: Border.all(color: const Color(0x664A3320)),
                 ),
-                child: const Text('СЕГОДНЯ', style: TextStyle(color: AppColors.orangeSoft, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: .8)),
+                child: const Text(
+                  'СЕГОДНЯ',
+                  style: TextStyle(
+                    color: AppColors.orangeSoft,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: .8,
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 16),
           GestureDetector(
-            onTap: () { HapticFeedback.selectionClick(); onCreate(); },
+            onTap: () {
+              HapticFeedback.selectionClick();
+              onCreate();
+            },
             child: Container(
               height: 52,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [Color(0xFFFF7417), Color(0xFFFFA51F)]),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFF7417), Color(0xFFFFA51F)],
+                ),
                 borderRadius: BorderRadius.circular(17),
-                boxShadow: const [BoxShadow(color: Color(0x33FF7A1A), blurRadius: 18, offset: Offset(0, 7))],
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x33FF7A1A),
+                    blurRadius: 18,
+                    offset: Offset(0, 7),
+                  ),
+                ],
               ),
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.add_rounded, color: Colors.black, size: 22),
                   SizedBox(width: 8),
-                  Text('Создать накладную', style: TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.w900)),
+                  Text(
+                    'Создать накладную',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -4132,8 +4406,13 @@ class _InvoicePremiumCard extends StatelessWidget {
   final String number, direction, weight, time, status, items;
   final Color accent;
   const _InvoicePremiumCard({
-    required this.number, required this.direction, required this.weight,
-    required this.time, required this.status, required this.items, required this.accent,
+    required this.number,
+    required this.direction,
+    required this.weight,
+    required this.time,
+    required this.status,
+    required this.items,
+    required this.accent,
   });
 
   @override
@@ -4144,7 +4423,8 @@ class _InvoicePremiumCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 48, height: 48,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               color: accent.withValues(alpha: .09),
               borderRadius: BorderRadius.circular(16),
@@ -4157,25 +4437,74 @@ class _InvoicePremiumCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(children: [
-                  Expanded(child: Text(direction, style: const TextStyle(color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w900))),
-                  Text(time, style: const TextStyle(color: AppColors.textDim, fontSize: 10)),
-                ]),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        direction,
+                        style: const TextStyle(
+                          color: AppColors.text,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      time,
+                      style: const TextStyle(
+                        color: AppColors.textDim,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 5),
-                Text('$weight  •  $items', style: const TextStyle(color: AppColors.textSoft, fontSize: 11)),
+                Text(
+                  '$weight  •  $items',
+                  style: const TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 11,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Row(children: [
-                  Text(number, style: const TextStyle(color: AppColors.textDim, fontSize: 10)),
-                  const Spacer(),
-                  Container(width: 6, height: 6, decoration: BoxDecoration(color: accent, shape: BoxShape.circle)),
-                  const SizedBox(width: 6),
-                  Text(status, style: TextStyle(color: accent, fontSize: 10, fontWeight: FontWeight.w800)),
-                ]),
+                Row(
+                  children: [
+                    Text(
+                      number,
+                      style: const TextStyle(
+                        color: AppColors.textDim,
+                        fontSize: 10,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: accent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      status,
+                      style: TextStyle(
+                        color: accent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
           const SizedBox(width: 6),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.textDim, size: 20),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppColors.textDim,
+            size: 20,
+          ),
         ],
       ),
     );
@@ -4196,10 +4525,26 @@ class _InvoiceArchiveCard extends StatelessWidget {
           children: [
             Icon(Icons.history_rounded, color: AppColors.orange, size: 21),
             SizedBox(width: 12),
-            Expanded(child: Text('Архив накладных', style: TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w800))),
-            Text('Поиск и история', style: TextStyle(color: AppColors.textDim, fontSize: 10)),
+            Expanded(
+              child: Text(
+                'Архив накладных',
+                style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            Text(
+              'Поиск и история',
+              style: TextStyle(color: AppColors.textDim, fontSize: 10),
+            ),
             SizedBox(width: 5),
-            Icon(Icons.chevron_right_rounded, color: AppColors.orange, size: 20),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.orange,
+              size: 20,
+            ),
           ],
         ),
       ),
@@ -4211,7 +4556,13 @@ class _StatPremiumTile extends StatelessWidget {
   final String title, value, caption;
   final IconData icon;
   final Color accent;
-  const _StatPremiumTile({required this.title, required this.value, required this.caption, required this.icon, required this.accent});
+  const _StatPremiumTile({
+    required this.title,
+    required this.value,
+    required this.caption,
+    required this.icon,
+    required this.accent,
+  });
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -4220,17 +4571,52 @@ class _StatPremiumTile extends StatelessWidget {
       decoration: _premiumDecoration(radius: 22),
       child: Stack(
         children: [
-          Positioned(top: 0, right: 0, child: Icon(icon, color: accent, size: 22)),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: Icon(icon, color: accent, size: 22),
+          ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title.toUpperCase(), style: const TextStyle(color: AppColors.textSoft, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: .7)),
+              Text(
+                title.toUpperCase(),
+                style: const TextStyle(
+                  color: AppColors.textSoft,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: .7,
+                ),
+              ),
               const Spacer(),
-              FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, style: const TextStyle(color: AppColors.text, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -.5))),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    color: AppColors.text,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -.5,
+                  ),
+                ),
+              ),
               const SizedBox(height: 4),
-              Text(caption, style: const TextStyle(color: AppColors.textDim, fontSize: 10)),
+              Text(
+                caption,
+                style: const TextStyle(color: AppColors.textDim, fontSize: 10),
+              ),
               const SizedBox(height: 9),
-              Container(height: 3, decoration: BoxDecoration(borderRadius: BorderRadius.circular(99), gradient: LinearGradient(colors: [accent, accent.withValues(alpha: .08)]))),
+              Container(
+                height: 3,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(99),
+                  gradient: LinearGradient(
+                    colors: [accent, accent.withValues(alpha: .08)],
+                  ),
+                ),
+              ),
             ],
           ),
         ],
@@ -4250,14 +4636,31 @@ class _PaidRoutesStatCard extends StatelessWidget {
         children: [
           _SquareIcon(icon: Icons.alt_route_rounded, color: AppColors.orange),
           SizedBox(width: 13),
-          Expanded(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('ПЛАТНЫЕ НАПРАВЛЕНИЯ', style: TextStyle(color: AppColors.textSoft, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: .7)),
-              SizedBox(height: 5),
-              Text('3 рейса', style: TextStyle(color: AppColors.text, fontSize: 20, fontWeight: FontWeight.w900)),
-            ],
-          )),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'ПЛАТНЫЕ НАПРАВЛЕНИЯ',
+                  style: TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: .7,
+                  ),
+                ),
+                SizedBox(height: 5),
+                Text(
+                  '3 рейса',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
           Icon(Icons.arrow_forward_rounded, color: AppColors.orange, size: 21),
         ],
       ),
@@ -4279,22 +4682,54 @@ class _TonnageSplitCard extends StatelessWidget {
             children: [
               Icon(Icons.scale_outlined, color: AppColors.orange, size: 21),
               SizedBox(width: 9),
-              Expanded(child: Text('Тоннаж по направлениям', style: TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w900))),
-              Text('99 882 кг', style: TextStyle(color: AppColors.textSoft, fontSize: 11)),
+              Expanded(
+                child: Text(
+                  'Тоннаж по направлениям',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Text(
+                '99 882 кг',
+                style: TextStyle(color: AppColors.textSoft, fontSize: 11),
+              ),
             ],
           ),
           const SizedBox(height: 18),
           Row(
             children: [
-              const SizedBox(width: 120, height: 120, child: _RingProgress(progress: .59, centerTitle: '99 882', centerCaption: 'кг')),
+              const SizedBox(
+                width: 120,
+                height: 120,
+                child: _RingProgress(
+                  progress: .59,
+                  centerTitle: '99 882',
+                  centerCaption: 'кг',
+                ),
+              ),
               const SizedBox(width: 18),
-              Expanded(child: Column(
-                children: [
-                  _TonnageLegend(color: AppColors.orange, title: 'Город', value: '58 800 кг', percent: '59%'),
-                  SizedBox(height: 15),
-                  _TonnageLegend(color: AppColors.amber, title: 'Район', value: '41 082 кг', percent: '41%'),
-                ],
-              )),
+              Expanded(
+                child: Column(
+                  children: [
+                    _TonnageLegend(
+                      color: AppColors.orange,
+                      title: 'Город',
+                      value: '58 800 кг',
+                      percent: '59%',
+                    ),
+                    SizedBox(height: 15),
+                    _TonnageLegend(
+                      color: AppColors.amber,
+                      title: 'Район',
+                      value: '41 082 кг',
+                      percent: '41%',
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ],
@@ -4306,31 +4741,57 @@ class _TonnageSplitCard extends StatelessWidget {
 class _TonnageLegend extends StatelessWidget {
   final Color color;
   final String title, value, percent;
-  const _TonnageLegend({required this.color, required this.title, required this.value, required this.percent});
+  const _TonnageLegend({
+    required this.color,
+    required this.title,
+    required this.value,
+    required this.percent,
+  });
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(width: 9, height: 9, decoration: BoxDecoration(color: color, shape: BoxShape.circle, boxShadow: [BoxShadow(color: color.withValues(alpha: .35), blurRadius: 8)])),
+        Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(color: color.withValues(alpha: .35), blurRadius: 8),
+            ],
+          ),
+        ),
         const SizedBox(width: 9),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(color: AppColors.textSoft, fontSize: 11)),
-          const SizedBox(height: 3),
-          Text('$value ($percent)', style: const TextStyle(color: AppColors.text, fontSize: 11, fontWeight: FontWeight.w800)),
-        ])),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(color: AppColors.textSoft, fontSize: 11),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                '$value ($percent)',
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
 }
 
-
 class SearchPage extends StatefulWidget {
   final AppSession session;
 
-  const SearchPage({
-    super.key,
-    required this.session,
-  });
+  const SearchPage({super.key, required this.session});
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -4352,10 +4813,7 @@ class _SearchPageState extends State<SearchPage> {
     return _PageScaffold(
       title: 'Поиск',
       subtitle: 'Данные и история',
-      trailing: const _StatusPill(
-        text: 'Быстрый',
-        color: AppColors.blue,
-      ),
+      trailing: const _StatusPill(text: 'Быстрый', color: AppColors.blue),
       children: [
         TextField(
           controller: _controller,
@@ -4375,10 +4833,7 @@ class _SearchPageState extends State<SearchPage> {
           ),
         ),
         const SizedBox(height: 18),
-        const _SectionTitle(
-          title: 'Быстрый доступ',
-          caption: 'Разделы',
-        ),
+        const _SectionTitle(title: 'Быстрый доступ', caption: 'Разделы'),
         const SizedBox(height: 10),
         const _SearchShortcut(
           icon: Icons.receipt_long_outlined,
@@ -4402,10 +4857,7 @@ class _SearchPageState extends State<SearchPage> {
         ),
         if (admin) ...[
           const SizedBox(height: 18),
-          const _SectionTitle(
-            title: 'Администратор',
-            caption: 'Сотрудники',
-          ),
+          const _SectionTitle(title: 'Администратор', caption: 'Сотрудники'),
           const SizedBox(height: 10),
           _SearchShortcut(
             icon: Icons.groups_2_outlined,
@@ -4423,25 +4875,16 @@ class _SearchPageState extends State<SearchPage> {
 class LoaderShiftPage extends StatelessWidget {
   final AppSession session;
 
-  const LoaderShiftPage({
-    super.key,
-    required this.session,
-  });
+  const LoaderShiftPage({super.key, required this.session});
 
   @override
   Widget build(BuildContext context) {
     return _PageScaffold(
       title: 'Смена',
       subtitle: 'Кабинет грузчика',
-      trailing: const _StatusPill(
-        text: 'Активна',
-        color: AppColors.blue,
-      ),
+      trailing: const _StatusPill(text: 'Активна', color: AppColors.blue),
       children: [
-        _WelcomeHeader(
-          session: session,
-          icon: Icons.inventory_2_outlined,
-        ),
+        _WelcomeHeader(session: session, icon: Icons.inventory_2_outlined),
         const SizedBox(height: 18),
         const _LoaderHero(),
         const SizedBox(height: 14),
@@ -4489,27 +4932,18 @@ class LoaderShiftPage extends StatelessWidget {
 class LoaderHistoryPage extends StatelessWidget {
   final AppSession session;
 
-  const LoaderHistoryPage({
-    super.key,
-    required this.session,
-  });
+  const LoaderHistoryPage({super.key, required this.session});
 
   @override
   Widget build(BuildContext context) {
     return _PageScaffold(
       title: 'История',
       subtitle: 'Смены грузчика',
-      trailing: const _StatusPill(
-        text: 'Сентябрь',
-        color: AppColors.blue,
-      ),
+      trailing: const _StatusPill(text: 'Сентябрь', color: AppColors.blue),
       children: const [
         _LoaderHistorySummary(),
         SizedBox(height: 18),
-        _SectionTitle(
-          title: 'Последние смены',
-          caption: 'Сентябрь 2026',
-        ),
+        _SectionTitle(title: 'Последние смены', caption: 'Сентябрь 2026'),
         SizedBox(height: 10),
         _LoaderHistoryRow(
           date: '17 сентября',
@@ -4552,11 +4986,7 @@ class _PageScaffold extends StatelessWidget {
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 28),
       children: [
-        _PageHeader(
-          title: title,
-          subtitle: subtitle,
-          trailing: trailing,
-        ),
+        _PageHeader(title: title, subtitle: subtitle, trailing: trailing),
         const SizedBox(height: 22),
         ...children,
       ],
@@ -4614,10 +5044,7 @@ class _WelcomeHeader extends StatelessWidget {
   final AppSession session;
   final IconData icon;
 
-  const _WelcomeHeader({
-    required this.session,
-    required this.icon,
-  });
+  const _WelcomeHeader({required this.session, required this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -4631,11 +5058,7 @@ class _WelcomeHeader extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.line),
           ),
-          child: Icon(
-            icon,
-            color: AppColors.orange,
-            size: 24,
-          ),
+          child: Icon(icon, color: AppColors.orange, size: 24),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -4653,10 +5076,7 @@ class _WelcomeHeader extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 session.role.title,
-                style: const TextStyle(
-                  color: AppColors.textSoft,
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: AppColors.textSoft, fontSize: 12),
               ),
             ],
           ),
@@ -4703,24 +5123,16 @@ class _StatusPill extends StatelessWidget {
   final String text;
   final Color color;
 
-  const _StatusPill({
-    required this.text,
-    required this.color,
-  });
+  const _StatusPill({required this.text, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 11,
-        vertical: 8,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(100),
-        border: Border.all(
-          color: color.withValues(alpha: 0.28),
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -4732,10 +5144,7 @@ class _StatusPill extends StatelessWidget {
               color: color,
               shape: BoxShape.circle,
               boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.65),
-                  blurRadius: 8,
-                ),
+                BoxShadow(color: color.withValues(alpha: 0.65), blurRadius: 8),
               ],
             ),
           ),
@@ -4791,11 +5200,7 @@ class _MetricCard extends StatelessWidget {
           Positioned(
             top: 0,
             right: 0,
-            child: Icon(
-              icon,
-              color: accent,
-              size: 22,
-            ),
+            child: Icon(icon, color: accent, size: 22),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -4821,10 +5226,7 @@ class _MetricCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 caption,
-                style: const TextStyle(
-                  color: AppColors.textDim,
-                  fontSize: 10,
-                ),
+                style: const TextStyle(color: AppColors.textDim, fontSize: 10),
               ),
             ],
           ),
@@ -4837,9 +5239,7 @@ class _MetricCard extends StatelessWidget {
 class _GlowDot extends StatelessWidget {
   final Color color;
 
-  const _GlowDot({
-    required this.color,
-  });
+  const _GlowDot({required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -4850,17 +5250,12 @@ class _GlowDot extends StatelessWidget {
         color: color,
         shape: BoxShape.circle,
         boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.7),
-            blurRadius: 12,
-          ),
+          BoxShadow(color: color.withValues(alpha: 0.7), blurRadius: 12),
         ],
       ),
     );
   }
 }
-
-
 
 class _WorkHero extends StatelessWidget {
   const _WorkHero();
@@ -4887,9 +5282,16 @@ class _WorkHero extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: const Color(0xE40A0C0F),
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFF6A6F77), width: .7),
+                    border: Border.all(
+                      color: const Color(0xFF6A6F77),
+                      width: .7,
+                    ),
                     boxShadow: const [
-                      BoxShadow(color: Color(0xB0000000), blurRadius: 16, offset: Offset(0, 7)),
+                      BoxShadow(
+                        color: Color(0xB0000000),
+                        blurRadius: 16,
+                        offset: Offset(0, 7),
+                      ),
                     ],
                   ),
                   child: const Row(
@@ -4910,7 +5312,10 @@ class _WorkHero extends StatelessWidget {
                             SizedBox(height: 2),
                             Text(
                               'Текущий маршрут • 18,96 км • 3 рейса • 12 383 кг',
-                              style: TextStyle(color: AppColors.textSoft, fontSize: 8.5),
+                              style: TextStyle(
+                                color: AppColors.textSoft,
+                                fontSize: 8.5,
+                              ),
                             ),
                           ],
                         ),
@@ -4926,7 +5331,10 @@ class _WorkHero extends StatelessWidget {
                 bottom: 8,
                 child: _ChromeGlassSurface(
                   radius: 20,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 9,
+                  ),
                   child: const Row(
                     children: [
                       Expanded(
@@ -4967,22 +5375,14 @@ class _WorkHero extends StatelessWidget {
   }
 }
 
-
-
 class _VerticalDivider extends StatelessWidget {
   const _VerticalDivider();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 34,
-      color: AppColors.line,
-    );
+    return Container(width: 1, height: 34, color: AppColors.line);
   }
 }
-
-
 
 class _RoutePreview extends StatelessWidget {
   const _RoutePreview();
@@ -4994,11 +5394,7 @@ class _RoutePreview extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF101720),
-            Color(0xFF091015),
-            Color(0xFF030608),
-          ],
+          colors: [Color(0xFF101720), Color(0xFF091015), Color(0xFF030608)],
         ),
       ),
       child: CustomPaint(
@@ -5008,12 +5404,18 @@ class _RoutePreview extends StatelessWidget {
             const Positioned(
               left: 18,
               bottom: 114,
-              child: _MapLabel(title: 'Петропавл', icon: Icons.local_shipping_rounded),
+              child: _MapLabel(
+                title: 'Петропавл',
+                icon: Icons.local_shipping_rounded,
+              ),
             ),
             const Positioned(
               right: 28,
               top: 140,
-              child: _MapLabel(title: 'Щучинск', icon: Icons.location_on_rounded),
+              child: _MapLabel(
+                title: 'Щучинск',
+                icon: Icons.location_on_rounded,
+              ),
             ),
             Positioned(
               right: 12,
@@ -5036,8 +5438,6 @@ class _RoutePreview extends StatelessWidget {
     );
   }
 }
-
-
 
 class _MapLabel extends StatelessWidget {
   final String title;
@@ -5073,13 +5473,10 @@ class _MapLabel extends StatelessWidget {
   }
 }
 
-
 class _MapRoundButton extends StatelessWidget {
   final IconData icon;
 
-  const _MapRoundButton({
-    required this.icon,
-  });
+  const _MapRoundButton({required this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -5088,18 +5485,11 @@ class _MapRoundButton extends StatelessWidget {
       height: 38,
       child: CustomPaint(
         painter: const _DarkRoundControlPainter(),
-        child: Icon(
-          icon,
-          color: AppColors.text,
-          size: 18,
-        ),
+        child: Icon(icon, color: AppColors.text, size: 18),
       ),
     );
   }
 }
-
-
-
 
 class _DarkRoundControlPainter extends CustomPainter {
   const _DarkRoundControlPainter();
@@ -5113,11 +5503,7 @@ class _DarkRoundControlPainter extends CustomPainter {
     final fill = Paint()
       ..shader = const RadialGradient(
         center: Alignment(-.36, -.42),
-        colors: [
-          Color(0xFF464A51),
-          Color(0xFF171A1E),
-          Color(0xFF050607),
-        ],
+        colors: [Color(0xFF464A51), Color(0xFF171A1E), Color(0xFF050607)],
       ).createShader(rect);
     canvas.drawCircle(c, r, fill);
 
@@ -5150,8 +5536,6 @@ class _DarkRoundControlPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-
-
 class _RoutePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -5161,11 +5545,7 @@ class _RoutePainter extends CustomPainter {
       ..shader = const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [
-          Color(0xFF0B1218),
-          Color(0xFF071015),
-          Color(0xFF030608),
-        ],
+        colors: [Color(0xFF0B1218), Color(0xFF071015), Color(0xFF030608)],
       ).createShader(rect);
     canvas.drawRect(rect, background);
 
@@ -5181,11 +5561,7 @@ class _RoutePainter extends CustomPainter {
       );
     }
     for (double y = 24; y < size.height; y += 68) {
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y + 15),
-        softGrid,
-      );
+      canvas.drawLine(Offset(0, y), Offset(size.width, y + 15), softGrid);
     }
 
     final minorRoad = Paint()
@@ -5329,11 +5705,7 @@ class _RoutePainter extends CustomPainter {
 
     final routeCore = Paint()
       ..shader = const LinearGradient(
-        colors: [
-          Color(0xFFFFC06A),
-          Color(0xFFFF7A18),
-          Color(0xFFFFA844),
-        ],
+        colors: [Color(0xFFFFC06A), Color(0xFFFF7A18), Color(0xFFFFA844)],
       ).createShader(rect)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.6
@@ -5370,8 +5742,6 @@ class _RoutePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-
-
 class _PrimaryActionCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -5396,15 +5766,10 @@ class _PrimaryActionCard extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [
-              Color(0xFF1D1711),
-              Color(0xFF121316),
-            ],
+            colors: [Color(0xFF1D1711), Color(0xFF121316)],
           ),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: const Color(0xFF4A3320),
-          ),
+          border: Border.all(color: const Color(0xFF4A3320)),
           boxShadow: const [
             BoxShadow(
               color: Color(0x22000000),
@@ -5415,10 +5780,7 @@ class _PrimaryActionCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            _SquareIcon(
-              icon: icon,
-              color: AppColors.orange,
-            ),
+            _SquareIcon(icon: icon, color: AppColors.orange),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -5470,13 +5832,35 @@ class _StatisticsHero extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('ЗАРПЛАТА ЗА СЕНТЯБРЬ 2026 Г.', style: TextStyle(color: AppColors.textSoft, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: .7)),
+                Text(
+                  'ЗАРПЛАТА ЗА СЕНТЯБРЬ 2026 Г.',
+                  style: TextStyle(
+                    color: AppColors.textSoft,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: .7,
+                  ),
+                ),
                 SizedBox(height: 9),
-                Text('312 105,8 ₸', style: TextStyle(color: AppColors.text, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -1)),
+                Text(
+                  '312 105,8 ₸',
+                  style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -1,
+                  ),
+                ),
                 SizedBox(height: 7),
-                Text('154 / 176 ч', style: TextStyle(color: AppColors.textSoft, fontSize: 11)),
+                Text(
+                  '154 / 176 ч',
+                  style: TextStyle(color: AppColors.textSoft, fontSize: 11),
+                ),
                 Spacer(),
-                Text('Выполнение месячного плана', style: TextStyle(color: AppColors.textDim, fontSize: 9)),
+                Text(
+                  'Выполнение месячного плана',
+                  style: TextStyle(color: AppColors.textDim, fontSize: 9),
+                ),
                 SizedBox(height: 7),
                 ClipRRect(
                   borderRadius: BorderRadius.all(Radius.circular(99)),
@@ -5491,7 +5875,11 @@ class _StatisticsHero extends StatelessWidget {
             ),
           ),
           SizedBox(width: 16),
-          _RingProgress(progress: .88, centerTitle: '88%', centerCaption: 'план'),
+          _RingProgress(
+            progress: .88,
+            centerTitle: '88%',
+            centerCaption: 'план',
+          ),
         ],
       ),
     );
@@ -5524,11 +5912,7 @@ class _ChartPainter extends CustomPainter {
 
     for (int i = 1; i < 4; i++) {
       final y = size.height * i / 4;
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        grid,
-      );
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
     }
 
     final values = [
@@ -5571,18 +5955,8 @@ class _ChartPainter extends CustomPainter {
 
     final line = Paint()
       ..shader = const LinearGradient(
-        colors: [
-          AppColors.orange,
-          AppColors.orangeSoft,
-        ],
-      ).createShader(
-        Rect.fromLTWH(
-          0,
-          0,
-          size.width,
-          size.height,
-        ),
-      )
+        colors: [AppColors.orange, AppColors.orangeSoft],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round
@@ -5596,14 +5970,7 @@ class _ChartPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     for (int i = 0; i < values.length; i += 3) {
-      canvas.drawCircle(
-        Offset(
-          i * dx,
-          size.height * values[i],
-        ),
-        3.5,
-        dot,
-      );
+      canvas.drawCircle(Offset(i * dx, size.height * values[i]), 3.5, dot);
     }
   }
 
@@ -5707,10 +6074,7 @@ class _SearchShortcut extends StatelessWidget {
         ),
         child: Row(
           children: [
-            _SquareIcon(
-              icon: icon,
-              color: accent,
-            ),
+            _SquareIcon(icon: icon, color: accent),
             const SizedBox(width: 13),
             Expanded(
               child: Column(
@@ -5735,10 +6099,7 @@ class _SearchShortcut extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: AppColors.textDim,
-            ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textDim),
           ],
         ),
       ),
@@ -5754,9 +6115,7 @@ class _LoaderHero extends StatelessWidget {
     return Container(
       height: 188,
       padding: const EdgeInsets.all(20),
-      decoration: _premiumDecoration(
-        accent: AppColors.blue,
-      ),
+      decoration: _premiumDecoration(accent: AppColors.blue),
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -5787,10 +6146,7 @@ class _LoaderHero extends StatelessWidget {
           SizedBox(height: 4),
           Text(
             'рабочее время сегодня',
-            style: TextStyle(
-              color: AppColors.textSoft,
-              fontSize: 11,
-            ),
+            style: TextStyle(color: AppColors.textSoft, fontSize: 11),
           ),
         ],
       ),
@@ -5839,22 +6195,13 @@ class _LoaderMonthCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _TinyStat(
-                  label: 'Начислено',
-                  value: '169 260 ₸',
-                ),
+                child: _TinyStat(label: 'Начислено', value: '169 260 ₸'),
               ),
               Expanded(
-                child: _TinyStat(
-                  label: 'Удержания',
-                  value: '40 000 ₸',
-                ),
+                child: _TinyStat(label: 'Удержания', value: '40 000 ₸'),
               ),
               Expanded(
-                child: _TinyStat(
-                  label: 'Итого',
-                  value: '129 260 ₸',
-                ),
+                child: _TinyStat(label: 'Итого', value: '129 260 ₸'),
               ),
             ],
           ),
@@ -5871,28 +6218,17 @@ class _LoaderHistorySummary extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(19),
-      decoration: _premiumDecoration(
-        accent: AppColors.blue,
-      ),
+      decoration: _premiumDecoration(accent: AppColors.blue),
       child: const Row(
         children: [
           Expanded(
-            child: _TinyStat(
-              label: 'Часы за месяц',
-              value: '149.7 ч',
-            ),
+            child: _TinyStat(label: 'Часы за месяц', value: '149.7 ч'),
           ),
           Expanded(
-            child: _TinyStat(
-              label: 'Смен',
-              value: '17',
-            ),
+            child: _TinyStat(label: 'Смен', value: '17'),
           ),
           Expanded(
-            child: _TinyStat(
-              label: 'К выплате',
-              value: '164 341 ₸',
-            ),
+            child: _TinyStat(label: 'К выплате', value: '164 341 ₸'),
           ),
         ],
       ),
@@ -5968,10 +6304,7 @@ class _SectionTitle extends StatelessWidget {
   final String title;
   final String caption;
 
-  const _SectionTitle({
-    required this.title,
-    required this.caption,
-  });
+  const _SectionTitle({required this.title, required this.caption});
 
   @override
   Widget build(BuildContext context) {
@@ -6003,10 +6336,7 @@ class _SquareIcon extends StatelessWidget {
   final IconData icon;
   final Color color;
 
-  const _SquareIcon({
-    required this.icon,
-    required this.color,
-  });
+  const _SquareIcon({required this.icon, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -6016,15 +6346,9 @@ class _SquareIcon extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: color.withValues(alpha: 0.22),
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
       ),
-      child: Icon(
-        icon,
-        color: color,
-        size: 21,
-      ),
+      child: Icon(icon, color: color, size: 21),
     );
   }
 }
@@ -6033,10 +6357,7 @@ class _RoundAction extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
 
-  const _RoundAction({
-    required this.icon,
-    required this.onTap,
-  });
+  const _RoundAction({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -6046,10 +6367,7 @@ class _RoundAction extends StatelessWidget {
         backgroundColor: AppColors.surface,
         side: const BorderSide(color: AppColors.line),
       ),
-      icon: Icon(
-        icon,
-        color: AppColors.orange,
-      ),
+      icon: Icon(icon, color: AppColors.orange),
     );
   }
 }
@@ -6058,10 +6376,7 @@ class _TinyStat extends StatelessWidget {
   final String label;
   final String value;
 
-  const _TinyStat({
-    required this.label,
-    required this.value,
-  });
+  const _TinyStat({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -6070,10 +6385,7 @@ class _TinyStat extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: AppColors.textDim,
-            fontSize: 9,
-          ),
+          style: const TextStyle(color: AppColors.textDim, fontSize: 9),
         ),
         const SizedBox(height: 4),
         Text(
@@ -6108,9 +6420,7 @@ class _RingProgress extends StatelessWidget {
       width: 112,
       height: 112,
       child: CustomPaint(
-        painter: _RingPainter(
-          progress: progress,
-        ),
+        painter: _RingPainter(progress: progress),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -6125,10 +6435,7 @@ class _RingProgress extends StatelessWidget {
               ),
               Text(
                 centerCaption,
-                style: const TextStyle(
-                  color: AppColors.textSoft,
-                  fontSize: 9,
-                ),
+                style: const TextStyle(color: AppColors.textSoft, fontSize: 9),
               ),
             ],
           ),
@@ -6141,9 +6448,7 @@ class _RingProgress extends StatelessWidget {
 class _RingPainter extends CustomPainter {
   final double progress;
 
-  _RingPainter({
-    required this.progress,
-  });
+  _RingPainter({required this.progress});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -6162,23 +6467,13 @@ class _RingPainter extends CustomPainter {
 
     final fg = Paint()
       ..shader = const SweepGradient(
-        colors: [
-          AppColors.orange,
-          AppColors.orangeSoft,
-          AppColors.orange,
-        ],
+        colors: [AppColors.orange, AppColors.orangeSoft, AppColors.orange],
       ).createShader(rect)
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeWidth = stroke;
 
-    canvas.drawArc(
-      rect,
-      -math.pi / 2,
-      math.pi * 2,
-      false,
-      bg,
-    );
+    canvas.drawArc(rect, -math.pi / 2, math.pi * 2, false, bg);
 
     canvas.drawArc(
       rect,
@@ -6205,11 +6500,7 @@ class _AppBackground extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF111318),
-            Color(0xFF070809),
-            Color(0xFF030405),
-          ],
+          colors: [Color(0xFF111318), Color(0xFF070809), Color(0xFF030405)],
           stops: [0, .42, 1],
         ),
       ),
@@ -6258,9 +6549,21 @@ class _ChromeBackgroundPainter extends CustomPainter {
       ..color = const Color(0x10FF7418)
       ..strokeWidth = 1;
 
-    canvas.drawLine(Offset(-40, size.height * .18), Offset(size.width * .72, -30), silver);
-    canvas.drawLine(Offset(size.width * .22, size.height), Offset(size.width + 40, size.height * .56), silver);
-    canvas.drawLine(Offset(size.width * .66, -20), Offset(size.width + 30, size.height * .28), warm);
+    canvas.drawLine(
+      Offset(-40, size.height * .18),
+      Offset(size.width * .72, -30),
+      silver,
+    );
+    canvas.drawLine(
+      Offset(size.width * .22, size.height),
+      Offset(size.width + 40, size.height * .56),
+      silver,
+    );
+    canvas.drawLine(
+      Offset(size.width * .66, -20),
+      Offset(size.width + 30, size.height * .28),
+      warm,
+    );
   }
 
   @override
@@ -6271,10 +6574,7 @@ class _AmbientGlow extends StatelessWidget {
   final double size;
   final Color color;
 
-  const _AmbientGlow({
-    required this.size,
-    required this.color,
-  });
+  const _AmbientGlow({required this.size, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -6283,13 +6583,7 @@ class _AmbientGlow extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: color,
-            blurRadius: 115,
-            spreadRadius: 44,
-          ),
-        ],
+        boxShadow: [BoxShadow(color: color, blurRadius: 115, spreadRadius: 44)],
       ),
     );
   }
@@ -6312,10 +6606,7 @@ BoxDecoration _premiumDecoration({
       stops: [0, .22, .63, 1],
     ),
     borderRadius: BorderRadius.circular(radius),
-    border: Border.all(
-      color: const Color(0xFF4B5057),
-      width: .72,
-    ),
+    border: Border.all(color: const Color(0xFF4B5057), width: .72),
     boxShadow: [
       const BoxShadow(
         color: Color(0xD0000000),
@@ -6336,11 +6627,7 @@ BoxDecoration _premiumDecoration({
   );
 }
 
-void _showFeatureStub(
-  BuildContext context,
-  String title,
-  String text,
-) {
+void _showFeatureStub(BuildContext context, String title, String text) {
   HapticFeedback.selectionClick();
 
   showModalBottomSheet<void>(
@@ -6355,12 +6642,7 @@ void _showFeatureStub(
           color: const Color(0xFF111318),
           borderRadius: BorderRadius.circular(28),
           border: Border.all(color: AppColors.line),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black,
-              blurRadius: 30,
-            ),
-          ],
+          boxShadow: const [BoxShadow(color: Colors.black, blurRadius: 30)],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -6400,18 +6682,14 @@ void _showFeatureStub(
                 onPressed: () => Navigator.pop(context),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.orangeSoft,
-                  side: const BorderSide(
-                    color: Color(0xFF4A3320),
-                  ),
+                  side: const BorderSide(color: Color(0xFF4A3320)),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(17),
                   ),
                 ),
                 child: const Text(
                   'Понятно',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -6475,10 +6753,7 @@ void _showEmployees(BuildContext context) {
                         ),
                       ),
                     ),
-                    _StatusPill(
-                      text: '4',
-                      color: AppColors.violet,
-                    ),
+                    _StatusPill(text: '4', color: AppColors.violet),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -6510,8 +6785,7 @@ void _showEmployees(BuildContext context) {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   employee.$1,
@@ -6532,9 +6806,7 @@ void _showEmployees(BuildContext context) {
                               ],
                             ),
                           ),
-                          const _GlowDot(
-                            color: AppColors.orange,
-                          ),
+                          const _GlowDot(color: AppColors.orange),
                         ],
                       ),
                     ),
@@ -6554,109 +6826,387 @@ class _MillDock extends StatelessWidget {
   final int index;
   final ValueChanged<int> onChanged;
   final VoidCallback? onLongPressHome;
-  const _MillDock({required this.index,required this.onChanged,this.onLongPressHome});
-  static const gold=Color(0xFFE3B86F);
-  @override Widget build(BuildContext context)=>ClipRRect(
-    borderRadius:BorderRadius.circular(24),
-    child:BackdropFilter(filter:ImageFilter.blur(sigmaX:4,sigmaY:4),
-      child:Container(height:76,decoration:BoxDecoration(
-        borderRadius:BorderRadius.circular(24),border:Border.all(color:const Color(0x997F898C),width:.8),
-        gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
-          colors:[Color(0xBA222A2F),Color(0xC9091016),Color(0xB421282C)])),
-        child:Row(children:[for(var i=0;i<5;i++)...[
-          if(i>0)Container(width:.6,height:47,decoration:const BoxDecoration(
-            gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,
-              colors:[Colors.transparent,Color(0x556C777D),Colors.transparent]))),
-          Expanded(child:Semantics(button:true,selected:i==index,label:const ['Главная','Работа','Добавить','Статистика','Ещё'][i],
-            child:GestureDetector(behavior:HitTestBehavior.opaque,
-              onLongPress:i==0?onLongPressHome:null,
-              onTap:(){HapticFeedback.selectionClick();onChanged(i);},
-              child:i==2?Center(child:Container(width:65,height:65,
-                padding:const EdgeInsets.all(3),decoration:const BoxDecoration(shape:BoxShape.circle,
-                  gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
-                    colors:[Color(0xFF755025),Color(0xFFFFD991),Color(0xFF9B652C),Color(0xFFFFD493)]),
-                  boxShadow:[BoxShadow(color:Color(0x557E4F19),blurRadius:12)]),
-                child:Container(decoration:BoxDecoration(shape:BoxShape.circle,
-                  border:Border.all(color:const Color(0xFFEBC180),width:1),
-                  gradient:const RadialGradient(center:Alignment(-.3,-.4),colors:[Color(0xFF453825),Color(0xFF0B1216)])),
-                  child:const Icon(Icons.add_rounded,color:gold,size:40)))):
-                Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-                  Icon(const [Icons.home_outlined,Icons.local_shipping_outlined,Icons.add,
-                    Icons.bar_chart_rounded,Icons.grid_view_outlined][i],size:28,
-                    color:i==index?gold:const Color(0xFFDDE0DE),
-                    shadows:i==index?const [Shadow(color:Color(0x887F521F),blurRadius:10)]:null),
-                  const SizedBox(height:5),FittedBox(fit:BoxFit.scaleDown,child:Text(
-                    const ['Главная','Работа','','Статистика','Ещё'][i],
-                    style:TextStyle(fontSize:10.5,color:i==index?gold:const Color(0xFFDDE0DE)))),
-                  const SizedBox(height:5),AnimatedContainer(duration:const Duration(milliseconds:180),
-                    width:i==index?34:0,height:2,decoration:BoxDecoration(color:gold,
-                      borderRadius:BorderRadius.circular(2),boxShadow:const [BoxShadow(color:Color(0x887A5426),blurRadius:6)])),
-                ]))))
-        ]]))));
+  const _MillDock({
+    required this.index,
+    required this.onChanged,
+    this.onLongPressHome,
+  });
+  static const gold = Color(0xFFE3B86F);
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(24),
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+      child: Container(
+        height: 76,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: const Color(0x997F898C), width: .8),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xBA222A2F), Color(0xC9091016), Color(0xB421282C)],
+          ),
+        ),
+        child: Row(
+          children: [
+            for (var i = 0; i < 5; i++) ...[
+              if (i > 0)
+                Container(
+                  width: .6,
+                  height: 47,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Color(0x556C777D),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: Semantics(
+                  button: true,
+                  selected: i == index,
+                  label: const [
+                    'Главная',
+                    'Работа',
+                    'Добавить',
+                    'Статистика',
+                    'Ещё',
+                  ][i],
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onLongPress: i == 0 ? onLongPressHome : null,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      onChanged(i);
+                    },
+                    child: i == 2
+                        ? Center(
+                            child: Container(
+                              width: 65,
+                              height: 65,
+                              padding: const EdgeInsets.all(3),
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Color(0xFF755025),
+                                    Color(0xFFFFD991),
+                                    Color(0xFF9B652C),
+                                    Color(0xFFFFD493),
+                                  ],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Color(0x557E4F19),
+                                    blurRadius: 12,
+                                  ),
+                                ],
+                              ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: const Color(0xFFEBC180),
+                                    width: 1,
+                                  ),
+                                  gradient: const RadialGradient(
+                                    center: Alignment(-.3, -.4),
+                                    colors: [
+                                      Color(0xFF453825),
+                                      Color(0xFF0B1216),
+                                    ],
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.add_rounded,
+                                  color: gold,
+                                  size: 40,
+                                ),
+                              ),
+                            ),
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                const [
+                                  Icons.home_outlined,
+                                  Icons.local_shipping_outlined,
+                                  Icons.add,
+                                  Icons.bar_chart_rounded,
+                                  Icons.grid_view_outlined,
+                                ][i],
+                                size: 28,
+                                color: i == index
+                                    ? gold
+                                    : const Color(0xFFDDE0DE),
+                                shadows: i == index
+                                    ? const [
+                                        Shadow(
+                                          color: Color(0x887F521F),
+                                          blurRadius: 10,
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              const SizedBox(height: 5),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  const [
+                                    'Главная',
+                                    'Работа',
+                                    '',
+                                    'Статистика',
+                                    'Ещё',
+                                  ][i],
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    color: i == index
+                                        ? gold
+                                        : const Color(0xFFDDE0DE),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                width: i == index ? 34 : 0,
+                                height: 2,
+                                decoration: BoxDecoration(
+                                  color: gold,
+                                  borderRadius: BorderRadius.circular(2),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x887A5426),
+                                      blurRadius: 6,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 // Extend only the empty ceiling into the system inset. All content below
 // the ceiling keeps its original image coordinates and scale.
 class _ExtendedArtwork extends StatefulWidget {
-  final String asset;final double topInset;final BoxFit fit;final double? imageWidth;final double bottomInset;
-  const _ExtendedArtwork({required this.asset,required this.topInset,this.fit=BoxFit.fitWidth,this.imageWidth,this.bottomInset=0});
-  @override State<_ExtendedArtwork> createState()=>_ExtendedArtworkState();
-}
-class _ExtendedArtworkState extends State<_ExtendedArtwork> {
-  ImageStream? stream;ImageInfo? info;
-  late final ImageStreamListener listener=ImageStreamListener((image,synchronous){
-    final previous=info;if(mounted)setState(()=>info=image);else image.dispose();previous?.dispose();
-  });
-  void resolve(){
-    final next=AssetImage(widget.asset).resolve(createLocalImageConfiguration(context));
-    if(stream?.key==next.key)return;
-    stream?.removeListener(listener);stream=next;stream!.addListener(listener);
-  }
-  @override void didChangeDependencies(){super.didChangeDependencies();resolve();}
-  @override void didUpdateWidget(covariant _ExtendedArtwork old){super.didUpdateWidget(old);if(old.asset!=widget.asset)resolve();}
-  @override void dispose(){stream?.removeListener(listener);info?.dispose();super.dispose();}
-  @override Widget build(BuildContext context)=>RepaintBoundary(child:CustomPaint(painter:info==null?null:_ExtendedArtworkPainter(info!,widget.topInset,widget.fit,widget.imageWidth,widget.bottomInset,widget.asset)));
-}
-class _ExtendedArtworkPainter extends CustomPainter {
-  final ImageInfo info;final double inset;final BoxFit fit;final double? imageWidth;final double bottomInset;
   final String asset;
-  _ExtendedArtworkPainter(this.info,this.inset,this.fit,this.imageWidth,this.bottomInset,this.asset);
+  final double topInset;
+  final BoxFit fit;
+  final double? imageWidth;
+  final double bottomInset;
+  const _ExtendedArtwork({
+    required this.asset,
+    required this.topInset,
+    this.fit = BoxFit.fitWidth,
+    this.imageWidth,
+    this.bottomInset = 0,
+  });
+  @override
+  State<_ExtendedArtwork> createState() => _ExtendedArtworkState();
+}
+
+class _ExtendedArtworkState extends State<_ExtendedArtwork> {
+  ImageStream? stream;
+  ImageInfo? info;
+  late final ImageStreamListener listener = ImageStreamListener((
+    image,
+    synchronous,
+  ) {
+    final previous = info;
+    if (mounted)
+      setState(() => info = image);
+    else
+      image.dispose();
+    previous?.dispose();
+  });
+  void resolve() {
+    final next = AssetImage(widget.asset)
+        .resolve(createLocalImageConfiguration(context));
+    if (stream?.key == next.key) return;
+    stream?.removeListener(listener);
+    stream = next;
+    stream!.addListener(listener);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    resolve();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ExtendedArtwork old) {
+    super.didUpdateWidget(old);
+    if (old.asset != widget.asset) resolve();
+  }
+
+  @override
+  void dispose() {
+    stream?.removeListener(listener);
+    info?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: CustomPaint(
+      painter: info == null
+          ? null
+          : _ExtendedArtworkPainter(
+              info!,
+              widget.topInset,
+              widget.fit,
+              widget.imageWidth,
+              widget.bottomInset,
+              widget.asset,
+            ),
+    ),
+  );
+}
+
+class _ExtendedArtworkPainter extends CustomPainter {
+  final ImageInfo info;
+  final double inset;
+  final BoxFit fit;
+  final double? imageWidth;
+  final double bottomInset;
+  final String asset;
+  _ExtendedArtworkPainter(
+    this.info,
+    this.inset,
+    this.fit,
+    this.imageWidth,
+    this.bottomInset,
+    this.asset,
+  );
   // Match the subdued petrol/mileage palette on the five brighter scenes.
   // Applied while drawing artwork only: live text, fields and map stay crisp.
-  static const _mutedScenes=<String>{
+  static const _mutedScenes = <String>{
     'assets/images/scenes/work_shift_scene.png',
     'assets/images/scenes/quick_add.png',
     'assets/images/scenes/paid_dashboard.png',
     'assets/images/scenes/trip_entry.png',
     'assets/images/scenes/fuel_entry.png',
   };
-  static const _mutedTone=ColorFilter.matrix([
-    .58,.18,.02,0,0,
-    .06,.70,.02,0,0,
-    .06,.18,.54,0,0,
-    0,0,0,1,0,
+  static const _mutedTone = ColorFilter.matrix([
+    .58,
+    .18,
+    .02,
+    0,
+    0,
+    .06,
+    .70,
+    .02,
+    0,
+    0,
+    .06,
+    .18,
+    .54,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
   ]);
-  @override void paint(Canvas canvas,Size size){
-    final image=info.image;final source=Size(image.width.toDouble(),image.height.toDouble());
-    final target=Size(size.width,math.max(1.0,size.height-inset-bottomInset));
-    final fitted=applyBoxFit(fit,source,target);
-    final src=fit==BoxFit.fitWidth?Offset.zero&source:Alignment.center.inscribe(fitted.source,Offset.zero&source);
-    final width=imageWidth??size.width;
-    final dst=fit==BoxFit.fitWidth?Rect.fromLTWH((size.width-width)/2,0,width,source.height*width/source.width):Alignment.topCenter.inscribe(fitted.destination,Offset.zero&target);
-    final band=math.min(48.0,dst.height*.08);
-    final sourceBand=band*src.height/dst.height;
-    final paint=Paint()..filterQuality=FilterQuality.high;
-    if(_mutedScenes.contains(asset))paint.colorFilter=_mutedTone;
-    canvas.drawImageRect(image,Rect.fromLTWH(src.left,src.top,src.width,sourceBand),
-      Rect.fromLTWH(dst.left,0,dst.width,inset+band),paint);
-    final extra=math.max(0.0,size.height-(inset+dst.height));
-    final floorBand=extra>0?math.min(dst.height*.15,100.0):0.0;
-    final sourceFloor=floorBand*src.height/dst.height;
-    canvas.drawImageRect(image,Rect.fromLTWH(src.left,src.top+sourceBand,src.width,src.height-sourceBand-sourceFloor),
-      Rect.fromLTWH(dst.left,inset+band,dst.width,dst.height-band-floorBand),paint);
-    if(extra>0)canvas.drawImageRect(image,
-      Rect.fromLTWH(src.left,src.bottom-sourceFloor,src.width,sourceFloor),
-      Rect.fromLTWH(dst.left,inset+dst.height-floorBand,dst.width,floorBand+extra),paint);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final image = info.image;
+    final source = Size(image.width.toDouble(), image.height.toDouble());
+    final target = Size(
+      size.width,
+      math.max(1.0, size.height - inset - bottomInset),
+    );
+    final fitted = applyBoxFit(fit, source, target);
+    final src = fit == BoxFit.fitWidth
+        ? Offset.zero & source
+        : Alignment.center.inscribe(fitted.source, Offset.zero & source);
+    final width = imageWidth ?? size.width;
+    final dst = fit == BoxFit.fitWidth
+        ? Rect.fromLTWH(
+            (size.width - width) / 2,
+            0,
+            width,
+            source.height * width / source.width,
+          )
+        : Alignment.topCenter.inscribe(
+            fitted.destination,
+            Offset.zero & target,
+          );
+    final band = math.min(48.0, dst.height * .08);
+    final sourceBand = band * src.height / dst.height;
+    final paint = Paint()..filterQuality = FilterQuality.high;
+    if (_mutedScenes.contains(asset)) paint.colorFilter = _mutedTone;
+    canvas.drawImageRect(
+      image,
+      Rect.fromLTWH(src.left, src.top, src.width, sourceBand),
+      Rect.fromLTWH(dst.left, 0, dst.width, inset + band),
+      paint,
+    );
+    final extra = math.max(0.0, size.height - (inset + dst.height));
+    final floorBand = extra > 0 ? math.min(dst.height * .15, 100.0) : 0.0;
+    final sourceFloor = floorBand * src.height / dst.height;
+    canvas.drawImageRect(
+      image,
+      Rect.fromLTWH(
+        src.left,
+        src.top + sourceBand,
+        src.width,
+        src.height - sourceBand - sourceFloor,
+      ),
+      Rect.fromLTWH(
+        dst.left,
+        inset + band,
+        dst.width,
+        dst.height - band - floorBand,
+      ),
+      paint,
+    );
+    if (extra > 0)
+      canvas.drawImageRect(
+        image,
+        Rect.fromLTWH(
+          src.left,
+          src.bottom - sourceFloor,
+          src.width,
+          sourceFloor,
+        ),
+        Rect.fromLTWH(
+          dst.left,
+          inset + dst.height - floorBand,
+          dst.width,
+          floorBand + extra,
+        ),
+        paint,
+      );
   }
-  @override bool shouldRepaint(covariant _ExtendedArtworkPainter old)=>old.info!=info||old.inset!=inset||old.fit!=fit||old.imageWidth!=imageWidth||old.bottomInset!=bottomInset||old.asset!=asset;
+
+  @override
+  bool shouldRepaint(covariant _ExtendedArtworkPainter old) =>
+      old.info != info ||
+      old.inset != inset ||
+      old.fit != fit ||
+      old.imageWidth != imageWidth ||
+      old.bottomInset != bottomInset ||
+      old.asset != asset;
 }
