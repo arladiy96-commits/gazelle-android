@@ -9,7 +9,7 @@ class _GasCalculationScreen extends StatefulWidget {
 class _GasCalculationScreenState extends State<_GasCalculationScreen>
     with WidgetsBindingObserver {
   static const gold = _CinematicMore.gold;
-  static const muted = Color(0xFFB1B4B4);
+  static const muted = Color(0xFF90999E);
   double _rate = GasCalculation.rate, _tank = GasCalculation.tank;
   bool _editingSetting = false;
   GasReport? _report;
@@ -123,6 +123,7 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
     _keys = true;
   });
   void _key(String key) {
+    HapticFeedback.lightImpact();
     setState(() {
       var value = _input;
       if (key == '⌫') {
@@ -159,7 +160,7 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
           child: Text(
             label,
             style: TextStyle(
-              color: strong ? Colors.white : muted,
+              color: strong ? const Color(0xFFE9EAEB) : muted,
               fontSize: 12,
             ),
           ),
@@ -170,7 +171,7 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
             value,
             textAlign: TextAlign.right,
             style: TextStyle(
-              color: strong ? gold : Colors.white,
+              color: strong ? gold : const Color(0xFFE9EAEB),
               fontSize: strong ? 18 : 14,
               fontWeight: strong ? FontWeight.w700 : FontWeight.w500,
             ),
@@ -181,7 +182,10 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
   );
   Widget _panel(Widget child) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
-    child: _GasMetalSurface(padding: const EdgeInsets.all(13), child: child),
+    child: _GasCalculatorMoreSurface(
+      padding: const EdgeInsets.all(13),
+      child: child,
+    ),
   );
   Widget _inputTile(
     int field,
@@ -200,7 +204,7 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
             color: const Color(0x88121618),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: _field == field && _keys ? gold : const Color(0xFF494A43),
+              color: _field == field && _keys ? gold : const Color(0xFF60523F),
             ),
           ),
           child: Column(
@@ -211,7 +215,7 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
               Text(
                 '${value.isEmpty ? "—" : value} $unit',
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: Color(0xFFE9EAEB),
                   fontSize: 21,
                   fontWeight: FontWeight.w600,
                 ),
@@ -260,7 +264,12 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
         barrierDismissible: false,
         builder: (dialog) => StatefulBuilder(
           builder: (dialog, update) => AlertDialog(
-            backgroundColor: const Color(0xFF141A1C),
+            backgroundColor: const Color(0xFF11181C),
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(17),
+              side: const BorderSide(color: Color(0xFF776044), width: .8),
+            ),
             title: Text(
               rate ? 'Расход, л / 100 км' : 'Газ в баке, л',
               style: const TextStyle(color: gold, fontSize: 18),
@@ -272,7 +281,7 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Color(0xFFE9EAEB)),
               decoration: InputDecoration(
                 errorText: error,
                 helperText: 'Настройка только для калькулятора',
@@ -356,7 +365,7 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
             children: [
               _settingLine('Расход', '${_number(_rate)} л / 100 км', true),
               _settingLine('В баке', _litres(_tank), false),
-              const Divider(color: Color(0x445F625D), height: 12),
+              const Divider(color: Color(0xFF353A3D), height: 12),
               _line(
                 'Газ за месяц',
                 _litres(r.opening == null ? null : r.opening! + r.gas),
@@ -509,8 +518,7 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
 
   Widget _keyboard() => Padding(
     padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-    child: _GasMetalSurface(
-      compact: true,
+    child: _GasCalculatorMoreSurface(
       padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -537,7 +545,10 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
               IconButton(
                 tooltip: 'Скрыть клавиатуру',
                 visualDensity: VisualDensity.compact,
-                onPressed: () => setState(() => _keys = false),
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  setState(() => _keys = false);
+                },
                 icon: const Icon(
                   Icons.keyboard_hide_outlined,
                   color: gold,
@@ -561,9 +572,11 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
                       child: OutlinedButton(
                         onPressed: () => _key(key),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: key == '⌫' ? gold : Colors.white,
-                          backgroundColor: const Color(0xA0232828),
-                          side: const BorderSide(color: Color(0xFF4C4B42)),
+                          foregroundColor: key == '⌫'
+                              ? gold
+                              : const Color(0xFFE9EAEB),
+                          backgroundColor: const Color(0xEE171C1E),
+                          side: const BorderSide(color: Color(0xFF60523F)),
                           minimumSize: const Size(0, 38),
                           padding: EdgeInsets.zero,
                           shape: RoundedRectangleBorder(
@@ -614,7 +627,7 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
                             const Text(
                               'Расчёт газа',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: Color(0xFFE9EAEB),
                                 fontSize: 26,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -663,5 +676,18 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
         ],
       ),
     ),
+  );
+}
+
+// Keep the calculator's existing geometry while sharing More's panel finish.
+class _GasCalculatorMoreSurface extends StatelessWidget {
+  final Widget child;
+  final EdgeInsets padding;
+  const _GasCalculatorMoreSurface({required this.child, required this.padding});
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: _CinematicMore.panel(),
+    child: Padding(padding: padding, child: child),
   );
 }
