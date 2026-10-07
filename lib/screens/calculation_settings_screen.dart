@@ -106,7 +106,7 @@ class _CalculationSettingsScreenState
     if (busy) return;
     final key = field.$1, current = value(book, key), isList = current is List;
     final controller = TextEditingController(
-      text: isList ? (current as List).join('\n') : show(current),
+      text: isList ? current.join('\n') : show(current),
     );
     Object? selected;
     String? error;
@@ -115,7 +115,20 @@ class _CalculationSettingsScreenState
       context: context,
       builder: (dialog) => StatefulBuilder(
         builder: (c, update) => AlertDialog(
-          backgroundColor: const Color(0xFF161A1C),
+          backgroundColor: const Color(0xFF11181C),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(17),
+            side: const BorderSide(color: Color(0xFF776044), width: .8),
+          ),
+          titleTextStyle: const TextStyle(
+            color: Color(0xFFE9EAEB),
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+          contentTextStyle: const TextStyle(
+            color: Color(0xFF90999E),
+            fontSize: 12,
+          ),
           surfaceTintColor: Colors.transparent,
           title: Text(field.$2),
           content: SingleChildScrollView(
@@ -127,11 +140,17 @@ class _CalculationSettingsScreenState
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(field.$3),
+                    activeThumbColor: gold,
                     value: toggle,
                     onChanged: (v) => update(() => toggle = v),
                   )
                 else
                   TextField(
+                    style: const TextStyle(
+                      color: Color(0xFFE9EAEB),
+                      fontSize: 14,
+                    ),
+                    cursorColor: gold,
                     controller: controller,
                     autofocus: true,
                     maxLines: isList ? 6 : 1,
@@ -139,6 +158,16 @@ class _CalculationSettingsScreenState
                         ? TextInputType.multiline
                         : const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
+                      helperStyle: const TextStyle(
+                        color: Color(0xFF90999E),
+                        fontSize: 10,
+                      ),
+                      enabledBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(color: Color(0xFF62605A)),
+                      ),
+                      focusedBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(color: gold),
+                      ),
                       helperText: field.$3,
                       errorText: error,
                     ),
@@ -159,10 +188,12 @@ class _CalculationSettingsScreenState
           ),
           actions: [
             TextButton(
+              style: TextButton.styleFrom(foregroundColor: gold),
               onPressed: () => Navigator.pop(dialog),
               child: const Text('Отмена'),
             ),
             TextButton(
+              style: TextButton.styleFrom(foregroundColor: gold),
               onPressed: () {
                 try {
                   Object v;
@@ -226,19 +257,31 @@ class _CalculationSettingsScreenState
     }
   }
 
+  IconData groupIcon(String? name) => switch (name) {
+    'Зарплата' => Icons.account_balance_wallet_outlined,
+    'Рабочий календарь' => Icons.calendar_month_outlined,
+    'Направления и суточные' => Icons.signpost_outlined,
+    'Газ' => Icons.local_gas_station_outlined,
+    'Обслуживание' => Icons.handyman_outlined,
+    'История изменений' => Icons.history,
+    _ => Icons.calculate_outlined,
+  };
   Widget panel(
     String title,
     String subtitle,
-    VoidCallback action, {
-    IconData icon = Icons.chevron_right,
-  }) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
-    child: _GasMetalSurface(
-      padding: const EdgeInsets.all(14),
-      child: InkWell(
-        onTap: busy ? null : action,
+    VoidCallback? action, {
+    IconData? icon,
+  }) => Material(
+    color: Colors.transparent,
+    child: InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: busy ? null : action,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
         child: Row(
           children: [
+            _CinematicMore.badge(icon ?? groupIcon(widget.group), gold),
+            const SizedBox(width: 13),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,33 +289,141 @@ class _CalculationSettingsScreenState
                   Text(
                     title,
                     style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFE9EAEB),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   if (subtitle.isNotEmpty) ...[
-                    const SizedBox(height: 7),
+                    const SizedBox(height: 3),
                     Text(
                       subtitle,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: gold, fontSize: 13),
+                      style: const TextStyle(
+                        color: Color(0xFF90999E),
+                        fontSize: 9,
+                      ),
                     ),
                   ],
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            Icon(icon, color: gold, size: 20),
+            if (action != null) ...[
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.chevron_right,
+                color: Color(0xFFBDC3C5),
+                size: 19,
+              ),
+            ],
           ],
         ),
       ),
     ),
   );
+  Widget section(String title, IconData icon, List<Widget> rows) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 7, top: 6),
+          child: Row(
+            children: [
+              Icon(icon, color: gold, size: 19),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  title.toUpperCase(),
+                  style: const TextStyle(
+                    color: Color(0xFF7397A9),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 9),
+              const Expanded(
+                child: Divider(color: Color(0xFF62605A), height: 1),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          decoration: _CinematicMore.panel(),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          child: Column(
+            children: [
+              for (var i = 0; i < rows.length; i++) ...[
+                if (i > 0) const Divider(height: 1, color: Color(0xFF353A3D)),
+                rows[i],
+              ],
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+  String get subtitle => widget.settingsRoot
+      ? 'Управление приложением'
+      : widget.group == null
+      ? 'Ставки, нормы и правила учёта'
+      : widget.group == 'История изменений'
+      ? 'Сохранённые значения и даты'
+      : 'Нажмите параметр для изменения';
+  Widget header() => Padding(
+    padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
+    child: Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: const Color(0xB010161A),
+            border: Border.all(color: gold),
+          ),
+          child: IconButton(
+            padding: EdgeInsets.zero,
+            tooltip: 'Назад',
+            onPressed: busy ? null : () => Navigator.pop(context),
+            icon: const Icon(Icons.chevron_left, color: gold),
+          ),
+        ),
+        const SizedBox(width: 17),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.settingsRoot
+                    ? 'Настройки'
+                    : widget.group ?? 'Параметры расчётов',
+                style: const TextStyle(
+                  color: Color(0xFFF1EEE6),
+                  fontSize: 27,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 3),
+              const SizedBox(
+                width: 48,
+                child: Divider(color: gold, height: 3, thickness: 1.5),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                style: const TextStyle(color: Color(0xFFC1C4C5), fontSize: 11),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
   void open(String? group, {bool root = false}) => Navigator.push(
     context,
-    MaterialPageRoute<void>(
+    _SceneRoute<void>(
       builder: (_) =>
           _CalculationSettingsScreen(group: group, settingsRoot: root),
     ),
@@ -300,125 +451,161 @@ class _CalculationSettingsScreenState
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !busy,
-    child: Scaffold(
-      backgroundColor: const Color(0xFF101517),
-      body: Stack(
-        children: [
-          _CinematicMore.backdrop(),
-          SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: busy ? null : () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back, color: gold),
-                      ),
-                      Expanded(
-                        child: Text(
-                          widget.settingsRoot
-                              ? 'Настройки'
-                              : widget.group ?? 'Параметры расчётов',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 21,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (busy)
-                  const LinearProgressIndicator(color: gold, minHeight: 2),
-                Expanded(
-                  child: _TestLive(
-                    builder: (book) => ListView(
-                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
-                      children: [
-                        if (widget.settingsRoot)
-                          panel(
-                            'Параметры расчётов',
-                            'Ставки, календарь, газ и обслуживание',
-                            () => open(null),
-                            icon: Icons.calculate_outlined,
-                          )
-                        else if (widget.group == null) ...[
-                          for (final g in groups) panel(g, '', () => open(g)),
-                          panel(
-                            'История изменений',
-                            'Значения и даты начала действия',
-                            () => open('История изменений'),
-                            icon: Icons.history,
-                          ),
-                        ] else if (widget.group == 'История изменений') ...[
-                          if (history(book).isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.all(20),
-                              child: Text(
-                                'Изменений пока нет',
-                                style: TextStyle(color: muted),
-                              ),
-                            ),
-                          for (final e in history(book))
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: _GasMetalSurface(
-                                padding: const EdgeInsets.all(14),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      label(e['key'] as String),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      '${show(e['old'])} → ${show(e['value'])}',
-                                      style: const TextStyle(color: gold),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      '${_detailDate(DateTime.parse(e['at'] as String))} · ${_detailTime(DateTime.parse(e['at'] as String))}',
-                                      style: const TextStyle(
-                                        color: muted,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
+    child: AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        backgroundColor: const Color(0xFF080E12),
+        body: Stack(
+          children: [
+            _CinematicMore.backdrop(),
+            SafeArea(
+              child: Column(
+                children: [
+                  header(),
+                  if (busy)
+                    const LinearProgressIndicator(color: gold, minHeight: 2),
+                  Expanded(
+                    child: _TestLive(
+                      builder: (book) {
+                        final events = widget.group == 'История изменений'
+                            ? history(book)
+                            : <Map<String, dynamic>>[];
+                        return ListView(
+                          padding: const EdgeInsets.fromLTRB(22, 2, 18, 10),
+                          children: [
+                            if (widget.settingsRoot)
+                              section('Приложение', Icons.settings_outlined, [
+                                panel(
+                                  'Параметры расчётов',
+                                  'Ставки, календарь, газ и обслуживание',
+                                  () => open(null),
+                                  icon: Icons.calculate_outlined,
                                 ),
-                              ),
-                            ),
-                        ] else ...[
-                          if (widget.group == 'Рабочий календарь')
-                            const Padding(
-                              padding: EdgeInsets.all(8),
-                              child: Text(
-                                'Праздники и переносы задаются по датам для каждого года. Новые годы автоматически не добавляются.',
-                                style: TextStyle(color: muted, fontSize: 12),
-                              ),
-                            ),
-                          for (final f in entries(widget.group!))
-                            panel(
-                              f.$2,
-                              '${show(value(book, f.$1))}\n${f.$3}',
-                              () => edit(book, f),
-                              icon: Icons.edit_outlined,
-                            ),
-                        ],
-                      ],
+                              ])
+                            else if (widget.group == null) ...[
+                              section('Расчёты', Icons.calculate_outlined, [
+                                for (final g in groups)
+                                  panel(
+                                    g,
+                                    switch (g) {
+                                      'Зарплата' => 'Оклад, доплаты и вес',
+                                      'Рабочий календарь' =>
+                                        'Рабочие дни, праздники и норма часов',
+                                      'Направления и суточные' =>
+                                        'Платные поездки и выплаты',
+                                      'Газ' => 'Нормы расхода и газ в баке',
+                                      _ => 'Интервалы обслуживания',
+                                    },
+                                    () => open(g),
+                                    icon: groupIcon(g),
+                                  ),
+                              ]),
+                              section('Изменения', Icons.history, [
+                                panel(
+                                  'История изменений',
+                                  'Значения и даты начала действия',
+                                  () => open('История изменений'),
+                                  icon: Icons.history,
+                                ),
+                              ]),
+                            ] else if (widget.group == 'История изменений')
+                              section('История', Icons.history, [
+                                if (events.isEmpty)
+                                  panel(
+                                    'Изменений пока нет',
+                                    'Здесь появятся сохранённые настройки',
+                                    null,
+                                    icon: Icons.history,
+                                  ),
+                                for (final e in events)
+                                  panel(
+                                    label(e['key'] as String),
+                                    '${show(e['old'])} → ${show(e['value'])}\n${_detailDate(DateTime.parse(e['at'] as String))} · ${_detailTime(DateTime.parse(e['at'] as String))}',
+                                    () => showDialog<void>(
+                                      context: context,
+                                      builder: (c) => AlertDialog(
+                                        backgroundColor: const Color(
+                                          0xFF11181C,
+                                        ),
+                                        surfaceTintColor: Colors.transparent,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            17,
+                                          ),
+                                          side: const BorderSide(
+                                            color: Color(0xFF776044),
+                                            width: .8,
+                                          ),
+                                        ),
+                                        title: Text(
+                                          label(e['key'] as String),
+                                          style: const TextStyle(
+                                            color: Color(0xFFE9EAEB),
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        content: SingleChildScrollView(
+                                          child: Text(
+                                            'Было: ${show(e['old'])}\n\nСтало: ${show(e['value'])}\n\n${_detailDate(DateTime.parse(e['at'] as String))} · ${_detailTime(DateTime.parse(e['at'] as String))}',
+                                            style: const TextStyle(
+                                              color: Color(0xFFC1C4C5),
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            style: TextButton.styleFrom(
+                                              foregroundColor: gold,
+                                            ),
+                                            onPressed: () => Navigator.pop(c),
+                                            child: const Text('Закрыть'),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    icon: Icons.history,
+                                  ),
+                              ])
+                            else ...[
+                              section('Параметры', groupIcon(widget.group), [
+                                for (final f in entries(widget.group!))
+                                  panel(
+                                    f.$2,
+                                    '${show(value(book, f.$1))}\n${f.$3}',
+                                    () => edit(book, f),
+                                  ),
+                              ]),
+                              if (widget.group == 'Рабочий календарь')
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  child: Text(
+                                    'Праздники и переносы задаются по датам для каждого года. Новые годы автоматически не добавляются.',
+                                    style: TextStyle(
+                                      color: Color(0xFF90999E),
+                                      fontSize: 9,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ],
+                        );
+                      },
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );
