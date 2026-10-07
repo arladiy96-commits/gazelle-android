@@ -109,7 +109,7 @@ class MainActivity : FlutterActivity() {
         val width = 1080
         val rowHeight = 62f
         val hasKaspi = (value("kaspiCount").toIntOrNull() ?: 0) > 0
-        val height = (610 + (if (hasKaspi) 180 else 0) + rows.size * rowHeight).toInt()
+        val height = (610 + (if (hasKaspi) 90 else 0) + rows.size * rowHeight).toInt()
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         try {
             val canvas = Canvas(bitmap)
@@ -154,21 +154,17 @@ class MainActivity : FlutterActivity() {
             y += 60f
             text("По накладным (" + value("invoiceCount") + ")", 55f, y, maxWidth = 450f)
             text(value("invoices") + " ₸", 1025f, y, 32f, false, true, 490f)
-            if (hasKaspi) {
-                y += 60f
-                text("Каспи (" + value("kaspiCount") + " накл.)", 55f, y, maxWidth = 450f)
-                text(value("kaspi") + " ₸", 1025f, y, 32f, false, true, 490f)
-                y += 60f
-                text("К получению наличными", 55f, y, maxWidth = 450f)
-                text(value("cashExpected") + " ₸", 1025f, y, 32f, false, true, 490f)
-                y += 60f
-                text("НАЛИЧНЫЕ + КАСПИ", 55f, y, 30f, true, maxWidth = 450f)
-                text(value("received") + " ₸", 1025f, y, 32f, true, true, 490f)
-            }
             y += 32f
             rule(y)
             y += 59f
             text(value("difference"), 55f, y, 36f, true)
+            if (hasKaspi) {
+                y += 30f
+                rule(y)
+                y += 60f
+                text("Каспи (" + value("kaspiCount") + " накл.)", 55f, y, maxWidth = 450f)
+                text(value("kaspi") + " ₸", 1025f, y, 32f, false, true, 490f)
+            }
             y += 62f
             text("Сформировано из сохранённого подсчёта", 55f, y, 23f)
             val directory = File(cacheDir, "money_exports")
