@@ -18,7 +18,7 @@ class MoneyScreen extends StatefulWidget {
 }
 
 class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
-  static const gold = Color(0xFFCEA15B), muted = Color(0xFFB1B4B4);
+  static const gold = Color(0xFFCEA15B), muted = Color(0xFF90999E);
   late final MoneyRepository _repository;
   MoneyCount _draft = MoneyCount.empty();
   List<MoneyCount> _history = [];
@@ -111,6 +111,8 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
 
   void _update({
     List<int>? invoices,
+    Set<int>? kaspiInvoices,
+    bool? inputKaspi,
     Map<int, int>? counts,
     String? input,
     int? editing,
@@ -121,6 +123,8 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
         id: _draft.id,
         date: _draft.date,
         invoices: invoices ?? _draft.invoices,
+        kaspiInvoices: kaspiInvoices ?? _draft.kaspiInvoices,
+        inputKaspi: inputKaspi ?? _draft.inputKaspi,
         counts: counts ?? _draft.counts,
         input: input ?? _draft.input,
         editing: clearEditing ? null : editing ?? _draft.editing,
@@ -138,12 +142,25 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
       return false;
     }
     final values = List<int>.of(_draft.invoices);
+    final kaspi = Set<int>.of(_draft.kaspiInvoices);
+    final index = _draft.editing ?? values.length;
+    if (_draft.inputKaspi) {
+      kaspi.add(index);
+    } else {
+      kaspi.remove(index);
+    }
     if (_draft.editing == null) {
       values.add(amount);
     } else {
       values[_draft.editing!] = amount;
     }
-    _update(invoices: values, input: '', clearEditing: true);
+    _update(
+      invoices: values,
+      kaspiInvoices: kaspi,
+      inputKaspi: false,
+      input: '',
+      clearEditing: true,
+    );
     return true;
   }
 
@@ -154,7 +171,11 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
     }
     if (_draft.editing != null && _draft.editing != index && !_commitInput())
       return;
-    _update(input: MoneyCount.editable(_draft.invoices[index]), editing: index);
+    _update(
+      input: MoneyCount.editable(_draft.invoices[index]),
+      editing: index,
+      inputKaspi: _draft.kaspiInvoices.contains(index),
+    );
   }
 
   void _delete(int index) {
@@ -162,6 +183,11 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
     final edit = _draft.editing;
     _update(
       invoices: values,
+      kaspiInvoices: {
+        for (final i in _draft.kaspiInvoices)
+          if (i != index) i > index ? i - 1 : i,
+      },
+      inputKaspi: edit == index ? false : null,
       input: edit == index ? '' : null,
       clearEditing: edit == index,
       editing: edit != null && edit > index ? edit - 1 : edit,
@@ -178,6 +204,7 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
 
   void _key(String key) {
     if (_busy || _readOnly) return;
+    HapticFeedback.lightImpact();
     if (_cashMode) {
       var value = _replaceCash && key != '⌫' ? '' : _cashInput;
       if (key == 'C') {
@@ -278,7 +305,7 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
       final yes = await showDialog<bool>(
         context: context,
         builder: (c) => AlertDialog(
-          backgroundColor: const Color(0xFF161A1C),
+          backgroundColor: const Color(0xFF11181C),
           surfaceTintColor: Colors.transparent,
           title: const Text('Начать новый подсчёт?'),
           content: const Text(
@@ -339,41 +366,48 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
   Widget _text(
     String text, {
     double size = 13,
-    Color color = Colors.white,
+    Color color = const Color(0xFFE9EAEB),
     FontWeight weight = FontWeight.w400,
   }) => Text(
     text,
     style: TextStyle(color: color, fontSize: size, fontWeight: weight),
   );
-  Widget _amount(int value, {double size = 23, Color color = Colors.white}) =>
-      FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: Alignment.centerLeft,
-        child: _text(
-          '${MoneyCount.format(value)} ₸',
-          size: size,
-          color: color,
-          weight: FontWeight.w600,
-        ),
-      );
-  Widget _button(String label, VoidCallback? action, {bool selected = false, bool compact = false}) =>
-      TextButton(
-        onPressed: _busy ? null : action,
-        style: TextButton.styleFrom(
-          foregroundColor: selected ? gold : muted,
-          minimumSize: Size(44, compact ? 34 : 44),
-          tapTargetSize: compact ? MaterialTapTargetSize.shrinkWrap : MaterialTapTargetSize.padded,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          backgroundColor: selected
-              ? const Color(0x334F422C)
-              : Colors.transparent,
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: compact ? 11 : 12),
-        ),
-      );
+  Widget _amount(
+    int value, {
+    double size = 23,
+    Color color = const Color(0xFFE9EAEB),
+  }) => FittedBox(
+    fit: BoxFit.scaleDown,
+    alignment: Alignment.centerLeft,
+    child: _text(
+      '${MoneyCount.format(value)} ₸',
+      size: size,
+      color: color,
+      weight: FontWeight.w600,
+    ),
+  );
+  Widget _button(
+    String label,
+    VoidCallback? action, {
+    bool selected = false,
+    bool compact = false,
+  }) => TextButton(
+    onPressed: _busy ? null : action,
+    style: TextButton.styleFrom(
+      foregroundColor: selected ? gold : muted,
+      minimumSize: Size(44, compact ? 34 : 44),
+      tapTargetSize: compact
+          ? MaterialTapTargetSize.shrinkWrap
+          : MaterialTapTargetSize.padded,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      backgroundColor: selected ? const Color(0x334F422C) : Colors.transparent,
+    ),
+    child: Text(
+      label,
+      textAlign: TextAlign.center,
+      style: TextStyle(fontSize: compact ? 11 : 12),
+    ),
+  );
   String _difference(MoneyCount count) => count.invoices.isEmpty
       ? 'Добавьте накладные для сверки'
       : count.difference == 0
@@ -390,7 +424,7 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
       : gold;
   Widget _totals() {
     final count = _shown;
-    return _GasMetalSurface(
+    return _MoneyMoreSurface(
       padding: const EdgeInsets.fromLTRB(15, 12, 15, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,17 +450,32 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _text('Насчитано', size: 11, color: muted),
+                    _text(
+                      count.kaspiInvoices.isEmpty
+                          ? 'Насчитано'
+                          : 'Наличные + Каспи',
+                      size: 11,
+                      color: muted,
+                    ),
                     const SizedBox(height: 3),
-                    _amount(count.counted),
+                    _amount(count.received),
                   ],
                 ),
               ),
             ],
           ),
+          if (count.kaspiInvoices.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: _text(
+                'Наличные ${MoneyCount.format(count.counted)} ₸ · Каспи ${MoneyCount.format(count.kaspi)} ₸ (${count.kaspiInvoices.length} накл.)',
+                size: 10,
+                color: muted,
+              ),
+            ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 5),
-            child: Divider(height: 1, color: Color(0xFF49453A)),
+            child: Divider(height: 1, color: Color(0xFF353A3D)),
           ),
           Row(
             children: [
@@ -463,8 +512,7 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
           itemCount: _shown.invoices.length,
           itemBuilder: (c, i) => Padding(
             padding: const EdgeInsets.only(bottom: 5),
-            child: _GasMetalSurface(
-              compact: true,
+            child: _MoneyMoreSurface(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
               child: Row(
                 children: [
@@ -479,7 +527,7 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
                             const SizedBox(width: 12),
                             Expanded(
                               child: _text(
-                                'Накладная ${i + 1}',
+                                'Накладная ${i + 1}${_shown.kaspiInvoices.contains(i) ? ' · Каспи' : ''}',
                                 size: 11,
                                 color: muted,
                               ),
@@ -529,8 +577,7 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
           label: '$value тенге, количество $quantity',
           child: InkWell(
             onTap: _readOnly || _busy ? null : () => _selectDenomination(value),
-            child: _GasMetalSurface(
-              compact: true,
+            child: _MoneyMoreSurface(
               padding: const EdgeInsets.fromLTRB(12, 7, 12, 7),
               child: Row(
                 children: [
@@ -560,7 +607,7 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
                         _text(
                           '${MoneyCount.format(value * 100)} ₸',
                           size: 14,
-                          color: selected ? gold : Colors.white,
+                          color: selected ? gold : const Color(0xFFE9EAEB),
                         ),
                         _text(
                           value == 200
@@ -589,7 +636,7 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
                     child: _text(
                       '$quantity',
                       size: 17,
-                      color: selected ? gold : Colors.white,
+                      color: selected ? gold : const Color(0xFFE9EAEB),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -607,7 +654,7 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
   );
   Widget _keyboard(bool short) {
     final editing = _draft.editing;
-    return _GasMetalSurface(
+    return _MoneyMoreSurface(
       padding: const EdgeInsets.fromLTRB(9, 7, 9, 8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -641,7 +688,32 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
                 ),
               ),
               if (!_cashMode && editing != null)
-                _button('Отмена', () => _update(input: '', clearEditing: true)),
+                _button(
+                  'Отмена',
+                  () =>
+                      _update(input: '', clearEditing: true, inputKaspi: false),
+                ),
+              if (!_cashMode)
+                TextButton.icon(
+                  onPressed: _busy
+                      ? null
+                      : () {
+                          HapticFeedback.lightImpact();
+                          _update(inputKaspi: !_draft.inputKaspi);
+                        },
+                  style: TextButton.styleFrom(
+                    foregroundColor: _draft.inputKaspi ? gold : muted,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    minimumSize: const Size(0, 40),
+                  ),
+                  icon: Icon(
+                    _draft.inputKaspi
+                        ? Icons.check_box_outlined
+                        : Icons.check_box_outline_blank,
+                    size: 18,
+                  ),
+                  label: const Text('Каспи', style: TextStyle(fontSize: 11)),
+                ),
               _button('Очистить', () => _key('C')),
             ],
           ),
@@ -669,14 +741,14 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(7),
                                 border: Border.all(
-                                  color: const Color(0xFF565147),
+                                  color: const Color(0xFF60523F),
                                   width: .6,
                                 ),
                                 gradient: const LinearGradient(
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
                                   colors: [
-                                    Color(0xFF2B2E2D),
+                                    Color(0xFF20282C),
                                     Color(0xFF131819),
                                   ],
                                 ),
@@ -741,23 +813,37 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
     setState(() => _busy = true);
     try {
       await const MethodChannel('melnitsa/money_share').invokeMethod<void>(
-        'share', {
+        'share',
+        {
           'date': '${_detailDate(count.date)} · ${_detailTime(count.date)}',
-          'rows': [for (final nominal in MoneyCount.denominations)
-            [MoneyCount.format(nominal * 100), '${count.counts[nominal] ?? 0}',
-              MoneyCount.format(nominal * (count.counts[nominal] ?? 0) * 100)]],
+          'rows': [
+            for (final nominal in MoneyCount.denominations)
+              [
+                MoneyCount.format(nominal * 100),
+                '${count.counts[nominal] ?? 0}',
+                MoneyCount.format(nominal * (count.counts[nominal] ?? 0) * 100),
+              ],
+          ],
           'cash': MoneyCount.format(count.counted),
           'invoices': MoneyCount.format(count.expected),
           'invoiceCount': '${count.invoices.length}',
+          'kaspi': MoneyCount.format(count.kaspi),
+          'kaspiCount': '${count.kaspiInvoices.length}',
+          'cashExpected': MoneyCount.format(count.cashExpected),
+          'received': MoneyCount.format(count.received),
           'difference': _difference(count),
         },
       );
     } on MissingPluginException {
-      await _shareError('В установленной сборке не найден Android-модуль отправки. '
-        'Проверьте замену MainActivity.kt и установку нового APK.');
+      await _shareError(
+        'В установленной сборке не найден Android-модуль отправки. '
+        'Проверьте замену MainActivity.kt и установку нового APK.',
+      );
     } on PlatformException catch (e) {
-      await _shareError('${e.code}: ${e.message ?? "Ошибка Android"}'
-        '${e.details == null ? "" : "\n${e.details}"}');
+      await _shareError(
+        '${e.code}: ${e.message ?? "Ошибка Android"}'
+        '${e.details == null ? "" : "\n${e.details}"}',
+      );
     } catch (e) {
       await _shareError(e.toString());
     } finally {
@@ -767,12 +853,20 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
 
   Future<void> _shareError(String message) async {
     if (!mounted) return;
-    await showDialog<void>(context: context, builder: (dialog) => AlertDialog(
-      backgroundColor: const Color(0xFF161A1C),
-      title: const Text('Не удалось отправить покупюрник'),
-      content: SingleChildScrollView(child: SelectableText(message)),
-      actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Закрыть'))],
-    ));
+    await showDialog<void>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        backgroundColor: const Color(0xFF11181C),
+        title: const Text('Не удалось отправить покупюрник'),
+        content: SingleChildScrollView(child: SelectableText(message)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog),
+            child: const Text('Закрыть'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _historyList() => _history.isEmpty
@@ -790,7 +884,7 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
                   _historyMode = false;
                   _cashMode = false;
                 }),
-                child: _GasMetalSurface(
+                child: _MoneyMoreSurface(
                   padding: const EdgeInsets.all(15),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -917,7 +1011,10 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
                                         children: [
                                           _totals(),
                                           if (_readOnly)
-                                            _button('Поделиться покупюрником', _busy ? null : _shareCount),
+                                            _button(
+                                              'Поделиться покупюрником',
+                                              _busy ? null : _shareCount,
+                                            ),
                                           if (_writeError.isNotEmpty)
                                             InkWell(
                                               onTap: () {
@@ -945,7 +1042,6 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
                                                   'Накладные',
                                                   () => _tab(false),
                                                   selected: !_cashMode,
-                                                  compact: true,
                                                 ),
                                               ),
                                               Expanded(
@@ -953,13 +1049,12 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
                                                   'Подсчёт денег',
                                                   () => _tab(true),
                                                   selected: _cashMode,
-                                                  compact: true,
                                                 ),
                                               ),
                                             ],
                                           ),
                                           Expanded(
-                                            child: _GasMetalSurface(
+                                            child: _MoneyMoreSurface(
                                               child: _cashMode
                                                   ? _cash()
                                                   : _invoices(),
@@ -987,5 +1082,19 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
         ),
       ),
     ),
+  );
+}
+
+class _MoneyMoreSurface extends StatelessWidget {
+  final Widget child;
+  final EdgeInsets padding;
+  const _MoneyMoreSurface({
+    required this.child,
+    this.padding = EdgeInsets.zero,
+  });
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: _CinematicMore.panel(),
+    child: Padding(padding: padding, child: child),
   );
 }
