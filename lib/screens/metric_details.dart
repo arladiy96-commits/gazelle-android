@@ -2536,11 +2536,29 @@ class _DayDetails extends StatelessWidget {
                         326.0 + (i ~/ 2) * 107,
                         280,
                         107,
-                        metric(
-                          items[i].$1,
-                          items[i].$2,
-                          items[i].$3,
-                          items[i].$4,
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onLongPress: (i == 3 || i == 6) && shifts.isNotEmpty
+                              ? () {
+                                  HapticFeedback.mediumImpact();
+                                  Navigator.of(context).push<void>(
+                                    _SceneRoute<void>(
+                                      builder: (_) => _DayMetricEditor(
+                                        day: date,
+                                        mileage: i == 3,
+                                        book: b,
+                                        shifts: shifts,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              : null,
+                          child: metric(
+                            items[i].$1,
+                            items[i].$2,
+                            items[i].$3,
+                            items[i].$4,
+                          ),
                         ),
                       ),
                     at(
@@ -2729,6 +2747,91 @@ class _DayDetails extends StatelessWidget {
         },
       ),
     ),
+  );
+}
+
+class _DayMetricEditor extends StatefulWidget {
+  final DateTime day;
+  final bool mileage;
+  final TestState book;
+  final List<Map<String, dynamic>> shifts;
+  const _DayMetricEditor({
+    required this.day,
+    required this.mileage,
+    required this.book,
+    required this.shifts,
+  });
+  @override
+  State<_DayMetricEditor> createState() => _DayMetricEditorState();
+}
+
+class _DayMetricEditorState extends State<_DayMetricEditor> {
+  late final initial = <String, String>{
+    for (final s in widget.shifts)
+      s['id'] as String:
+          (widget.mileage ? widget.book.mileage(s) : widget.book.hours(s))
+              .toString()
+              .replaceFirst(RegExp(r'\.0$'), ''),
+  };
+  late final fields = <String, TextEditingController>{
+    for (final e in initial.entries)
+      e.key: TextEditingController(text: e.value),
+  };
+  bool busy = false;
+  String? error;
+  @override
+  void dispose() {
+    for (final c in fields.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _DetailFrame(
+    title: widget.mileage ? 'Изменить пробег' : 'Изменить часы',
+    children: [
+      _dt('${_detailDate(widget.day)} ${widget.day.year}'),
+      const SizedBox(height: 16),
+      for (final s in widget.shifts) ...[
+        if (widget.shifts.length > 1)
+          _dt('Смена с ${_detailTime(DateTime.parse(s['start'] as String))}'),
+        _testField(
+          fields[s['id']]!,
+          widget.mileage ? 'Пробег за смену, км' : 'Отработано часов',
+          numeric: true,
+          integer: widget.mileage,
+        ),
+      ],
+      if (widget.mileage)
+        _dt(
+          'Для смены с одометром конечное показание изменится вместе с пробегом.',
+        ),
+      if (error != null) _dt(error!, color: _amber),
+      _detailButton(busy ? 'Сохранение…' : 'Сохранить', () async {
+        if (busy) return;
+        setState(() {
+          busy = true;
+          error = null;
+        });
+        try {
+          await TestStore.correctShiftMetrics({
+            for (final e in fields.entries)
+              if (e.value.text != initial[e.key])
+                e.key:
+                    double.tryParse(e.value.text.trim().replaceAll(',', '.')) ??
+                    double.nan,
+          }, mileage: widget.mileage);
+          if (context.mounted) Navigator.pop(context);
+        } catch (e) {
+          if (mounted)
+            setState(() {
+              busy = false;
+              error = _testError(e);
+            });
+        }
+      }),
+    ],
   );
 }
 
