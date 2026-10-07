@@ -25,7 +25,7 @@ class _SplashScreenState extends State<SplashScreen>
     _session = SessionService.read().catchError((Object _) => null);
     _animation = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 4400),
+      duration: const Duration(milliseconds: 3000),
     );
     _animation.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
@@ -76,10 +76,14 @@ class _SplashScreenState extends State<SplashScreen>
       PageRouteBuilder<void>(
         transitionDuration: MediaQuery.disableAnimationsOf(context)
             ? Duration.zero
-            : const Duration(milliseconds: 450),
+            : const Duration(milliseconds: 180),
         pageBuilder: (_, animation, secondaryAnimation) => next,
         transitionsBuilder: (_, animation, secondaryAnimation, child) =>
-            FadeTransition(opacity: animation, child: child),
+            ColoredBox(
+              // Opaque backing keeps the old artwork out of the new screen.
+              color: const Color(0xFFF5F2EB),
+              child: FadeTransition(opacity: animation, child: child),
+            ),
       ),
     );
   }
@@ -126,18 +130,18 @@ class _SplashScreenState extends State<SplashScreen>
                   return Stack(
                     fit: StackFit.expand,
                     children: [
-                      // Independent corner clusters slide inward first.
+                      // Corner clusters and the central ear arrive together.
                       for (final top in [true, false])
                         Positioned.fill(
                           child: Transform.translate(
                             offset: Offset(
                               (top ? 55 : -55) *
-                                  (1 - phase(top ? .02 : .08, .22)),
+                                  (1 - phase(top ? .0 : .035, .24)),
                               (top ? -20 : 20) *
-                                  (1 - phase(top ? .02 : .08, .22)),
+                                  (1 - phase(top ? .0 : .035, .24)),
                             ),
                             child: Opacity(
-                              opacity: phase(top ? .02 : .08, .22),
+                              opacity: .68 * phase(top ? .0 : .035, .24),
                               child: ClipRect(
                                 clipper: _IntroBandClipper(
                                   top ? 0 : .5,
@@ -158,7 +162,7 @@ class _SplashScreenState extends State<SplashScreen>
                           blendMode: BlendMode.dstIn,
                           shaderCallback: (bounds) {
                             final progress = Curves.easeInOutCubic.transform(
-                              ((t - .19) / .46).clamp(0.0, 1.0),
+                              ((t - .025) / .54).clamp(0.0, 1.0),
                             );
                             final front =
                                 bounds.top +
@@ -177,10 +181,38 @@ class _SplashScreenState extends State<SplashScreen>
                               ),
                             );
                           },
-                          child: artwork('mill_intro_ear.png'),
+                          child: ShaderMask(
+                            // One restrained light pass, clipped to the PNG's
+                            // alpha. It never lights the surrounding background.
+                            blendMode: BlendMode.srcATop,
+                            shaderCallback: (bounds) {
+                              final sweep = ((t - .61) / .24).clamp(0.0, 1.0);
+                              final x = bounds.width * (-.5 + 2 * sweep);
+                              final strength = math.sin(math.pi * sweep) * .28;
+                              return LinearGradient(
+                                colors: [
+                                  Colors.transparent,
+                                  const Color(0xFFFFF1CF)
+                                      .withValues(alpha: strength),
+                                  Colors.transparent,
+                                ],
+                                stops: const [0, .5, 1],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ).createShader(
+                                Rect.fromLTWH(
+                                  x - bounds.width * .23,
+                                  0,
+                                  bounds.width * .46,
+                                  bounds.height,
+                                ),
+                              );
+                            },
+                            child: artwork('mill_intro_ear.png'),
+                          ),
                         ),
                       ),
-                      // Name follows the revealed ear; letters appear in sequence.
+                      // Name begins while the ear is finishing its reveal.
                       Positioned(
                         top: earTop + earHeight + 18,
                         left: 22,
@@ -192,11 +224,11 @@ class _SplashScreenState extends State<SplashScreen>
                             children: [
                               for (var i = 0; i < 'МЕЛЬНИЦА'.length; i++)
                                 Opacity(
-                                  opacity: phase(.65 + i * .018, .12),
+                                  opacity: phase(.43 + i * .015, .13),
                                   child: Transform.translate(
                                     offset: Offset(
                                       0,
-                                      12 * (1 - phase(.65 + i * .018, .12)),
+                                      12 * (1 - phase(.43 + i * .015, .13)),
                                     ),
                                     child: Text(
                                       'МЕЛЬНИЦА'[i],
@@ -246,7 +278,7 @@ class _WheatGrainsPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final opacity = ((progress - .48) / .18).clamp(0.0, 1.0) * .7;
+    final opacity = ((progress - .40) / .18).clamp(0.0, 1.0) * .7;
     if (opacity <= 0) return;
     for (var i = 0; i < 8; i++) {
       // Keep the brand name and the central ear unobstructed.
