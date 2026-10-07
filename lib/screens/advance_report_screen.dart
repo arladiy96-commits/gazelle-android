@@ -8,7 +8,7 @@ class _AdvanceReportScreen extends StatefulWidget {
 }
 
 class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
-  static const gold = Color(0xFFCEA15B), muted = Color(0xFFB1B4B4);
+  static const gold = Color(0xFFCEA15B), muted = Color(0xFF90999E);
   late final AdvanceReportRepository _repository;
   AdvanceReportData? _data;
   AdvanceReport? _archive;
@@ -76,7 +76,7 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
   Widget _text(
     String value, {
     double size = 13,
-    Color color = Colors.white,
+    Color color = const Color(0xFFE9EAEB),
     bool bold = false,
   }) => Text(
     value,
@@ -135,7 +135,11 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
       context: context,
       builder: (dialog) => StatefulBuilder(
         builder: (c, update) => AlertDialog(
-          backgroundColor: const Color(0xFF161A1C),
+          backgroundColor: const Color(0xFF11181C),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(17),
+            side: const BorderSide(color: Color(0xFF776044), width: .8),
+          ),
           surfaceTintColor: Colors.transparent,
           title: const Text(
             'Получено из кассы',
@@ -157,7 +161,7 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: Color(0xFFE9EAEB)),
                 decoration: InputDecoration(
                   labelText: 'Фактически получено',
                   suffixText: '₸',
@@ -205,7 +209,11 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
       await showDialog<void>(
         context: context,
         builder: (c) => AlertDialog(
-          backgroundColor: const Color(0xFF161A1C),
+          backgroundColor: const Color(0xFF11181C),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(17),
+            side: const BorderSide(color: Color(0xFF776044), width: .8),
+          ),
           surfaceTintColor: Colors.transparent,
           title: const Text('Суточные из рейса'),
           content: Text(
@@ -243,7 +251,11 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
     final yes = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        backgroundColor: const Color(0xFF161A1C),
+        backgroundColor: const Color(0xFF11181C),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(17),
+          side: const BorderSide(color: Color(0xFF776044), width: .8),
+        ),
         surfaceTintColor: Colors.transparent,
         title: const Text('Удалить расход?'),
         content: Text('${row.name} · ${_money(row.total)}'),
@@ -271,7 +283,7 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
     }
     final action = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: const Color(0xFF161A1C),
+      backgroundColor: const Color(0xFF11181C),
       builder: (c) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -279,7 +291,7 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
             ListTile(
               title: Text(
                 row.name,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: Color(0xFFE9EAEB)),
               ),
               subtitle: Text(_money(row.total)),
             ),
@@ -309,7 +321,11 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
     final yes = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        backgroundColor: const Color(0xFF161A1C),
+        backgroundColor: const Color(0xFF11181C),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(17),
+          side: const BorderSide(color: Color(0xFF776044), width: .8),
+        ),
         surfaceTintColor: Colors.transparent,
         title: const Text('Отчёт сдан?'),
         content: Text(
@@ -331,7 +347,7 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
       await _run(() => _repository.submit(report.signature));
   }
 
-  Widget _summary(AdvanceReport report) => _GasMetalSurface(
+  Widget _summary(AdvanceReport report) => _AdvanceMoreSurface(
     padding: const EdgeInsets.all(16),
     child: Column(
       children: [
@@ -359,7 +375,7 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
         ),
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 10),
-          child: Divider(height: 1, color: Color(0xFF4B4943)),
+          child: Divider(height: 1, color: Color(0xFF353A3D)),
         ),
         InkWell(
           onTap: _busy ? null : () => setState(() => _expanded = true),
@@ -386,8 +402,7 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
   );
 
   Widget _menuAction(String title, IconData icon, VoidCallback? action) =>
-      _GasMetalSurface(
-        compact: true,
+      _AdvanceMoreSurface(
         padding: const EdgeInsets.all(8),
         child: TextButton(
           onPressed: _busy ? null : action,
@@ -398,18 +413,27 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
           ),
           child: Row(
             children: [
-              Icon(icon, size: 23),
+              SizedBox(
+                width: 23,
+                height: 23,
+                child: FittedBox(child: _CinematicMore.badge(icon, gold)),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   title,
                   style: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFE9EAEB),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
-              const Icon(Icons.chevron_right, size: 20),
+              const Icon(
+                Icons.chevron_right,
+                color: Color(0xFFBDC3C5),
+                size: 20,
+              ),
             ],
           ),
         ),
@@ -434,14 +458,14 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
               ? gold
               : header
               ? muted
-              : const Color(0xFFE5E5E1),
+              : const Color(0xFFE9EAEB),
           fontWeight: total ? FontWeight.w600 : FontWeight.w400,
         ),
       ),
     );
     return Table(
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-      border: TableBorder.all(color: const Color(0xFF424642), width: .5),
+      border: TableBorder.all(color: const Color(0xFF353A3D), width: .5),
       columnWidths: const {
         0: FlexColumnWidth(5),
         1: FlexColumnWidth(12),
@@ -510,7 +534,7 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
 
   Widget _body(AdvanceReport report) {
     if (_expanded) {
-      return _GasMetalSurface(
+      return _AdvanceMoreSurface(
         padding: const EdgeInsets.all(10),
         child: Column(
           children: [
@@ -607,7 +631,7 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
               _history = false;
               _expanded = false;
             }),
-            child: _GasMetalSurface(
+            child: _AdvanceMoreSurface(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -804,12 +828,12 @@ class _AdvanceExpenseEditorState extends State<_AdvanceExpenseEditor> {
           ? const TextInputType.numberWithOptions(decimal: true)
           : TextInputType.text,
       textInputAction: TextInputAction.next,
-      style: const TextStyle(color: Colors.white, fontSize: 15),
+      style: const TextStyle(color: Color(0xFFE9EAEB), fontSize: 15),
       onChanged: (_) => setState(() => _error = null),
       decoration: InputDecoration(
         labelText: title,
         counterText: '',
-        labelStyle: const TextStyle(color: Color(0xFFB1B4B4)),
+        labelStyle: const TextStyle(color: Color(0xFF90999E)),
         enabledBorder: const UnderlineInputBorder(
           borderSide: BorderSide(color: Color(0xFF6C604D)),
         ),
@@ -823,7 +847,7 @@ class _AdvanceExpenseEditorState extends State<_AdvanceExpenseEditor> {
         MediaQuery.viewInsetsOf(context).bottom + 8,
       ),
       child: SingleChildScrollView(
-        child: _GasMetalSurface(
+        child: _AdvanceMoreSurface(
           padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -832,7 +856,7 @@ class _AdvanceExpenseEditorState extends State<_AdvanceExpenseEditor> {
               Text(
                 widget.row == null ? 'Новый расход' : 'Изменить расход',
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: Color(0xFFE9EAEB),
                   fontSize: 21,
                   fontWeight: FontWeight.w600,
                 ),
@@ -875,7 +899,7 @@ class _AdvanceExpenseEditorState extends State<_AdvanceExpenseEditor> {
               Text(
                 'Сумма: ${quantity <= 999999999 && price <= 99999999999 ? AdvanceRow.decimal(AdvanceRow.calculateTotal(quantity, price), 2, grouped: true) : '—'} ₸',
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: Color(0xFFE9EAEB),
                   fontSize: 21,
                   fontWeight: FontWeight.w600,
                 ),
@@ -896,7 +920,7 @@ class _AdvanceExpenseEditorState extends State<_AdvanceExpenseEditor> {
                     onPressed: () => Navigator.pop(context),
                     child: const Text(
                       'Отмена',
-                      style: TextStyle(color: Color(0xFFB1B4B4)),
+                      style: TextStyle(color: Color(0xFF90999E)),
                     ),
                   ),
                   TextButton(
@@ -914,6 +938,22 @@ class _AdvanceExpenseEditorState extends State<_AdvanceExpenseEditor> {
       ),
     );
   }
+}
+
+// Match More panels while preserving the report's existing content bounds.
+class _AdvanceMoreSurface extends StatelessWidget {
+  final Widget child;
+  final EdgeInsets padding;
+  const _AdvanceMoreSurface({
+    required this.child,
+    this.padding = EdgeInsets.zero,
+  });
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: _CinematicMore.panel(),
+    child: Padding(padding: padding, child: child),
+  );
 }
 
 class _AdvanceImagePreview extends StatefulWidget {
