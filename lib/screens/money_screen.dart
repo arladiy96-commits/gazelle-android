@@ -436,7 +436,7 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _text(
-                      'По накладным · ${count.invoices.length}',
+                      'По накладным · ${count.invoiceCount}',
                       size: 11,
                       color: muted,
                     ),
@@ -450,29 +450,14 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _text(
-                      count.kaspiInvoices.isEmpty
-                          ? 'Насчитано'
-                          : 'Наличные + Каспи',
-                      size: 11,
-                      color: muted,
-                    ),
+                    _text('Насчитано', size: 11, color: muted),
                     const SizedBox(height: 3),
-                    _amount(count.received),
+                    _amount(count.counted),
                   ],
                 ),
               ),
             ],
           ),
-          if (count.kaspiInvoices.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 5),
-              child: _text(
-                'Наличные ${MoneyCount.format(count.counted)} ₸ · Каспи ${MoneyCount.format(count.kaspi)} ₸ (${count.kaspiInvoices.length} накл.)',
-                size: 10,
-                color: muted,
-              ),
-            ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 5),
             child: Divider(height: 1, color: Color(0xFF353A3D)),
@@ -826,11 +811,9 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
           ],
           'cash': MoneyCount.format(count.counted),
           'invoices': MoneyCount.format(count.expected),
-          'invoiceCount': '${count.invoices.length}',
+          'invoiceCount': '${count.invoiceCount}',
           'kaspi': MoneyCount.format(count.kaspi),
           'kaspiCount': '${count.kaspiInvoices.length}',
-          'cashExpected': MoneyCount.format(count.cashExpected),
-          'received': MoneyCount.format(count.received),
           'difference': _difference(count),
         },
       );
@@ -904,7 +887,7 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
                       _amount(count.expected),
                       const SizedBox(height: 5),
                       _text(
-                        '${count.invoices.length} накладных · ${_difference(count)}',
+                        '${count.invoiceCount} накладных · ${_difference(count)}${count.kaspiInvoices.isEmpty ? '' : ' · Каспи: ${count.kaspiInvoices.length}'}',
                         size: 12,
                         color: _differenceColor(count),
                       ),
