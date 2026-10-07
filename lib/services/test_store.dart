@@ -823,6 +823,42 @@ class TestStore {
     b.shifts.removeWhere((e) => e['id'] == id);
     return b;
   });
+
+  /// Correct only the selected values, preserving dates, rates and other fields.
+  /// All shifts are validated before the journal is written (one revision).
+  static Future<void> correctShiftMetrics(
+    Map<String, double> values, {
+    required bool mileage,
+  }) => _change((b) {
+    for (final entry in values.entries) {
+      final s = b.shifts.where((s) => s['id'] == entry.key).firstOrNull;
+      if (s == null) throw StateError('Смена уже удалена');
+      final value = entry.value;
+      if (!value.isFinite ||
+          value < 0 ||
+          (mileage && value != value.truncateToDouble())) {
+        throw ArgumentError(
+          mileage
+              ? 'Введите целый неотрицательный пробег'
+              : 'Введите неотрицательное число часов',
+        );
+      }
+      if (!mileage) {
+        s['hoursWorked'] = value;
+      } else if (TestState.mileageSource(s) == MileageSource.odometer &&
+          s['startKm'] is num) {
+        s['currentKm'] = (s['startKm'] as num) + value.toInt();
+        s['odometerSet'] = true;
+      } else {
+        // A manual GPS correction must not be overwritten by incoming GPS data.
+        s['mileageSource'] = MileageSource.manual.name;
+        s['manualKm'] = value.toInt();
+        s['odometerSet'] = false;
+      }
+    }
+    return b;
+  });
+
   static Future<void> editShift(
     String id,
     DateTime start,
