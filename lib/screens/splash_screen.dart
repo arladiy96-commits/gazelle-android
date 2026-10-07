@@ -148,38 +148,39 @@ class _SplashScreenState extends State<SplashScreen>
                             ),
                           ),
                         ),
-                      // The ear is genuinely composed from staggered image strips:
-                      // lower grains arrive first, upper grains follow from each side.
+                      // Reveal one intact ear with a feathered mask.
                       Positioned(
                         top: earTop,
                         left: (w - earWidth) / 2,
                         width: earWidth,
                         height: earHeight,
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            for (var i = 0; i < 18; i++)
-                              Transform.translate(
-                                offset: Offset(
-                                  (i.isEven ? -32 : 32) *
-                                      (1 - phase(.19 + (17 - i) * .019, .16)),
-                                  14 * (1 - phase(.19 + (17 - i) * .019, .16)),
-                                ),
-                                child: Opacity(
-                                  opacity: phase(.19 + (17 - i) * .019, .16),
-                                  child: ClipRect(
-                                    clipper: _IntroBandClipper(
-                                      i / 18,
-                                      (i + 1) / 18,
-                                    ),
-                                    child: artwork('mill_intro_ear.png'),
-                                  ),
-                                ),
+                        child: ShaderMask(
+                          blendMode: BlendMode.dstIn,
+                          shaderCallback: (bounds) {
+                            final progress = Curves.easeInOutCubic.transform(
+                              ((t - .19) / .46).clamp(0.0, 1.0),
+                            );
+                            final front =
+                                bounds.top +
+                                bounds.height * (1.1 - 1.2 * progress);
+                            return const LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Colors.transparent, Colors.white],
+                              stops: [0, 1],
+                            ).createShader(
+                              Rect.fromLTRB(
+                                bounds.left,
+                                front - bounds.height * .08,
+                                bounds.right,
+                                front + bounds.height * .08,
                               ),
-                          ],
+                            );
+                          },
+                          child: artwork('mill_intro_ear.png'),
                         ),
                       ),
-                      // Name follows the assembled ear; letters appear in sequence.
+                      // Name follows the revealed ear; letters appear in sequence.
                       Positioned(
                         top: earTop + earHeight + 18,
                         left: 22,
