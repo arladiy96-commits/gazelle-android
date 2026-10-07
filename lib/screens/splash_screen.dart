@@ -25,7 +25,7 @@ class _SplashScreenState extends State<SplashScreen>
     _session = SessionService.read().catchError((Object _) => null);
     _animation = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3400),
+      duration: const Duration(milliseconds: 4400),
     );
     _animation.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
@@ -43,11 +43,14 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _prepareArtwork() async {
-    await precacheImage(
-      const AssetImage('assets/images/scenes/mill_intro_wheat.png'),
-      context,
-      onError: (error, stack) {},
-    );
+    await Future.wait([
+      for (final name in ['mill_intro_ear.png', 'mill_intro_corners.png'])
+        precacheImage(
+          AssetImage('assets/images/scenes/$name'),
+          context,
+          onError: (error, stack) {},
+        ),
+    ]);
     if (!mounted) return;
     if (MediaQuery.disableAnimationsOf(context)) {
       _animation.value = 1;
@@ -100,51 +103,140 @@ class _SplashScreenState extends State<SplashScreen>
       backgroundColor: const Color(0xFFF5F2EB),
       body: Semantics(
         label: 'Мельница. Открытие приложения',
-        child: ClipRect(
-          child: AnimatedBuilder(
-            animation: _animation,
-            child: Image.asset(
-              'assets/images/scenes/mill_intro_wheat.png',
-              fit: BoxFit.cover,
-              alignment: Alignment.center,
-              excludeFromSemantics: true,
-              errorBuilder: (_, error, stack) => const Center(
-                child: Text(
-                  'МЕЛЬНИЦА',
-                  style: TextStyle(
-                    color: Color(0xFF765125),
-                    fontSize: 30,
-                    letterSpacing: 3,
-                  ),
-                ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final w = constraints.maxWidth, h = constraints.maxHeight;
+            final earHeight = math.min(h * .58, w * 1.25);
+            final earWidth = earHeight * .565;
+            final earTop = h * .13;
+            return ClipRect(
+              child: AnimatedBuilder(
+                animation: _animation,
+                builder: (context, child) {
+                  final t = _animation.value;
+                  double phase(double start, double duration) => Curves
+                      .easeOutCubic
+                      .transform(((t - start) / duration).clamp(0.0, 1.0));
+                  Widget artwork(String name) => Image.asset(
+                    'assets/images/scenes/$name',
+                    fit: BoxFit.fill,
+                    excludeFromSemantics: true,
+                    errorBuilder: (_, error, stack) => const SizedBox.shrink(),
+                  );
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // Independent corner clusters slide inward first.
+                      for (final top in [true, false])
+                        Positioned.fill(
+                          child: Transform.translate(
+                            offset: Offset(
+                              (top ? 55 : -55) *
+                                  (1 - phase(top ? .02 : .08, .22)),
+                              (top ? -20 : 20) *
+                                  (1 - phase(top ? .02 : .08, .22)),
+                            ),
+                            child: Opacity(
+                              opacity: phase(top ? .02 : .08, .22),
+                              child: ClipRect(
+                                clipper: _IntroBandClipper(
+                                  top ? 0 : .5,
+                                  top ? .5 : 1,
+                                ),
+                                child: artwork('mill_intro_corners.png'),
+                              ),
+                            ),
+                          ),
+                        ),
+                      // The ear is genuinely composed from staggered image strips:
+                      // lower grains arrive first, upper grains follow from each side.
+                      Positioned(
+                        top: earTop,
+                        left: (w - earWidth) / 2,
+                        width: earWidth,
+                        height: earHeight,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            for (var i = 0; i < 18; i++)
+                              Transform.translate(
+                                offset: Offset(
+                                  (i.isEven ? -32 : 32) *
+                                      (1 - phase(.19 + (17 - i) * .019, .16)),
+                                  14 * (1 - phase(.19 + (17 - i) * .019, .16)),
+                                ),
+                                child: Opacity(
+                                  opacity: phase(.19 + (17 - i) * .019, .16),
+                                  child: ClipRect(
+                                    clipper: _IntroBandClipper(
+                                      i / 18,
+                                      (i + 1) / 18,
+                                    ),
+                                    child: artwork('mill_intro_ear.png'),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      // Name follows the assembled ear; letters appear in sequence.
+                      Positioned(
+                        top: earTop + earHeight + 18,
+                        left: 22,
+                        right: 22,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (var i = 0; i < 'МЕЛЬНИЦА'.length; i++)
+                                Opacity(
+                                  opacity: phase(.65 + i * .018, .12),
+                                  child: Transform.translate(
+                                    offset: Offset(
+                                      0,
+                                      12 * (1 - phase(.65 + i * .018, .12)),
+                                    ),
+                                    child: Text(
+                                      'МЕЛЬНИЦА'[i],
+                                      style: const TextStyle(
+                                        fontFamily: 'serif',
+                                        fontSize: 32,
+                                        letterSpacing: 5,
+                                        color: Color(0xFF765125),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      IgnorePointer(
+                        child: CustomPaint(painter: _WheatGrainsPainter(t)),
+                      ),
+                    ],
+                  );
+                },
               ),
-            ),
-            builder: (context, child) {
-              final t = _animation.value;
-              final fade = Curves.easeOut.transform((t / .28).clamp(0.0, 1.0));
-              return Stack(
-                fit: StackFit.expand,
-                children: [
-                  Opacity(
-                    opacity: fade,
-                    child: Transform.scale(
-                      scale: 1.025 - .025 * Curves.easeOutCubic.transform(t),
-                      child: child,
-                    ),
-                  ),
-                  IgnorePointer(
-                    child: RepaintBoundary(
-                      child: CustomPaint(painter: _WheatGrainsPainter(t)),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
+            );
+          },
         ),
       ),
     ),
   );
+}
+
+class _IntroBandClipper extends CustomClipper<Rect> {
+  final double start, end;
+  const _IntroBandClipper(this.start, this.end);
+  @override
+  Rect getClip(Size size) =>
+      Rect.fromLTRB(0, size.height * start, size.width, size.height * end);
+  @override
+  bool shouldReclip(covariant _IntroBandClipper oldClipper) =>
+      start != oldClipper.start || end != oldClipper.end;
 }
 
 class _WheatGrainsPainter extends CustomPainter {
@@ -153,7 +245,7 @@ class _WheatGrainsPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final opacity = math.sin(progress * math.pi) * .7;
+    final opacity = ((progress - .48) / .18).clamp(0.0, 1.0) * .7;
     if (opacity <= 0) return;
     for (var i = 0; i < 8; i++) {
       // Keep the brand name and the central ear unobstructed.
