@@ -24,6 +24,8 @@ class MoneyCount {
   final DateTime date;
   final List<int> invoices;
   final Map<int, int> counts;
+  final Set<int> kaspiInvoices;
+  final bool inputKaspi;
   final String input;
   final int? editing;
   const MoneyCount({
@@ -32,6 +34,8 @@ class MoneyCount {
     this.invoices = const [],
     this.counts = const {},
     this.input = '',
+    this.kaspiInvoices = const {},
+    this.inputKaspi = false,
     this.editing,
   });
   factory MoneyCount.empty() {
@@ -41,7 +45,10 @@ class MoneyCount {
   int get expected => invoices.fold(0, (a, b) => a + b);
   int get counted =>
       counts.entries.fold(0, (a, b) => a + b.key * b.value * 100);
-  int get difference => counted - expected;
+  int get kaspi => kaspiInvoices.fold(0, (sum, index) => sum + invoices[index]);
+  int get cashExpected => expected - kaspi;
+  int get received => counted + kaspi;
+  int get difference => received - expected;
   bool get hasData =>
       invoices.isNotEmpty ||
       counts.values.any((v) => v > 0) ||
@@ -51,6 +58,8 @@ class MoneyCount {
     date: committed ? DateTime.now() : date,
     invoices: List.unmodifiable(invoices),
     counts: Map.unmodifiable(counts),
+    kaspiInvoices: Set.unmodifiable(kaspiInvoices),
+    inputKaspi: committed ? false : inputKaspi,
     input: committed ? '' : input,
     editing: committed ? null : editing,
   );
@@ -60,6 +69,8 @@ class MoneyCount {
     'invoices': invoices,
     'counts': counts.map((k, v) => MapEntry('$k', v)),
     'input': input,
+    'kaspiInvoices': kaspiInvoices.toList()..sort(),
+    'inputKaspi': inputKaspi,
     'editing': editing,
   };
   factory MoneyCount.fromJson(Map<String, dynamic> j) {
@@ -67,6 +78,12 @@ class MoneyCount {
     final counts = (j['counts'] as Map<String, dynamic>).map(
       (k, v) => MapEntry(int.parse(k), v as int),
     );
+    final kaspi = ((j['kaspiInvoices'] as List?) ?? const [])
+        .cast<int>()
+        .toSet();
+    if (kaspi.any((i) => i < 0 || i >= invoices.length)) {
+      throw const FormatException('Повреждены отметки Каспи');
+    }
     final input = j['input'] as String? ?? '';
     final editing = j['editing'] as int?;
     if (invoices.any((v) => v <= 0) ||
@@ -83,6 +100,8 @@ class MoneyCount {
       invoices: List.unmodifiable(invoices),
       counts: Map.unmodifiable(counts),
       input: input,
+      kaspiInvoices: Set.unmodifiable(kaspi),
+      inputKaspi: j['inputKaspi'] as bool? ?? false,
       editing: editing,
     );
   }
