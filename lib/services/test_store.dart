@@ -1,3 +1,5 @@
+import '../models/calculation_settings.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -140,12 +142,18 @@ class TestState {
   final List<Map<String, dynamic>> shifts, records;
   final List<Map<String, dynamic>> products;
   final List<Map<String, dynamic>> salaryRateHistory;
+  final List<Map<String, dynamic>> calculationHistory;
+  final Map<String, dynamic> initialCalculationSettings;
   TestState({
     List<Map<String, dynamic>> shifts = const [],
     List<Map<String, dynamic>> records = const [],
     List<Map<String, dynamic>>? products,
     List<Map<String, dynamic>> salaryRateHistory = const [],
-  }) : salaryRateHistory = [...salaryRateHistory],
+    List<Map<String, dynamic>> calculationHistory = const [],
+    Map<String, dynamic> initialCalculationSettings = const {},
+  }) : calculationHistory = [...calculationHistory],
+       initialCalculationSettings = {...initialCalculationSettings},
+       salaryRateHistory = [...salaryRateHistory],
        shifts = [...shifts],
        records = [...records],
        products =
@@ -167,6 +175,13 @@ class TestState {
       shifts: rows('shifts'),
       records: rows('records'),
       products: rows('products'),
+      calculationHistory: [
+        for (final e in j['calculationHistory'] as List? ?? [])
+          Map<String, dynamic>.from(e as Map),
+      ],
+      initialCalculationSettings: Map<String, dynamic>.from(
+        j['initialCalculationSettings'] as Map? ?? {},
+      ),
       salaryRateHistory: [
         for (final e in j['salaryRateHistory'] as List? ?? [])
           Map<String, dynamic>.from(e as Map),
@@ -179,7 +194,122 @@ class TestState {
     'records': records,
     'products': products,
     'salaryRateHistory': salaryRateHistory,
+    'calculationHistory': calculationHistory,
+    'initialCalculationSettings': initialCalculationSettings,
   };
+  Map<String, dynamic> settingsAt(DateTime time) {
+    var settings = CalculationSettings.decode(initialCalculationSettings);
+    for (final event in calculationHistory) {
+      if (!DateTime.parse(event['at'] as String).isAfter(time))
+        settings = CalculationSettings.decode(event['settings']);
+    }
+    return settings;
+  }
+
+  Map<String, dynamic> get calculationSettings => settingsAt(DateTime.now());
+  Map<String, dynamic> settingsFor(Map<String, dynamic> row) =>
+      row['calculationSettings'] == null
+      ? settingsAt(DateTime.parse((row['date'] ?? row['start']) as String))
+      : CalculationSettings.decode(row['calculationSettings']);
+  Map<String, dynamic> calendarFor(Map<String, dynamic> shift) =>
+      shift['salaryCalendar'] == null
+      ? settingsFor(shift)
+      : CalculationSettings.decode(shift['salaryCalendar']);
+  Map<String, dynamic> calendarForNewShift(DateTime date) {
+    final same =
+        shifts
+            .where(
+              (s) =>
+                  dayKey(DateTime.parse(s['start'] as String)) == dayKey(date),
+            )
+            .toList()
+          ..sort(
+            (a, b) => (a['start'] as String).compareTo(b['start'] as String),
+          );
+    return same.isEmpty ? settingsAt(date) : calendarFor(same.first);
+  }
+
+  double normFor(Map<String, dynamic> shift) =>
+      (shift['salaryNorm'] as num?)?.toDouble() ??
+      CalculationSettings.norm(
+        calendarFor(shift),
+        DateTime.parse(shift['start'] as String),
+      );
+  bool weekendShift(Map<String, dynamic> shift) => CalculationSettings.weekend(
+    calendarFor(shift),
+    DateTime.parse(shift['start'] as String),
+  );
+  bool holidayShift(Map<String, dynamic> shift) => CalculationSettings.holiday(
+    calendarFor(shift),
+    DateTime.parse(shift['start'] as String),
+  );
+  bool workShift(Map<String, dynamic> shift) =>
+      !weekendShift(shift) && !holidayShift(shift);
+  double gasConsumption(Map<String, dynamic> shift) {
+    var remaining = hasRecordedMileage(shift) ? mileage(shift) : 0.0;
+    var total = 0.0;
+    for (final raw in shift['gasKmBands'] as List? ?? []) {
+      final band = raw as Map;
+      final used = remaining
+          .clamp(0, (band['km'] as num).toDouble())
+          .toDouble();
+      total += used * (band['rate'] as num).toDouble() / 100;
+      remaining -= used;
+    }
+    return total +
+        remaining *
+            (settingsFor(shift)['gasReportRate'] as num).toDouble() /
+            100;
+  }
+
+  void changeCalculationSetting(String key, Object value, DateTime now) {
+    CalculationSettings.validate(key, value);
+    final next = settingsAt(now), old = next[key] ?? 0;
+    final working = key == 'workingDates'
+        ? value as List
+        : next['workingDates'] as List;
+    final resting = key == 'restDates'
+        ? value as List
+        : next['restDates'] as List;
+    if (working.any(resting.contains))
+      throw ArgumentError('Одна дата не может быть и рабочей, и выходной');
+    if (jsonEncode(old) == jsonEncode(value)) return;
+    for (final record in records) {
+      record['calculationSettings'] ??= settingsFor(record);
+    }
+    for (final shift in shifts) {
+      shift['calculationSettings'] ??= settingsFor(shift);
+      shift['salaryCalendar'] ??= calendarFor(shift);
+      shift['salaryNorm'] ??= normFor(shift);
+      if (shift['end'] == null && key == 'gasReportRate') {
+        final bands = [
+          for (final e in shift['gasKmBands'] as List? ?? [])
+            Map<String, dynamic>.from(e as Map),
+        ];
+        final used = bands.fold<double>(
+          0,
+          (v, e) => v + (e['km'] as num).toDouble(),
+        );
+        final km = (hasRecordedMileage(shift) ? mileage(shift) : 0.0) - used;
+        if (km > 0)
+          bands.add({'km': km, 'rate': settingsFor(shift)['gasReportRate']});
+        shift['gasKmBands'] = bands;
+        shift['calculationSettings'] = {
+          ...settingsFor(shift),
+          'gasReportRate': value,
+        };
+      }
+    }
+    next[key] = value;
+    calculationHistory.add({
+      'at': now.toIso8601String(),
+      'key': key,
+      'old': old,
+      'value': value,
+      'settings': next,
+    });
+  }
+
   Map<String, double> ratesAt(DateTime time) {
     var rates = Map<String, double>.of(SalaryRates.defaults);
     for (final change in salaryRateHistory) {
@@ -354,24 +484,24 @@ class TestState {
     // Allocate the monthly cap oldest first: new hours cannot dilute old pay.
     final monthlyWork =
         shifts.where((s) {
-          final d = DateTime.parse(s['start'] as String);
-          return inMonth(s['start'] as String, month) &&
-              d.weekday < 6 &&
-              !holiday(d);
+          return inMonth(s['start'] as String, month) && workShift(s);
         }).toList()..sort(
           (a, b) => (a['start'] as String).compareTo(b['start'] as String),
         );
-    var remainingNorm = norm(month);
+    var usedNorm = 0.0;
     final baseByShift = <String, double>{};
     for (final shift in monthlyWork) {
-      baseByShift[shift['id'] as String] = baseUnits(
-        shift,
-        limit: remainingNorm,
-      );
-      remainingNorm = (remainingNorm - hours(shift))
-          .clamp(0, double.infinity)
-          .toDouble();
+      final normal = normFor(shift);
+      final unlimited = calendarFor(shift)['payOverNorm'] == true;
+      final limit = unlimited
+          ? hours(shift)
+          : ((1 - usedNorm) * normal).clamp(0, double.infinity).toDouble();
+      baseByShift[shift['id'] as String] = normal == 0
+          ? 0
+          : baseUnits(shift, limit: limit) / normal;
+      if (normal > 0) usedNorm += hours(shift) / normal;
     }
+    final calendarDays = <String, Map<String, dynamic>>{};
     final dayRates = <String, Map<String, double>>{};
     final seenMileage = <String>{};
     // Match miniapp's descending shift order and its one-mileage-per-day aggregation.
@@ -380,11 +510,12 @@ class TestState {
       final d = DateTime.parse(shift['start'] as String);
       final key = dayKey(d);
       days[key] = d;
+      calendarDays[key] = shift;
       allHours += hours(shift);
       dayRates[key] = shift['salaryDayRates'] == null
           ? shiftRates(shift)
           : SalaryRates.decode(shift['salaryDayRates']);
-      if (d.weekday < 6 && !holiday(d)) {
+      if (workShift(shift)) {
         work += hours(shift);
         weightedBase += baseByShift[shift['id']] ?? 0;
       }
@@ -414,11 +545,24 @@ class TestState {
         }
       }
     }
-    final normal = norm(month);
-    final base = normal == 0 ? 0.0 : weightedBase / normal;
+    final normal = CalculationSettings.norm(
+      settingsAt(
+        DateTime(month.year, month.month + 1).isAfter(DateTime.now())
+            ? DateTime.now()
+            : DateTime(
+                month.year,
+                month.month + 1,
+              ).subtract(const Duration(microseconds: 1)),
+      ),
+      month,
+    );
+    final base = weightedBase;
     for (final entry in days.entries) {
-      if (entry.value.weekday >= 6) weekend += dayRates[entry.key]!['weekend']!;
-      if (holiday(entry.value)) festive += dayRates[entry.key]!['holiday']!;
+      final shift = calendarDays[entry.key]!;
+      if (weekendShift(shift) &&
+          (!holidayShift(shift) || calendarFor(shift)['stackHoliday'] == true))
+        weekend += dayRates[entry.key]!['weekend']!;
+      if (holidayShift(shift)) festive += dayRates[entry.key]!['holiday']!;
     }
     return {
       'salary': base + weekend + festive + paidPay + cityPay + regionPay,
@@ -448,9 +592,20 @@ class TestState {
 class TestStore {
   static final revision = TestPreferences.revision;
   static Future<void> _queue = Future<void>.value();
-  static Future<TestState> load() async => TestState.decode(
-    (await TestPreferences.getInstance()).getString('journal'),
-  );
+  static Future<TestState> load() async {
+    final p = await TestPreferences.getInstance();
+    final b = TestState.decode(p.getString('journal'));
+    b.initialCalculationSettings.putIfAbsent(
+      'gasCalculatorRate',
+      () => p.getDouble('gas_calculator_rate_v1') ?? 28.0,
+    );
+    b.initialCalculationSettings.putIfAbsent(
+      'gasTank',
+      () => p.getDouble('gas_calculator_tank_v1') ?? 110.0,
+    );
+    return b;
+  }
+
   static Future<void> _change(TestState Function(TestState) change) {
     final task = _queue.then((_) async {
       final next = change(await load());
@@ -463,6 +618,15 @@ class TestStore {
     return task;
   }
 
+  static Future<bool> isPaidDirection(String name) async =>
+      ((await load()).calculationSettings['paidDirections'] as List).any(
+        (v) => CalculationSettings.name('$v') == CalculationSettings.name(name),
+      );
+  static Future<void> setCalculationSetting(String key, Object value) =>
+      _change((b) {
+        b.changeCalculationSetting(key, value, DateTime.now());
+        return b;
+      });
   static Future<void> setSalaryRate(String key, double value) => _change((b) {
     b.changeSalaryRate(key, value, DateTime.now());
     return b;
@@ -495,6 +659,12 @@ class TestStore {
           'mileageSource':
               (manual ? MileageSource.manual : MileageSource.odometer).name,
           'manualKm': null,
+          'calculationSettings': b.calculationSettings,
+          'salaryCalendar': b.calendarForNewShift(DateTime.now()),
+          'salaryNorm': CalculationSettings.norm(
+            b.calendarForNewShift(DateTime.now()),
+            DateTime.now(),
+          ),
           'salaryRates': b.currentSalaryRates,
           'salaryDayRates':
               b.shifts
@@ -590,7 +760,15 @@ class TestStore {
     if (kind == 'trip')
       e['isPaid'] =
           e['isPaid'] == true ||
-          TestState.paidDirection(e['direction'] as String);
+          ((old == null
+                      ? b.settingsAt(d)
+                      : b.settingsFor(old))['paidDirections']
+                  as List)
+              .any(
+                (name) =>
+                    CalculationSettings.name('$name') ==
+                    CalculationSettings.name(e['direction'] as String),
+              );
     if (kind == 'invoice') {
       if (old?['status'] == 'closed')
         throw StateError('Закрытую накладную нельзя редактировать');
@@ -623,6 +801,9 @@ class TestStore {
         e['number'] = '${highest + 1}';
       }
     }
+    e['calculationSettings'] =
+        old?['calculationSettings'] ??
+        (old == null ? b.settingsAt(d) : b.settingsFor(old));
     e['salaryRates'] =
         old?['salaryRates'] ??
         b.ratesAt(old == null ? d : DateTime.parse(old['date'] as String));
@@ -754,6 +935,8 @@ class TestStore {
     final id = _id();
     return TestState(
       salaryRateHistory: b.salaryRateHistory,
+      calculationHistory: b.calculationHistory,
+      initialCalculationSettings: b.initialCalculationSettings,
       shifts: [
         {
           'id': id,

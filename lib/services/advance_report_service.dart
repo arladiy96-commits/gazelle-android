@@ -16,6 +16,10 @@ class AdvanceReportRepository {
   static Future<void> _queue = Future<void>.value();
   AdvanceReportRepository(String owner)
     : _key = 'advance_report_v1_${base64Url.encode(utf8.encode(owner))}';
+  List<Map<String, dynamic>> _allowanceRecords(TestState book) => [
+    for (final r in book.records)
+      {...r, 'calculationSettings': book.settingsFor(r)},
+  ];
   Future<AdvanceLedger> _ledger() async => AdvanceLedger.decode(
     (await TestPreferences.getInstance()).getString(_key),
   );
@@ -24,7 +28,7 @@ class AdvanceReportRepository {
     final ledger = await _ledger();
     return AdvanceReportData(
       ledger,
-      ledger.current((await TestStore.load()).records),
+      ledger.current(_allowanceRecords(await TestStore.load())),
     );
   }
 
@@ -51,6 +55,10 @@ class AdvanceReportRepository {
   Future<void> submit(String expectedSignature) =>
       _change((AdvanceLedger ledger) async {
         final book = await TestStore.load();
-        return ledger.submit(book.records, expectedSignature, DateTime.now());
+        return ledger.submit(
+          _allowanceRecords(book),
+          expectedSignature,
+          DateTime.now(),
+        );
       });
 }
