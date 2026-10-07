@@ -39,6 +39,16 @@ class _SplashScreenState extends State<SplashScreen>
     super.didChangeDependencies();
     if (_started) return;
     _started = true;
+    _prepareArtwork();
+  }
+
+  Future<void> _prepareArtwork() async {
+    await precacheImage(
+      const AssetImage('assets/images/scenes/mill_intro_wheat.png'),
+      context,
+      onError: (error, stack) {},
+    );
+    if (!mounted) return;
     if (MediaQuery.disableAnimationsOf(context)) {
       _animation.value = 1;
     } else {
@@ -90,265 +100,87 @@ class _SplashScreenState extends State<SplashScreen>
       backgroundColor: const Color(0xFFF5F2EB),
       body: Semantics(
         label: 'Мельница. Открытие приложения',
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            RepaintBoundary(
-              child: CustomPaint(painter: _MillIntroPainter(_animation)),
-            ),
-            Center(
-              child: AnimatedBuilder(
-                animation: _animation,
-                builder: (context, child) {
-                  final reveal = Curves.easeOutCubic.transform(
-                    ((_animation.value - .23) / .25).clamp(0.0, 1.0),
-                  );
-                  return Opacity(
-                    opacity: reveal,
-                    child: Transform.translate(
-                      offset: Offset(0, 12 * (1 - reveal)),
-                      child: child,
-                    ),
-                  );
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(height: 160),
-                      const FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          'МЕЛЬНИЦА',
-                          style: TextStyle(
-                            fontSize: 34,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 4,
-                            color: Color(0xFF242C2D),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: 46,
-                        height: 2,
-                        color: const Color(0xFFB7853F),
-                      ),
-                      const SizedBox(height: 14),
-                      const Text(
-                        'КАЖДЫЙ РЕЙС — В ДЕЛЕ',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 10,
-                          letterSpacing: 2,
-                          color: Color(0xFF737671),
-                        ),
-                      ),
-                    ],
+        child: ClipRect(
+          child: AnimatedBuilder(
+            animation: _animation,
+            child: Image.asset(
+              'assets/images/scenes/mill_intro_wheat.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              excludeFromSemantics: true,
+              errorBuilder: (_, error, stack) => const Center(
+                child: Text(
+                  'МЕЛЬНИЦА',
+                  style: TextStyle(
+                    color: Color(0xFF765125),
+                    fontSize: 30,
+                    letterSpacing: 3,
                   ),
                 ),
               ),
             ),
-          ],
+            builder: (context, child) {
+              final t = _animation.value;
+              final fade = Curves.easeOut.transform((t / .28).clamp(0.0, 1.0));
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  Opacity(
+                    opacity: fade,
+                    child: Transform.scale(
+                      scale: 1.025 - .025 * Curves.easeOutCubic.transform(t),
+                      child: child,
+                    ),
+                  ),
+                  IgnorePointer(
+                    child: RepaintBoundary(
+                      child: CustomPaint(painter: _WheatGrainsPainter(t)),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     ),
   );
 }
 
-class _MillIntroPainter extends CustomPainter {
-  final Animation<double> animation;
-  _MillIntroPainter(this.animation) : super(repaint: animation);
-  static const ink = Color(0xFF242C2D), amber = Color(0xFFB7853F);
-
-  double reveal(double start, double length) => Curves.easeOutCubic.transform(
-    ((animation.value - start) / length).clamp(0.0, 1.0),
-  );
-
-  void wheat(
-    Canvas c,
-    Offset origin,
-    double angle,
-    double scale,
-    double opacity,
-  ) {
-    c.save();
-    c.translate(origin.dx, origin.dy);
-    c.rotate(angle);
-    c.scale(scale);
-    final stem = Paint()
-      ..color = ink.withValues(alpha: opacity)
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-    c.drawPath(
-      Path()
-        ..moveTo(0, 38)
-        ..quadraticBezierTo(-4, -20, 0, -108),
-      stem,
-    );
-    final grain = Paint()..color = amber.withValues(alpha: opacity);
-    for (var i = 0; i < 6; i++) {
-      for (final side in [-1.0, 1.0]) {
-        c.save();
-        c.translate(side * 8, -20 - i * 14);
-        c.rotate(side * .6);
-        c.drawOval(const Rect.fromLTWH(-5, -13, 10, 25), grain);
-        c.restore();
-      }
-    }
-    c.drawOval(const Rect.fromLTWH(-4, -120, 8, 21), grain);
-    c.restore();
-  }
+class _WheatGrainsPainter extends CustomPainter {
+  final double progress;
+  const _WheatGrainsPainter(this.progress);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final t = animation.value;
-    final scale = math.min(size.width / 390, size.height / 780);
-    final edge = reveal(0, .3);
-    wheat(
-      canvas,
-      Offset(size.width + 18 * (1 - edge), size.height * .14),
-      -.85,
-      scale * 1.35,
-      edge,
-    );
-    wheat(
-      canvas,
-      Offset(size.width * .9, size.height * .17),
-      -1.25,
-      scale,
-      edge,
-    );
-    wheat(
-      canvas,
-      Offset(-18 * (1 - edge), size.height * .87),
-      .8,
-      scale * 1.2,
-      edge,
-    );
-    wheat(
-      canvas,
-      Offset(size.width * .08, size.height * .89),
-      .4,
-      scale * .85,
-      edge,
-    );
-
-    // Fine factory skyline enters from the bottom, like the reference's fence.
-    canvas.save();
-    canvas.translate(0, size.height * .94 + (1 - edge) * 30);
-    final line = Paint()
-      ..color = ink.withValues(alpha: edge * .65)
-      ..strokeWidth = 1.4
-      ..style = PaintingStyle.stroke;
-    final skyline = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0);
-    for (var i = 0; i < 5; i++) {
-      final x = size.width * (.32 + i * .12);
-      skyline.moveTo(x, 0);
-      skyline.lineTo(x, -30 * scale);
-      skyline.quadraticBezierTo(
-        x + 13 * scale,
-        -48 * scale,
-        x + 26 * scale,
-        -30 * scale,
-      );
-      skyline.lineTo(x + 26 * scale, 0);
-    }
-    canvas.drawPath(skyline, line);
-    canvas.restore();
-
-    final logo = reveal(.12, .32);
-    canvas.save();
-    canvas.translate(size.width / 2, size.height / 2 - 62);
-    canvas.scale(scale * (.88 + logo * .12));
-    final fill = Paint()..color = ink.withValues(alpha: logo);
-    final gold = Paint()..color = amber.withValues(alpha: logo);
-    canvas.drawCircle(
-      Offset.zero,
-      66,
-      Paint()..color = amber.withValues(alpha: logo * .12),
-    );
-    canvas.drawArc(
-      const Rect.fromLTWH(-70, -70, 140, 140),
-      -.8,
-      5.2 * logo,
-      false,
-      Paint()
-        ..color = amber.withValues(alpha: logo)
-        ..strokeWidth = 2
-        ..style = PaintingStyle.stroke,
-    );
-    canvas.drawPath(
-      Path()
-        ..moveTo(-24, 46)
-        ..lineTo(-15, -19)
-        ..lineTo(15, -19)
-        ..lineTo(24, 46)
-        ..close(),
-      fill,
-    );
-    canvas.drawPath(
-      Path()
-        ..moveTo(-24, -18)
-        ..lineTo(0, -39)
-        ..lineTo(24, -18)
-        ..close(),
-      fill,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-5, 22, 10, 24),
-        const Radius.circular(5),
-      ),
-      gold,
-    );
-    canvas.translate(0, -16);
-    canvas.rotate(-.5 + t * .7);
-    for (var i = 0; i < 4; i++) {
-      canvas.save();
-      canvas.rotate(i * math.pi / 2);
-      canvas.drawPath(
-        Path()
-          ..moveTo(5, -4)
-          ..lineTo(48, -12)
-          ..lineTo(48, 3)
-          ..lineTo(5, 4)
-          ..close(),
-        gold,
-      );
-      canvas.restore();
-    }
-    canvas.drawCircle(Offset.zero, 6, fill);
-    canvas.restore();
-
-    final falling = reveal(.32, .15);
-    for (var i = 0; i < 7; i++) {
-      final progress = ((t - .25) * .7 + i / 7) % 1;
+    final opacity = math.sin(progress * math.pi) * .7;
+    if (opacity <= 0) return;
+    for (var i = 0; i < 8; i++) {
+      // Keep the brand name and the central ear unobstructed.
+      final left = i.isEven;
       final x =
-          size.width * (.12 + (i * .137) % .76) + math.sin(t * 6 + i) * 16;
-      final y = progress * size.height;
-      // Leave the central wordmark clear.
-      if ((y - size.height / 2).abs() < 125 && (x - size.width / 2).abs() < 145)
-        continue;
+          size.width * (left ? .12 : .86) + math.sin(progress * 4 + i) * 12;
+      final y = size.height * ((i / 8 + progress * .24) % 1);
       canvas.save();
       canvas.translate(x, y);
-      canvas.rotate(t * 3 + i);
+      canvas.rotate(i + progress * 1.8);
+      final rect = Rect.fromCenter(center: Offset.zero, width: 4, height: 10);
       canvas.drawOval(
-        Rect.fromCenter(
-          center: Offset.zero,
-          width: 4 * scale,
-          height: 10 * scale,
-        ),
-        Paint()..color = amber.withValues(alpha: falling * .7),
+        rect,
+        Paint()
+          ..shader = LinearGradient(
+            colors: [
+              const Color(0xFF815520).withValues(alpha: opacity),
+              const Color(0xFFE3BB6D).withValues(alpha: opacity),
+              const Color(0xFFAC7734).withValues(alpha: opacity),
+            ],
+          ).createShader(rect),
       );
       canvas.restore();
     }
   }
 
   @override
-  bool shouldRepaint(covariant _MillIntroPainter oldDelegate) =>
-      oldDelegate.animation != animation;
+  bool shouldRepaint(covariant _WheatGrainsPainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }
