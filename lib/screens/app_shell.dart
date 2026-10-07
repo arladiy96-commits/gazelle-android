@@ -1,3 +1,11 @@
+import 'dart:io';
+
+import 'package:image_picker/image_picker.dart';
+
+import '../models/loading_invoice.dart';
+import '../services/loading_invoice_repository.dart';
+import '../services/invoice_recognition_service.dart';
+
 import 'dart:math' as math;
 import 'dart:ui';
 import 'dart:async';
@@ -32,6 +40,7 @@ part 'cinematic.dart';
 part 'statistics_dashboard.dart';
 part 'gas_report_screen.dart';
 part 'money_screen.dart';
+part 'loading_invoice_screen.dart';
 part 'advance_report_screen.dart';
 part 'gas_calculation_screen.dart';
 part 'calculation_settings_screen.dart';

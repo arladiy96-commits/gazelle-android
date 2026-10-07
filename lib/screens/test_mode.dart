@@ -42,6 +42,20 @@ Future<void> _testEditor(
   String? shiftId,
   String? initialType,
 }) async {
+  if (kind == 'invoice' && entry == null) {
+    final session = await SessionService.read();
+    if (!context.mounted) return;
+    await Navigator.of(context).push<void>(
+      _SceneRoute<void>(
+        builder: (_) => LoadingInvoiceScreen(
+          owner: session == null
+              ? 'local'
+              : '${session.role.storageValue}:${session.login}',
+        ),
+      ),
+    );
+    return;
+  }
   await _testRun(context, () async {
     final b = await TestStore.load();
     if (!context.mounted) return;
