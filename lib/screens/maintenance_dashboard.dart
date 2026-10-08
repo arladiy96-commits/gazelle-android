@@ -193,7 +193,9 @@ class _MaintenancePageState extends State<_MaintenancePage> {
               Expanded(
                 child: ListView(
                   children: [
-                    for (final item in MaintenanceCatalog.items)
+                    for (final item in MaintenanceCatalog.items.where(
+                      (item) => !item.usesDate,
+                    ))
                       ListTile(
                         leading: _ServiceIcon(
                           item.icon,
@@ -242,7 +244,8 @@ class _MaintenancePageState extends State<_MaintenancePage> {
     final rows =
         (book?.entries ?? <MaintenanceEntry>[]).where((e) {
           final item = MaintenanceCatalog.byId(e.itemId);
-          return !e.example &&
+          return !item.usesDate &&
+              !e.example &&
               (_filter == null || e.itemId == _filter) &&
               '${item.title} ${e.note} ${_serviceDate(e.date)} ${e.odometer}'
                   .toLowerCase()
@@ -1076,6 +1079,385 @@ class _ServiceNoteDialogState extends State<_ServiceNoteDialog> {
           ),
         ),
       ),
+    ),
+  );
+}
+
+/// Documents reuse existing IDs/storage so previously entered dates survive.
+class _VehicleDocumentsPage extends StatefulWidget {
+  final AppSession session;
+  const _VehicleDocumentsPage({required this.session});
+  @override
+  State<_VehicleDocumentsPage> createState() => _VehicleDocumentsPageState();
+}
+
+class _VehicleDocumentsPageState extends State<_VehicleDocumentsPage> {
+  late final repository = MaintenanceRepository(widget.session.login);
+  MaintenanceBook? book;
+  String? error;
+  Timer? clock;
+  @override
+  void initState() {
+    super.initState();
+    load();
+    clock = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    clock?.cancel();
+    super.dispose();
+  }
+
+  Future<void> load() async {
+    try {
+      final value = await repository.load();
+      if (mounted)
+        setState(() {
+          book = value;
+          error = null;
+        });
+    } catch (_) {
+      if (mounted)
+        setState(
+          () => error = 'Не удалось загрузить документы. Повторите попытку.',
+        );
+    }
+  }
+
+  int days(DateTime date) {
+    final now = DateTime.now();
+    return DateTime.utc(
+      date.year,
+      date.month,
+      date.day,
+    ).difference(DateTime.utc(now.year, now.month, now.day)).inDays;
+  }
+
+  String status(MaintenanceEntry? entry) {
+    if (entry?.nextDate == null) return 'Укажите даты документа';
+    final remaining = days(entry!.nextDate!);
+    if (remaining < 0) return 'Истёк ${-remaining} дн. назад';
+    if (remaining == 0) return 'Истекает сегодня';
+    if (days(entry.date) > 0)
+      return 'Начнёт действовать через ${days(entry.date)} дн. · до окончания $remaining дн.';
+    return 'Осталось $remaining дн.';
+  }
+
+  Widget dates(MaintenanceEntry? entry) => Column(
+    children: [
+      dateLine('Дата заключения', entry?.date),
+      const SizedBox(height: 10),
+      dateLine('Дата завершения', entry?.nextDate),
+    ],
+  );
+  Widget dateLine(String label, DateTime? date) => Row(
+    children: [
+      Expanded(
+        child: Text(
+          label,
+          style: const TextStyle(color: Color(0xFFABB8C0), fontSize: 14),
+        ),
+      ),
+      Text(
+        date == null ? '—' : _serviceDate(date),
+        style: const TextStyle(color: _paper, fontSize: 16),
+      ),
+    ],
+  );
+  Future<void> open(MaintenanceItem item) async {
+    final entry = book!.latest(item.id);
+    final update = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: const Color(0xFF11191D),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                item.title,
+                style: const TextStyle(color: _paper, fontSize: 23),
+              ),
+              const SizedBox(height: 20),
+              dates(entry),
+              const SizedBox(height: 18),
+              Text(
+                status(entry),
+                style: const TextStyle(color: _amber, fontSize: 18),
+              ),
+              const SizedBox(height: 22),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.pop(context, true),
+                icon: const Icon(Icons.update),
+                label: const Text('Обновить'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (update != true || !mounted) return;
+    await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _VehicleDocumentDatesDialog(
+        item: item,
+        entry: entry,
+        repository: repository,
+      ),
+    );
+    if (mounted) await load();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFF0B1115),
+    body: Stack(
+      children: [
+        _CinematicMore.backdrop(),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back, color: _amber),
+                    ),
+                    const Expanded(
+                      child: Text(
+                        'Документы',
+                        style: TextStyle(
+                          color: _paper,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: load,
+                      tooltip: 'Обновить данные',
+                      icon: const Icon(Icons.refresh, color: _amber),
+                    ),
+                  ],
+                ),
+                if (error != null)
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(
+                      error!,
+                      style: const TextStyle(color: Color(0xFFD59C89)),
+                    ),
+                  ),
+                Expanded(
+                  child: book == null
+                      ? const Center(child: CircularProgressIndicator())
+                      : ListView(
+                          children: [
+                            for (final id in ['insurance', 'inspection'])
+                              card(MaintenanceCatalog.byId(id)),
+                          ],
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+  Widget card(MaintenanceItem item) {
+    final entry = book!.latest(item.id);
+    final urgent = entry?.nextDate != null && days(entry!.nextDate!) <= 30;
+    return Container(
+      margin: const EdgeInsets.only(top: 14),
+      decoration: _CinematicMore.panel(),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(17),
+          onTap: () => open(item),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      item.id == 'insurance'
+                          ? Icons.shield_outlined
+                          : Icons.fact_check_outlined,
+                      color: _amber,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        item.title,
+                        style: const TextStyle(
+                          color: _paper,
+                          fontSize: 21,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right, color: _amber),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                dates(entry),
+                const SizedBox(height: 20),
+                Text(
+                  status(entry),
+                  style: TextStyle(
+                    color: urgent ? const Color(0xFFD59C89) : _amber,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VehicleDocumentDatesDialog extends StatefulWidget {
+  final MaintenanceItem item;
+  final MaintenanceEntry? entry;
+  final MaintenanceRepository repository;
+  const _VehicleDocumentDatesDialog({
+    required this.item,
+    required this.entry,
+    required this.repository,
+  });
+  @override
+  State<_VehicleDocumentDatesDialog> createState() =>
+      _VehicleDocumentDatesDialogState();
+}
+
+class _VehicleDocumentDatesDialogState
+    extends State<_VehicleDocumentDatesDialog> {
+  late DateTime start =
+      widget.entry?.date ?? DateUtils.dateOnly(DateTime.now());
+  DateTime? end;
+  bool saving = false;
+  String? error;
+  @override
+  void initState() {
+    super.initState();
+    end = widget.entry?.nextDate;
+  }
+
+  Future<void> pick(bool closing) async {
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: closing
+          ? (end ?? DateTime(start.year + 1, start.month, start.day))
+          : start,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (selected != null && mounted)
+      setState(() {
+        if (closing) {
+          end = selected;
+        } else {
+          start = selected;
+        }
+        error = null;
+      });
+  }
+
+  Future<void> save() async {
+    if (saving) return;
+    if (end == null || !end!.isAfter(start)) {
+      setState(
+        () => error = 'Дата завершения должна быть позже даты заключения.',
+      );
+      return;
+    }
+    setState(() {
+      saving = true;
+      error = null;
+    });
+    try {
+      final book = await widget.repository.load();
+      await widget.repository.record(
+        itemId: widget.item.id,
+        entryId: widget.entry?.id,
+        date: start,
+        nextDate: end,
+        atKm: widget.entry?.odometer ?? book.odometer,
+        currentKm: math.max(book.odometer, widget.entry?.odometer ?? 0),
+        cost: widget.entry?.cost,
+        note: widget.entry?.note ?? '',
+      );
+      if (mounted) Navigator.pop(context, true);
+    } catch (_) {
+      if (mounted)
+        setState(() {
+          saving = false;
+          error = 'Даты не сохранены. Повторите попытку.';
+        });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => PopScope(
+    canPop: !saving,
+    child: AlertDialog(
+      backgroundColor: const Color(0xFF11191D),
+      title: Text(widget.item.title, style: const TextStyle(color: _paper)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          OutlinedButton.icon(
+            onPressed: saving ? null : () => pick(false),
+            icon: const Icon(Icons.calendar_month),
+            label: Text('Заключён: ${_serviceDate(start)}'),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: saving ? null : () => pick(true),
+            icon: const Icon(Icons.event),
+            label: Text(
+              end == null
+                  ? 'Дата завершения'
+                  : 'Завершение: ${_serviceDate(end!)}',
+            ),
+          ),
+          if (error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                error!,
+                style: const TextStyle(color: Color(0xFFD59C89)),
+              ),
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: saving ? null : () => Navigator.pop(context),
+          child: const Text('Отмена'),
+        ),
+        TextButton(
+          onPressed: saving ? null : save,
+          child: Text(saving ? 'Сохранение…' : 'Сохранить'),
+        ),
+      ],
     ),
   );
 }
