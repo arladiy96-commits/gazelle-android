@@ -1566,6 +1566,10 @@ class _CinematicMore extends StatelessWidget {
   );
   void open(BuildContext context, (String, String, IconData, Color) item) {
     HapticFeedback.selectionClick();
+    if (item.$1 == 'ТО и обслуживание') {
+      _openMaintenance(context, session);
+      return;
+    }
     if (item.$1 == 'Расчёт газа') {
       Navigator.push(
         context,
