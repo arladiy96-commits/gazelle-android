@@ -26,9 +26,9 @@ class _DefaultInvoiceRecognition implements InvoiceRecognitionService {
 }
 
 class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
-  static const gold = Color(0xFFCEA15B),
-      white = Color(0xFFE9EAEB),
-      muted = Color(0xFF90999E),
+  static const gold = Color(0xFFE6B46B),
+      white = Color(0xFFEAEDEF),
+      muted = Color(0xFFABB8C0),
       warn = Color(0xFFD59C89);
   late final repository = LoadingInvoiceRepository(widget.owner);
   final picker = ImagePicker();
@@ -221,11 +221,24 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
     );
   }
 
+  // Same surface and palette as tripScreen/fuelScreen, in logical pixels.
+  BoxDecoration entryPanel({bool active = false}) => BoxDecoration(
+    borderRadius: BorderRadius.circular(12),
+    border: Border.all(color: active ? gold : const Color(0xFF52616A)),
+    gradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: active
+          ? const [Color(0xDB553416), Color(0xE00B1014), Color(0xDB492908)]
+          : const [Color(0xC0101D25), Color(0xDB080F14)],
+    ),
+  );
+
   Widget panel(Widget child) => Container(
     width: double.infinity,
     margin: const EdgeInsets.only(bottom: 12),
     padding: const EdgeInsets.all(16),
-    decoration: _CinematicMore.panel(),
+    decoration: entryPanel(),
     child: child,
   );
   Widget line(String label, String value, {Color color = white}) => Padding(
@@ -254,7 +267,13 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
         onPressed: busy ? null : tap,
         style: TextButton.styleFrom(
           foregroundColor: gold,
-          minimumSize: const Size(48, 48),
+          minimumSize: const Size(double.infinity, 48),
+          backgroundColor: const Color(0xC0101D25),
+          side: const BorderSide(color: Color(0xFF52616A)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w400),
         ),
         icon: Icon(icon ?? Icons.chevron_right, size: 21),
         label: Text(label),
@@ -326,11 +345,11 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
   );
   Widget itemRow(LoadingInvoiceItem item, int index) => Container(
     margin: const EdgeInsets.only(bottom: 8),
-    decoration: _CinematicMore.panel(),
+    decoration: entryPanel(),
     child: Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(12),
         onTap: busy || completed
             ? null
             : review
@@ -418,312 +437,268 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !busy,
-    child: Scaffold(
-      backgroundColor: const Color(0xFF0B1115),
-      body: Stack(
-        children: [
-          _CinematicMore.backdrop(),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: busy
-                            ? null
-                            : () {
-                                if (showHistory) {
-                                  setState(() => showHistory = false);
-                                } else {
-                                  Navigator.pop(context);
-                                }
-                              },
-                        icon: const Icon(Icons.arrow_back, color: gold),
-                      ),
-                      Expanded(
-                        child: Text(
-                          showHistory
-                              ? 'Накладные'
-                              : invoice.stage == 'photos'
-                              ? 'Добавить накладную'
-                              : review
-                              ? 'Проверка накладной'
-                              : completed
-                              ? 'Накладная сохранена'
-                              : 'Погрузка',
-                          style: const TextStyle(
-                            color: white,
-                            fontSize: 23,
-                            fontWeight: FontWeight.w600,
+    child: AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        backgroundColor: const Color(0xFF0B1115),
+        body: Stack(
+          children: [
+            const Positioned.fill(
+              child: RepaintBoundary(
+                child: _ExtendedArtwork(
+                  asset: 'assets/images/scenes/trip_entry.png',
+                  topInset: 0,
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  MediaQuery.sizeOf(context).width * 74 / 864,
+                  8,
+                  MediaQuery.sizeOf(context).width * 70 / 864,
+                  math.max(12.0, MediaQuery.sizeOf(context).width * 70 / 864),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          style: IconButton.styleFrom(
+                            backgroundColor: const Color(0xD5081117),
+                            side: const BorderSide(color: gold),
+                            minimumSize: const Size(48, 48),
                           ),
+                          onPressed: busy
+                              ? null
+                              : () {
+                                  if (showHistory) {
+                                    setState(() => showHistory = false);
+                                  } else {
+                                    Navigator.pop(context);
+                                  }
+                                },
+                          icon: const Icon(Icons.arrow_back, color: gold),
                         ),
-                      ),
-                      IconButton(
-                        tooltip: 'История накладных',
-                        onPressed: busy
-                            ? null
-                            : () => perform('Загрузка…', () async {
-                                history = await repository.load();
-                                showHistory = true;
-                              }),
-                        icon: const Icon(Icons.history, color: gold),
-                      ),
-                    ],
-                  ),
-                  if (error != null)
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Text(error!, style: const TextStyle(color: warn)),
-                    ),
-                  if (busy && activity != 'Сохранение…')
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Row(
-                        children: [
-                          const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: gold,
+                        const SizedBox(width: 12),
+                        const Icon(
+                          Icons.receipt_long_outlined,
+                          color: gold,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            showHistory
+                                ? 'Накладные'
+                                : invoice.stage == 'photos'
+                                ? 'Добавить накладную'
+                                : review
+                                ? 'Проверка накладной'
+                                : completed
+                                ? 'Накладная сохранена'
+                                : 'Погрузка',
+                            style: const TextStyle(
+                              color: white,
+                              fontSize: 20,
+                              height: 1.15,
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Text(activity, style: const TextStyle(color: muted)),
-                        ],
+                        ),
+                        IconButton(
+                          tooltip: 'История накладных',
+                          onPressed: busy
+                              ? null
+                              : () => perform('Загрузка…', () async {
+                                  history = await repository.load();
+                                  showHistory = true;
+                                }),
+                          icon: const Icon(Icons.history, color: gold),
+                        ),
+                      ],
+                    ),
+                    Center(
+                      child: Container(width: 140, height: 1, color: gold),
+                    ),
+                    SizedBox(
+                      height: math.max(
+                        12.0,
+                        math.min(
+                              MediaQuery.sizeOf(context).width * 538 / 864,
+                              MediaQuery.sizeOf(context).height * .35,
+                            ) -
+                            MediaQuery.paddingOf(context).top -
+                            83,
                       ),
                     ),
-                  Expanded(
-                    child: showHistory
-                        ? ListView(
-                            children: [
-                              action('Новая накладная', () {
-                                setState(() {
-                                  invoice = LoadingInvoice.empty();
-                                  showHistory = false;
-                                });
-                              }, icon: Icons.add),
-                              if (history.isEmpty)
-                                panel(
-                                  const Text(
-                                    'Сохранённых накладных пока нет',
-                                    style: TextStyle(color: muted),
+                    if (error != null)
+                      Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Text(
+                          error!,
+                          style: const TextStyle(color: warn),
+                        ),
+                      ),
+                    if (busy && activity != 'Сохранение…')
+                      Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: gold,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              activity,
+                              style: const TextStyle(color: muted),
+                            ),
+                          ],
+                        ),
+                      ),
+                    Expanded(
+                      child: showHistory
+                          ? ListView(
+                              children: [
+                                action('Новая накладная', () {
+                                  setState(() {
+                                    invoice = LoadingInvoice.empty();
+                                    showHistory = false;
+                                  });
+                                }, icon: Icons.add),
+                                if (history.isEmpty)
+                                  panel(
+                                    const Text(
+                                      'Сохранённых накладных пока нет',
+                                      style: TextStyle(color: muted),
+                                    ),
                                   ),
-                                ),
-                              for (final doc in history)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: DecoratedBox(
-                                    decoration: _CinematicMore.panel(),
-                                    child: ListTile(
-                                      onTap: busy
-                                          ? null
-                                          : () => setState(() {
-                                              invoice = doc.copy();
-                                              showHistory = false;
-                                            }),
-                                      title: Text(
-                                        '${_detailDate(doc.createdAt)} ${doc.createdAt.year} · ${_detailTime(doc.createdAt)}',
-                                        style: const TextStyle(color: white),
-                                      ),
-                                      subtitle: Text(
-                                        '${doc.stage == 'completed' ? 'Завершена' : 'Черновик'} · ${doc.loadedItems}/${doc.items.length} позиций · ${kg(doc.weight)} кг${doc.mock ? ' · MOCK' : ''}',
-                                        style: const TextStyle(color: muted),
-                                      ),
-                                      trailing: const Icon(
-                                        Icons.chevron_right,
-                                        color: gold,
+                                for (final doc in history)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: DecoratedBox(
+                                      decoration: entryPanel(),
+                                      child: ListTile(
+                                        onTap: busy
+                                            ? null
+                                            : () => setState(() {
+                                                invoice = doc.copy();
+                                                showHistory = false;
+                                              }),
+                                        title: Text(
+                                          '${_detailDate(doc.createdAt)} ${doc.createdAt.year} · ${_detailTime(doc.createdAt)}',
+                                          style: const TextStyle(color: white),
+                                        ),
+                                        subtitle: Text(
+                                          '${doc.stage == 'completed' ? 'Завершена' : 'Черновик'} · ${doc.loadedItems}/${doc.items.length} позиций · ${kg(doc.weight)} кг${doc.mock ? ' · MOCK' : ''}',
+                                          style: const TextStyle(color: muted),
+                                        ),
+                                        trailing: const Icon(
+                                          Icons.chevron_right,
+                                          color: gold,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                            ],
-                          )
-                        : Column(
-                            children: [
-                              if (loading || completed)
-                                panel(
-                                  Column(
-                                    children: [
-                                      line(
-                                        'Позиций',
-                                        '${invoice.loadedItems} из ${invoice.items.length}',
-                                      ),
-                                      line(
-                                        'Мешков',
-                                        '${invoice.loadedBags} из ${invoice.bags}',
-                                      ),
-                                      line(
-                                        'Вес',
-                                        '${kg(invoice.loadedWeight)} из ${kg(invoice.weight)} кг',
-                                        color: gold,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      LinearProgressIndicator(
-                                        value: invoice.items.isEmpty
-                                            ? 0
-                                            : invoice.loadedItems /
-                                                  invoice.items.length,
-                                        minHeight: 4,
-                                        color: gold,
-                                        backgroundColor: const Color(
-                                          0xFF303639,
+                              ],
+                            )
+                          : Column(
+                              children: [
+                                if (loading || completed)
+                                  panel(
+                                    Column(
+                                      children: [
+                                        line(
+                                          'Позиций',
+                                          '${invoice.loadedItems} из ${invoice.items.length}',
                                         ),
-                                      ),
-                                    ],
+                                        line(
+                                          'Мешков',
+                                          '${invoice.loadedBags} из ${invoice.bags}',
+                                        ),
+                                        line(
+                                          'Вес',
+                                          '${kg(invoice.loadedWeight)} из ${kg(invoice.weight)} кг',
+                                          color: gold,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        LinearProgressIndicator(
+                                          value: invoice.items.isEmpty
+                                              ? 0
+                                              : invoice.loadedItems /
+                                                    invoice.items.length,
+                                          minHeight: 4,
+                                          color: gold,
+                                          backgroundColor: const Color(
+                                            0xFF303639,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              Expanded(
-                                child: ListView(
-                                  children: [
-                                    if (invoice.mock)
-                                      panel(
-                                        const Text(
-                                          'Демонстрация: ИИ ещё не подключён. Это пример данных, а не результат чтения вашего фото. Перед погрузкой замените позиции на реальные.',
-                                          style: TextStyle(
-                                            color: warn,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ),
-                                    if (invoice.stage == 'photos') ...[
-                                      panel(
-                                        const Text(
-                                          'Добавьте все страницы накладной. Можно сделать несколько снимков или выбрать фото из галереи.',
-                                          style: TextStyle(
-                                            color: muted,
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                      ),
-                                      if (invoice.photos.isNotEmpty)
-                                        panel(photos()),
-                                      panel(
-                                        Column(
-                                          children: [
-                                            action(
-                                              'Сфотографировать страницу',
-                                              () => pick(true),
-                                              icon: Icons.camera_alt_outlined,
+                                Expanded(
+                                  child: ListView(
+                                    children: [
+                                      if (invoice.mock)
+                                        panel(
+                                          const Text(
+                                            'Демонстрация: ИИ ещё не подключён. Это пример данных, а не результат чтения вашего фото. Перед погрузкой замените позиции на реальные.',
+                                            style: TextStyle(
+                                              color: warn,
+                                              fontSize: 13,
                                             ),
-                                            action(
-                                              'Выбрать из галереи',
-                                              () => pick(false),
-                                              icon:
-                                                  Icons.photo_library_outlined,
+                                          ),
+                                        ),
+                                      if (invoice.stage == 'photos') ...[
+                                        panel(
+                                          const Text(
+                                            'Добавьте все страницы накладной. Можно сделать несколько снимков или выбрать фото из галереи.',
+                                            style: TextStyle(
+                                              color: muted,
+                                              fontSize: 15,
                                             ),
-                                          ],
-                                        ),
-                                      ),
-                                      panel(
-                                        const Text(
-                                          'Распознавание пока работает в демонстрационном режиме. Фото на сервер не отправляются.',
-                                          style: TextStyle(
-                                            color: muted,
-                                            fontSize: 13,
                                           ),
                                         ),
-                                      ),
-                                      action(
-                                        'Ввести товары вручную',
-                                        () => perform(
-                                          'Сохранение…',
-                                          () => commit(
-                                            invoice.copy()..stage = 'review',
-                                          ),
-                                        ),
-                                        icon: Icons.edit_outlined,
-                                      ),
-                                    ] else ...[
-                                      if (review)
+                                        if (invoice.photos.isNotEmpty)
+                                          panel(photos()),
                                         panel(
                                           Column(
                                             children: [
-                                              line(
-                                                'Найдено позиций',
-                                                '${invoice.items.length}',
+                                              action(
+                                                'Сфотографировать страницу',
+                                                () => pick(true),
+                                                icon: Icons.camera_alt_outlined,
                                               ),
-                                              line(
-                                                'Всего мешков',
-                                                '${invoice.bags}',
+                                              action(
+                                                'Выбрать из галереи',
+                                                () => pick(false),
+                                                icon: Icons
+                                                    .photo_library_outlined,
                                               ),
-                                              line(
-                                                'Вес по данным позиций',
-                                                '${kg(invoice.recognizedWeight)} кг',
-                                              ),
-                                              InkWell(
-                                                onTap: busy ? null : editTotal,
-                                                child: line(
-                                                  'Вес в накладной ✎',
-                                                  invoice.statedWeightKg == null
-                                                      ? 'Указать'
-                                                      : '${kg(invoice.statedWeightKg!)} кг',
-                                                  color: gold,
-                                                ),
-                                              ),
-                                              line(
-                                                'Расчётный вес',
-                                                '${kg(invoice.weight)} кг',
-                                                color: invoice.totalMismatch
-                                                    ? warn
-                                                    : gold,
-                                              ),
-                                              if (invoice.totalMismatch)
-                                                const Text(
-                                                  'Общий вес не сходится. Проверьте позиции и итог на фото.',
-                                                  style: TextStyle(
-                                                    color: warn,
-                                                    fontSize: 13,
-                                                  ),
-                                                ),
                                             ],
                                           ),
                                         ),
-                                      if (invoice.photos.isNotEmpty)
                                         panel(
-                                          ExpansionTile(
-                                            tilePadding: EdgeInsets.zero,
-                                            title: Text(
-                                              'Исходные фото · ${invoice.photos.length}',
-                                              style: const TextStyle(
-                                                color: muted,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                            iconColor: gold,
-                                            collapsedIconColor: gold,
-                                            children: [photos()],
-                                          ),
-                                        ),
-                                      if (completed)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 12,
-                                          ),
-                                          child: Text(
-                                            '${_detailDate(invoice.createdAt)} ${invoice.createdAt.year} · ${_detailTime(invoice.createdAt)}',
-                                            style: const TextStyle(
+                                          const Text(
+                                            'Распознавание пока работает в демонстрационном режиме. Фото на сервер не отправляются.',
+                                            style: TextStyle(
                                               color: muted,
+                                              fontSize: 13,
                                             ),
                                           ),
                                         ),
-                                      for (
-                                        var i = 0;
-                                        i < invoice.items.length;
-                                        i++
-                                      )
-                                        itemRow(invoice.items[i], i),
-                                      if (review)
                                         action(
-                                          'Добавить позицию',
-                                          () => editItem(),
-                                          icon: Icons.add,
-                                        ),
-                                      if (loading)
-                                        action(
-                                          'Исправить позиции',
+                                          'Ввести товары вручную',
                                           () => perform(
                                             'Сохранение…',
                                             () => commit(
@@ -732,56 +707,157 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
                                           ),
                                           icon: Icons.edit_outlined,
                                         ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                              panel(
-                                invoice.stage == 'photos'
-                                    ? action(
-                                        'Распознать · демо',
-                                        invoice.photos.isEmpty
-                                            ? null
-                                            : recognize,
-                                        icon: Icons.document_scanner_outlined,
-                                      )
-                                    : review
-                                    ? action(
-                                        'Начать погрузку',
-                                        !invoice.ready
-                                            ? null
-                                            : () => perform(
-                                                'Сохранение…',
-                                                () => commit(
-                                                  invoice.copy()
-                                                    ..stage = 'loading',
+                                      ] else ...[
+                                        if (review)
+                                          panel(
+                                            Column(
+                                              children: [
+                                                line(
+                                                  'Найдено позиций',
+                                                  '${invoice.items.length}',
+                                                ),
+                                                line(
+                                                  'Всего мешков',
+                                                  '${invoice.bags}',
+                                                ),
+                                                line(
+                                                  'Вес по данным позиций',
+                                                  '${kg(invoice.recognizedWeight)} кг',
+                                                ),
+                                                InkWell(
+                                                  onTap: busy
+                                                      ? null
+                                                      : editTotal,
+                                                  child: line(
+                                                    'Вес в накладной ✎',
+                                                    invoice.statedWeightKg ==
+                                                            null
+                                                        ? 'Указать'
+                                                        : '${kg(invoice.statedWeightKg!)} кг',
+                                                    color: gold,
+                                                  ),
+                                                ),
+                                                line(
+                                                  'Расчётный вес',
+                                                  '${kg(invoice.weight)} кг',
+                                                  color: invoice.totalMismatch
+                                                      ? warn
+                                                      : gold,
+                                                ),
+                                                if (invoice.totalMismatch)
+                                                  const Text(
+                                                    'Общий вес не сходится. Проверьте позиции и итог на фото.',
+                                                    style: TextStyle(
+                                                      color: warn,
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        if (invoice.photos.isNotEmpty)
+                                          panel(
+                                            ExpansionTile(
+                                              tilePadding: EdgeInsets.zero,
+                                              title: Text(
+                                                'Исходные фото · ${invoice.photos.length}',
+                                                style: const TextStyle(
+                                                  color: muted,
+                                                  fontSize: 14,
                                                 ),
                                               ),
-                                        icon: Icons.local_shipping_outlined,
-                                      )
-                                    : loading
-                                    ? action(
-                                        'Загрузка завершена',
-                                        finish,
-                                        icon: Icons.check_circle_outline,
-                                      )
-                                    : action(
-                                        'Новая накладная',
-                                        () => setState(
-                                          () =>
-                                              invoice = LoadingInvoice.empty(),
+                                              iconColor: gold,
+                                              collapsedIconColor: gold,
+                                              children: [photos()],
+                                            ),
+                                          ),
+                                        if (completed)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 12,
+                                            ),
+                                            child: Text(
+                                              '${_detailDate(invoice.createdAt)} ${invoice.createdAt.year} · ${_detailTime(invoice.createdAt)}',
+                                              style: const TextStyle(
+                                                color: muted,
+                                              ),
+                                            ),
+                                          ),
+                                        for (
+                                          var i = 0;
+                                          i < invoice.items.length;
+                                          i++
+                                        )
+                                          itemRow(invoice.items[i], i),
+                                        if (review)
+                                          action(
+                                            'Добавить позицию',
+                                            () => editItem(),
+                                            icon: Icons.add,
+                                          ),
+                                        if (loading)
+                                          action(
+                                            'Исправить позиции',
+                                            () => perform(
+                                              'Сохранение…',
+                                              () => commit(
+                                                invoice.copy()
+                                                  ..stage = 'review',
+                                              ),
+                                            ),
+                                            icon: Icons.edit_outlined,
+                                          ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                panel(
+                                  invoice.stage == 'photos'
+                                      ? action(
+                                          'Распознать · демо',
+                                          invoice.photos.isEmpty
+                                              ? null
+                                              : recognize,
+                                          icon: Icons.document_scanner_outlined,
+                                        )
+                                      : review
+                                      ? action(
+                                          'Начать погрузку',
+                                          !invoice.ready
+                                              ? null
+                                              : () => perform(
+                                                  'Сохранение…',
+                                                  () => commit(
+                                                    invoice.copy()
+                                                      ..stage = 'loading',
+                                                  ),
+                                                ),
+                                          icon: Icons.local_shipping_outlined,
+                                        )
+                                      : loading
+                                      ? action(
+                                          'Загрузка завершена',
+                                          finish,
+                                          icon: Icons.check_circle_outline,
+                                        )
+                                      : action(
+                                          'Новая накладная',
+                                          () => setState(
+                                            () => invoice =
+                                                LoadingInvoice.empty(),
+                                          ),
+                                          icon: Icons.add,
                                         ),
-                                        icon: Icons.add,
-                                      ),
-                              ),
-                            ],
-                          ),
-                  ),
-                ],
+                                ),
+                              ],
+                            ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );
