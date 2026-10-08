@@ -898,8 +898,19 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
             );
           },
         );
-  @override
-  Widget build(BuildContext context) => PopScope(
+  Future<void> _createReferenceSlip() async {
+    final id = _draft.id;
+    await _save();
+    if (!mounted ||
+        _history.isEmpty ||
+        _history.first.id != id ||
+        _draft.id == id)
+      return;
+    setState(() => _opened = _history.first);
+    await _shareCount();
+  }
+
+  Widget _referenceMoney() => PopScope(
     canPop: _allowPop,
     onPopInvokedWithResult: (didPop, result) {
       if (!didPop) _back();
@@ -908,164 +919,797 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
         systemNavigationBarColor: Colors.transparent,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: const Color(0xFF101517),
-        body: Stack(
-          children: [
-            _CinematicMore.backdrop(),
-            SafeArea(
-              child: LayoutBuilder(
-                builder: (context, box) {
-                  final short = box.maxHeight < 700;
-                  return Column(
+        backgroundColor: const Color(0xFF080F13),
+        body: LayoutBuilder(
+          builder: (context, box) {
+            final height = box.maxHeight * 864 / box.maxWidth;
+            Widget at(double x, double y, double w, double h, Widget child) =>
+                Positioned(
+                  left: x,
+                  top: y / 1536 * height,
+                  width: w,
+                  height: h / 1536 * height,
+                  child: child,
+                );
+            Widget text(
+              String v,
+              double size, {
+              Color color = const Color(0xFFEAEDEF),
+              bool bold = false,
+            }) => Text(
+              v,
+              style: TextStyle(
+                fontSize: size,
+                height: 1.15,
+                color: color,
+                fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
+              ),
+            );
+            Widget fit(
+              String v,
+              double size, {
+              Color color = const Color(0xFFEAEDEF),
+            }) => FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: text(v, size, color: color, bold: true),
+            );
+            Widget tap(Widget child, VoidCallback? fn) => Material(
+              color: Colors.transparent,
+              child: InkWell(onTap: _busy ? null : fn, child: child),
+            );
+            String amount(int cents) => '${MoneyCount.format(cents)} ₸';
+            BoxDecoration panel(bool selected) => BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selected
+                    ? const Color(0xFFE6B46B)
+                    : const Color(0xFF55534A),
+                width: selected ? 2 : 1,
+              ),
+              gradient: LinearGradient(
+                colors: selected
+                    ? const [Color(0xE042301B), Color(0xF0081218)]
+                    : const [Color(0xEE182026), Color(0xF0071015)],
+              ),
+            );
+            Widget sum(String title, int value) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                text(title, 22, color: muted),
+                const SizedBox(height: 16),
+                fit(amount(value), 34),
+              ],
+            );
+            return SizedBox.expand(
+              child: FittedBox(
+                fit: BoxFit.fill,
+                child: SizedBox(
+                  width: 864,
+                  height: height,
+                  child: Stack(
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 3, 12, 2),
-                        child: Row(
+                      Positioned.fill(
+                        child: Image.asset(
+                          'assets/images/scenes/money_reference.png',
+                          fit: BoxFit.fill,
+                        ),
+                      ),
+                      at(
+                        61,
+                        49,
+                        79,
+                        76,
+                        tap(
+                          const Icon(
+                            Icons.arrow_back,
+                            color: Color(0xFFE6B46B),
+                            size: 42,
+                          ),
+                          _back,
+                        ),
+                      ),
+                      at(
+                        177,
+                        58,
+                        490,
+                        66,
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: text('Деньги', 50, bold: true),
+                        ),
+                      ),
+                      at(
+                        741,
+                        51,
+                        70,
+                        72,
+                        tap(
+                          const Icon(
+                            Icons.history,
+                            color: Color(0xFFE6B46B),
+                            size: 40,
+                          ),
+                          () => setState(() => _historyMode = true),
+                        ),
+                      ),
+                      at(
+                        104,
+                        179,
+                        214,
+                        99,
+                        sum(
+                          'По накладным · ${_shown.invoiceCount}',
+                          _shown.expected,
+                        ),
+                      ),
+                      at(350, 179, 215, 99, sum('Насчитано', _shown.counted)),
+                      at(
+                        598,
+                        179,
+                        190,
+                        106,
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            IconButton(
-                              tooltip: 'Назад',
-                              onPressed: _busy ? null : _back,
-                              icon: const Icon(Icons.arrow_back, color: gold),
+                            text('Разница', 22, color: muted),
+                            const SizedBox(height: 10),
+                            fit(
+                              amount(_shown.difference),
+                              32,
+                              color: _differenceColor(_shown),
                             ),
-                            Expanded(
-                              child: _text(
-                                _historyMode
-                                    ? 'История подсчётов'
-                                    : _readOnly
-                                    ? 'Сохранённый подсчёт'
-                                    : 'Деньги',
-                                size: _historyMode || _readOnly ? 19 : 25,
-                                weight: FontWeight.w600,
-                              ),
+                            text(
+                              _shown.invoiceCount == 0
+                                  ? 'Нет накладных'
+                                  : _shown.difference == 0
+                                  ? '✓ Сходится'
+                                  : _shown.difference < 0
+                                  ? 'Не хватает'
+                                  : 'Лишние',
+                              21,
+                              color: _differenceColor(_shown),
                             ),
-                            if (!_loading &&
-                                _loadError.isEmpty &&
-                                !_historyMode &&
-                                !_readOnly)
-                              IconButton(
-                                tooltip: 'История подсчётов',
-                                onPressed: _busy
-                                    ? null
-                                    : () => setState(() => _historyMode = true),
-                                icon: const Icon(Icons.history, color: gold),
-                              ),
-                            if (!_loading &&
-                                _loadError.isEmpty &&
-                                !_readOnly &&
-                                !_historyMode)
-                              IconButton(
-                                tooltip: 'Новый подсчёт',
-                                onPressed: _busy ? null : _newCount,
-                                icon: const Icon(Icons.add, color: gold),
-                              ),
                           ],
                         ),
                       ),
-                      Expanded(
-                        child: _loading
-                            ? const Center(
-                                child: CircularProgressIndicator(color: gold),
-                              )
-                            : _loadError.isNotEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.all(20),
-                                      child: _text(_loadError),
-                                    ),
-                                    _button('Повторить', _load),
-                                  ],
-                                ),
-                              )
-                            : Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                                child: _historyMode
-                                    ? _historyList()
-                                    : Column(
-                                        children: [
-                                          _totals(),
-                                          if (_readOnly)
-                                            _button(
-                                              'Поделиться покупюрником',
-                                              _busy ? null : _shareCount,
-                                            ),
-                                          if (_writeError.isNotEmpty)
-                                            InkWell(
-                                              onTap: () {
-                                                _flush().catchError(
-                                                  (Object _) {},
-                                                );
-                                              },
-                                              child: Padding(
-                                                padding: const EdgeInsets.all(
-                                                  4,
-                                                ),
-                                                child: _text(
-                                                  _writeError,
-                                                  size: 11,
-                                                  color: const Color(
-                                                    0xFFD29280,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: _button(
-                                                  'Накладные',
-                                                  () => _tab(false),
-                                                  selected: !_cashMode,
-                                                ),
-                                              ),
-                                              Expanded(
-                                                child: _button(
-                                                  'Подсчёт денег',
-                                                  () => _tab(true),
-                                                  selected: _cashMode,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          Expanded(
-                                            child: _MoneyMoreSurface(
-                                              child: _cashMode
-                                                  ? _cash()
-                                                  : _invoices(),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 5),
-                                          if (!_readOnly)
-                                            _keyboard(short)
-                                          else
-                                            _button(
-                                              '← К истории подсчётов',
-                                              () => _back(),
-                                            ),
-                                        ],
-                                      ),
-                              ),
+                      at(
+                        78,
+                        316,
+                        320,
+                        54,
+                        tap(
+                          Center(
+                            child: text(
+                              '▤  Накладные',
+                              25,
+                              color: !_cashMode ? gold : muted,
+                            ),
+                          ),
+                          () => _tab(false),
+                        ),
                       ),
-                      const SizedBox(height: 3),
+                      at(
+                        438,
+                        316,
+                        358,
+                        54,
+                        tap(
+                          Center(
+                            child: text(
+                              'Подсчёт денег',
+                              25,
+                              color: _cashMode ? gold : muted,
+                            ),
+                          ),
+                          () => _tab(true),
+                        ),
+                      ),
+                      at(
+                        70,
+                        400,
+                        298,
+                        42,
+                        Row(
+                          children: [
+                            Expanded(child: text('Список накладных', 21)),
+                            SizedBox(
+                              width: 46,
+                              child: tap(
+                                const Icon(
+                                  Icons.add,
+                                  color: Color(0xFFE6B46B),
+                                  size: 34,
+                                ),
+                                () {
+                                  _tab(false);
+                                  if (_draft.editing != null) _commitInput();
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      at(
+                        407,
+                        400,
+                        400,
+                        42,
+                        Row(
+                          children: [
+                            Expanded(child: text('Подсчёт денег', 21)),
+                            tap(text('Очистить', 19, color: muted), () async {
+                              if (await _testConfirm(
+                                    context,
+                                    'Обнулить количество всех купюр и монет?',
+                                  ) &&
+                                  mounted) {
+                                _update(counts: {});
+                                setState(() => _cashInput = '');
+                              }
+                            }),
+                          ],
+                        ),
+                      ),
+                      at(
+                        65,
+                        453,
+                        302,
+                        405,
+                        ColoredBox(
+                          color: const Color(0xFF091115),
+                          child: _shown.invoices.isEmpty
+                              ? Center(
+                                  child: text(
+                                    'Добавьте накладную\nс помощью клавиатуры',
+                                    23,
+                                    color: muted,
+                                  ),
+                                )
+                              : ListView.builder(
+                                  padding: EdgeInsets.zero,
+                                  itemCount: _shown.invoices.length,
+                                  itemBuilder: (_, i) => Container(
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    decoration: panel(_draft.editing == i),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: tap(
+                                            Padding(
+                                              padding: const EdgeInsets.all(15),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  text(
+                                                    'Накладная ${i + 1}${_shown.kaspiInvoices.contains(i) ? ' · Kaspi' : ''}',
+                                                    19,
+                                                    color: muted,
+                                                  ),
+                                                  const SizedBox(height: 7),
+                                                  fit(
+                                                    amount(_shown.invoices[i]),
+                                                    25,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            () {
+                                              _tab(false);
+                                              _edit(i);
+                                            },
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          width: 36,
+                                          height: 64,
+                                          child: tap(
+                                            const Icon(
+                                              Icons.close,
+                                              color: Color(0xFF90999E),
+                                              size: 24,
+                                            ),
+                                            () => _delete(i),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ),
+                      at(
+                        88,
+                        899,
+                        260,
+                        63,
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            text('Итого по накладным', 20, color: muted),
+                            const SizedBox(height: 7),
+                            fit(amount(_shown.expected), 32, color: gold),
+                          ],
+                        ),
+                      ),
+                      at(
+                        398,
+                        453,
+                        414,
+                        493,
+                        ListView.builder(
+                          controller: _list,
+                          padding: EdgeInsets.zero,
+                          itemCount: MoneyCount.denominations.length,
+                          itemBuilder: (_, i) {
+                            final value = MoneyCount.denominations[i];
+                            final count = _shown.counts[value] ?? 0;
+                            return Container(
+                              height: 68,
+                              margin: const EdgeInsets.only(bottom: 5),
+                              decoration: panel(
+                                _cashMode && value == _denomination,
+                              ),
+                              child: tap(
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 7,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 86,
+                                        child: value >= 200
+                                            ? Image.asset(
+                                                'assets/images/scenes/money_kzt_$value.${value == 1000 ? 'png' : 'jpg'}',
+                                                fit: BoxFit.contain,
+                                              )
+                                            : const Icon(
+                                                Icons.toll_outlined,
+                                                color: Color(0xFFE6B46B),
+                                                size: 30,
+                                              ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: fit(amount(value * 100), 22),
+                                      ),
+                                      Container(
+                                        width: 59,
+                                        height: 48,
+                                        alignment: Alignment.center,
+                                        decoration: panel(
+                                          _cashMode && value == _denomination,
+                                        ),
+                                        child: text(
+                                          '$count',
+                                          26,
+                                          color:
+                                              _cashMode &&
+                                                  value == _denomination
+                                              ? gold
+                                              : Colors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: fit(
+                                          amount(value * count * 100),
+                                          22,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                () {
+                                  _tab(true);
+                                  if (_cashMode) _selectDenomination(value);
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      at(
+                        417,
+                        957,
+                        383,
+                        50,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: text('Итого насчитано', 21, color: muted),
+                            ),
+                            Expanded(
+                              child: fit(
+                                amount(_shown.counted),
+                                32,
+                                color: gold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      at(
+                        99,
+                        1048,
+                        678,
+                        51,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  text(
+                                    _cashMode
+                                        ? 'Количество купюр (${amount(_denomination * 100)})'
+                                        : _draft.editing == null
+                                        ? 'Сумма новой накладной'
+                                        : 'Исправление накладной ${_draft.editing! + 1}',
+                                    18,
+                                    color: muted,
+                                  ),
+                                  if (_writeError.isNotEmpty)
+                                    tap(
+                                      text(
+                                        _writeError,
+                                        16,
+                                        color: Colors.redAccent,
+                                      ),
+                                      _flush,
+                                    ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(
+                              width: 190,
+                              child: fit(
+                                _cashMode
+                                    ? '${_draft.counts[_denomination] ?? 0} шт.'
+                                    : '${_draft.input.isEmpty ? '0' : _draft.input} ₸',
+                                30,
+                                color: gold,
+                              ),
+                            ),
+                            tap(
+                              const Icon(
+                                Icons.backspace_outlined,
+                                color: Color(0xFFE6B46B),
+                                size: 28,
+                              ),
+                              () => _key('C'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      for (var r = 0; r < 4; r++)
+                        for (var c = 0; c < 3; c++)
+                          at(
+                            95 + c * 229,
+                            1108 + r * 65,
+                            217,
+                            56,
+                            tap(
+                              Center(
+                                child: text(
+                                  r < 3
+                                      ? '${r * 3 + c + 1}'
+                                      : c == 0
+                                      ? (_cashMode ? '00' : ',')
+                                      : c == 1
+                                      ? '0'
+                                      : '⌫',
+                                  34,
+                                ),
+                              ),
+                              () => _key(
+                                r < 3
+                                    ? '${r * 3 + c + 1}'
+                                    : c == 0
+                                    ? (_cashMode ? '00' : ',')
+                                    : c == 1
+                                    ? '0'
+                                    : '⌫',
+                              ),
+                            ),
+                          ),
+                      at(
+                        88,
+                        1373,
+                        336,
+                        66,
+                        tap(
+                          Center(
+                            child: text(
+                              _cashMode
+                                  ? '→ Следующий номинал'
+                                  : _draft.editing == null
+                                  ? '+ Добавить накладную'
+                                  : '✓ Сохранить изменение',
+                              23,
+                              color: gold,
+                            ),
+                          ),
+                          _cashMode
+                              ? _nextDenomination
+                              : () {
+                                  _commitInput();
+                                },
+                        ),
+                      ),
+                      at(
+                        447,
+                        1373,
+                        335,
+                        66,
+                        tap(
+                          Center(
+                            child: text('Создать покупюрник', 23, color: gold),
+                          ),
+                          _createReferenceSlip,
+                        ),
+                      ),
+                      if (!_cashMode)
+                        at(
+                          90,
+                          1459,
+                          350,
+                          38,
+                          tap(
+                            Row(
+                              children: [
+                                Icon(
+                                  _draft.inputKaspi
+                                      ? Icons.check_box_outlined
+                                      : Icons.check_box_outline_blank,
+                                  color: gold,
+                                  size: 26,
+                                ),
+                                const SizedBox(width: 8),
+                                text('Kaspi', 22, color: gold),
+                                if (_draft.editing != null)
+                                  Expanded(
+                                    child: tap(
+                                      Center(
+                                        child: text('Отмена', 21, color: muted),
+                                      ),
+                                      () => _update(
+                                        input: '',
+                                        clearEditing: true,
+                                        inputKaspi: false,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            () {
+                              HapticFeedback.lightImpact();
+                              _update(inputKaspi: !_draft.inputKaspi);
+                            },
+                          ),
+                        ),
+                      at(
+                        650,
+                        1459,
+                        150,
+                        38,
+                        tap(
+                          Center(child: text('Новый', 21, color: muted)),
+                          _newCount,
+                        ),
+                      ),
+                      if (_busy)
+                        at(
+                          89,
+                          1500,
+                          690,
+                          4,
+                          const LinearProgressIndicator(
+                            color: Color(0xFFE6B46B),
+                          ),
+                        ),
                     ],
-                  );
-                },
+                  ),
+                ),
               ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     ),
   );
+
+  @override
+  Widget build(BuildContext context) =>
+      !_loading && _loadError.isEmpty && !_historyMode && !_readOnly
+      ? _referenceMoney()
+      : PopScope(
+          canPop: _allowPop,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop) _back();
+          },
+          child: AnnotatedRegion<SystemUiOverlayStyle>(
+            value: const SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: Brightness.light,
+              statusBarBrightness: Brightness.dark,
+              systemNavigationBarColor: Colors.transparent,
+              systemNavigationBarIconBrightness: Brightness.light,
+            ),
+            child: Scaffold(
+              backgroundColor: const Color(0xFF101517),
+              body: Stack(
+                children: [
+                  _CinematicMore.backdrop(),
+                  SafeArea(
+                    child: LayoutBuilder(
+                      builder: (context, box) {
+                        final short = box.maxHeight < 700;
+                        return Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 3, 12, 2),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    tooltip: 'Назад',
+                                    onPressed: _busy ? null : _back,
+                                    icon: const Icon(
+                                      Icons.arrow_back,
+                                      color: gold,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: _text(
+                                      _historyMode
+                                          ? 'История подсчётов'
+                                          : _readOnly
+                                          ? 'Сохранённый подсчёт'
+                                          : 'Деньги',
+                                      size: _historyMode || _readOnly ? 19 : 25,
+                                      weight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  if (!_loading &&
+                                      _loadError.isEmpty &&
+                                      !_historyMode &&
+                                      !_readOnly)
+                                    IconButton(
+                                      tooltip: 'История подсчётов',
+                                      onPressed: _busy
+                                          ? null
+                                          : () => setState(
+                                              () => _historyMode = true,
+                                            ),
+                                      icon: const Icon(
+                                        Icons.history,
+                                        color: gold,
+                                      ),
+                                    ),
+                                  if (!_loading &&
+                                      _loadError.isEmpty &&
+                                      !_readOnly &&
+                                      !_historyMode)
+                                    IconButton(
+                                      tooltip: 'Новый подсчёт',
+                                      onPressed: _busy ? null : _newCount,
+                                      icon: const Icon(Icons.add, color: gold),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: _loading
+                                  ? const Center(
+                                      child: CircularProgressIndicator(
+                                        color: gold,
+                                      ),
+                                    )
+                                  : _loadError.isNotEmpty
+                                  ? Center(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.all(20),
+                                            child: _text(_loadError),
+                                          ),
+                                          _button('Повторить', _load),
+                                        ],
+                                      ),
+                                    )
+                                  : Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                      ),
+                                      child: _historyMode
+                                          ? _historyList()
+                                          : Column(
+                                              children: [
+                                                _totals(),
+                                                if (_readOnly)
+                                                  _button(
+                                                    'Поделиться покупюрником',
+                                                    _busy ? null : _shareCount,
+                                                  ),
+                                                if (_writeError.isNotEmpty)
+                                                  InkWell(
+                                                    onTap: () {
+                                                      _flush().catchError(
+                                                        (Object _) {},
+                                                      );
+                                                    },
+                                                    child: Padding(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                            4,
+                                                          ),
+                                                      child: _text(
+                                                        _writeError,
+                                                        size: 11,
+                                                        color: const Color(
+                                                          0xFFD29280,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: _button(
+                                                        'Накладные',
+                                                        () => _tab(false),
+                                                        selected: !_cashMode,
+                                                      ),
+                                                    ),
+                                                    Expanded(
+                                                      child: _button(
+                                                        'Подсчёт денег',
+                                                        () => _tab(true),
+                                                        selected: _cashMode,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                Expanded(
+                                                  child: _MoneyMoreSurface(
+                                                    child: _cashMode
+                                                        ? _cash()
+                                                        : _invoices(),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 5),
+                                                if (!_readOnly)
+                                                  _keyboard(short)
+                                                else
+                                                  _button(
+                                                    '← К истории подсчётов',
+                                                    () => _back(),
+                                                  ),
+                                              ],
+                                            ),
+                                    ),
+                            ),
+                            const SizedBox(height: 3),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
 }
 
 class _MoneyMoreSurface extends StatelessWidget {
