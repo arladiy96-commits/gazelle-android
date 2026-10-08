@@ -20,6 +20,14 @@ class AdvanceImageExport(private val activity: Activity) {
 
     fun handle(method: String, args: Map<*, *>, result: MethodChannel.Result) {
         when (method) {
+            "renderInvoice" -> Thread {
+                try {
+                    val document = InvoiceDocument.render(activity, args)
+                    activity.runOnUiThread { result.success(document) }
+                } catch (e: Exception) {
+                    activity.runOnUiThread { result.error("invoice", e.message, null) }
+                }
+            }.start()
             "render", "renderGas", "renderSalary" -> Thread {
                 try {
                     val bytes = when (method) {
@@ -70,8 +78,8 @@ class AdvanceImageExport(private val activity: Activity) {
                 try {
                     activity.startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                         addCategory(Intent.CATEGORY_OPENABLE)
-                        type = "image/png"
-                        putExtra(Intent.EXTRA_TITLE, "${if (args["kind"] == "gas") "gas_report" else "avans"}_${System.currentTimeMillis()}.png")
+                        type = if (args["kind"] == "invoice") "application/pdf" else "image/png"
+                        putExtra(Intent.EXTRA_TITLE, "${when (args["kind"]) { "invoice" -> "invoice"; "gas" -> "gas_report"; else -> "avans" }}_${System.currentTimeMillis()}.${if (args["kind"] == "invoice") "pdf" else "png"}")
                     }, requestCode)
                 } catch (e: Exception) {
                     pending = null; pendingBytes = null
