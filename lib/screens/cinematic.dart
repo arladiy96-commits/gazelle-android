@@ -1919,101 +1919,86 @@ class _CinematicMore extends StatelessWidget {
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, box) {
-                    final scale = box.maxWidth / 864;
+                    // Natural content height keeps every tile inside the scroll
+                    // and hit-test bounds when menu rows are added or text grows.
                     return SingleChildScrollView(
                       child: SizedBox(
                         width: box.maxWidth,
-                        height: math.max(box.maxHeight, 1400 * scale),
-                        child: Align(
+                        child: FittedBox(
+                          fit: BoxFit.fitWidth,
                           alignment: Alignment.topCenter,
                           child: SizedBox(
-                            width: box.maxWidth,
-                            height: 1400 * scale,
-                            child: FittedBox(
-                              fit: BoxFit.contain,
-                              alignment: Alignment.topCenter,
-                              child: SizedBox(
-                                width: 864,
-                                height: 1400,
-                                child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    32,
-                                    22,
-                                    32,
-                                    12,
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      SizedBox(
-                                        height: 150,
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              width: 80,
-                                              height: 80,
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                color: const Color(0xDE0C1418),
-                                                border: Border.all(
-                                                  color: const Color(
-                                                    0xFFE6B46B,
-                                                  ),
-                                                  width: 2,
-                                                ),
-                                              ),
-                                              child: IconButton(
-                                                onPressed: () =>
-                                                    navigate(context, 0),
-                                                tooltip: 'Назад',
-                                                icon: const Icon(
-                                                  Icons.chevron_left,
-                                                  color: Color(0xFFE6B46B),
-                                                  size: 46,
-                                                ),
-                                              ),
+                            width: 864,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                32,
+                                22,
+                                32,
+                                12,
+                              ),
+                              child: Column(
+                                children: [
+                                  SizedBox(
+                                    height: 150,
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 80,
+                                          height: 80,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: const Color(0xDE0C1418),
+                                            border: Border.all(
+                                              color: const Color(0xFFE6B46B),
+                                              width: 2,
                                             ),
-                                            const SizedBox(width: 40),
-                                            const Expanded(
-                                              child: Column(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    'Ещё',
-                                                    style: TextStyle(
-                                                      color: Color(0xFFF1EEE6),
-                                                      fontSize: 58,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                  SizedBox(height: 7),
-                                                  Text(
-                                                    'Управление, отчёты и настройки',
-                                                    style: TextStyle(
-                                                      color: Color(0xFFB7BBBC),
-                                                      fontSize: 25,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
+                                          ),
+                                          child: IconButton(
+                                            onPressed: () =>
+                                                navigate(context, 0),
+                                            tooltip: 'Назад',
+                                            icon: const Icon(
+                                              Icons.chevron_left,
+                                              color: Color(0xFFE6B46B),
+                                              size: 46,
                                             ),
-                                          ],
+                                          ),
                                         ),
-                                      ),
-                                      for (
-                                        var i = 0;
-                                        i < groups.length;
-                                        i++
-                                      ) ...[
-                                        if (i > 0) const SizedBox(height: 24),
-                                        _referenceGroup(context, groups[i]),
+                                        const SizedBox(width: 40),
+                                        const Expanded(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Ещё',
+                                                style: TextStyle(
+                                                  color: Color(0xFFF1EEE6),
+                                                  fontSize: 58,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              SizedBox(height: 7),
+                                              Text(
+                                                'Управление, отчёты и настройки',
+                                                style: TextStyle(
+                                                  color: Color(0xFFB7BBBC),
+                                                  fontSize: 25,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ],
-                                    ],
+                                    ),
                                   ),
-                                ),
+                                  for (var i = 0; i < groups.length; i++) ...[
+                                    if (i > 0) const SizedBox(height: 24),
+                                    _referenceGroup(context, groups[i]),
+                                  ],
+                                ],
                               ),
                             ),
                           ),
