@@ -658,9 +658,8 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) => PopScope(
-    canPop: !_busy && !_history && _archive == null && !_expanded,
+  Widget _referenceScreen(AdvanceReport report) => PopScope(
+    canPop: !_busy && _archive == null,
     onPopInvokedWithResult: (didPop, result) {
       if (!didPop && !_busy) _back();
     },
@@ -668,84 +667,627 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
         systemNavigationBarColor: Colors.transparent,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        backgroundColor: const Color(0xFF101517),
-        body: Stack(
-          children: [
-            _CinematicMore.backdrop(),
-            SafeArea(
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 5, 8, 5),
-                    child: Row(
+        backgroundColor: const Color(0xFF080E12),
+        body: LayoutBuilder(
+          builder: (context, box) {
+            final scale = box.maxWidth / 1024;
+            final height = box.maxHeight / scale;
+            final safe = MediaQuery.paddingOf(context).top / scale;
+            Widget at(double x, double y, double w, double h, Widget child) =>
+                Positioned(
+                  left: x,
+                  top: y / 1536 * height,
+                  width: w,
+                  height: h / 1536 * height,
+                  child: child,
+                );
+            Widget label(
+              String text,
+              double size, {
+              Color color = const Color(0xFFEAEDEF),
+              bool bold = false,
+            }) => Text(
+              text,
+              style: TextStyle(
+                fontSize: size,
+                height: 1.15,
+                color: color,
+                fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
+              ),
+            );
+            Widget tap(Widget child, VoidCallback? fn) => Material(
+              color: Colors.transparent,
+              child: InkWell(onTap: _busy ? null : fn, child: child),
+            );
+            Widget stat(
+              String title,
+              int value,
+              IconData icon,
+              Color color, {
+              VoidCallback? onTap,
+            }) => tap(
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        IconButton(
-                          tooltip: 'Назад',
-                          onPressed: _busy ? null : _back,
-                          icon: const Icon(Icons.arrow_back, color: gold),
-                        ),
+                        Icon(icon, color: const Color(0xFFE6B46B), size: 42),
+                        const SizedBox(width: 15),
                         Expanded(
-                          child: _text(
-                            _history ? 'История отчётов' : 'Авансовый отчёт',
-                            size: 22,
-                            bold: true,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: label(title, 29),
                           ),
                         ),
-                        if (!_history && _archive == null)
-                          IconButton(
-                            tooltip: 'История отчётов',
-                            onPressed: _busy || _data == null
-                                ? null
-                                : () => setState(() {
-                                    _history = true;
-                                    _expanded = false;
-                                  }),
-                            icon: const Icon(Icons.history, color: gold),
+                      ],
+                    ),
+                    const SizedBox(height: 25),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: label(
+                              _money(value),
+                              48,
+                              color: color,
+                              bold: true,
+                            ),
+                          ),
+                        ),
+                        if (onTap != null)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 10),
+                            child: Icon(
+                              Icons.edit_outlined,
+                              color: Color(0xFFE6B46B),
+                              size: 28,
+                            ),
                           ),
                       ],
                     ),
-                  ),
-                  if (_busy)
-                    const LinearProgressIndicator(
-                      minHeight: 2,
-                      color: gold,
-                      backgroundColor: Colors.transparent,
-                    ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
-                      child: _error != null
-                          ? Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
+                  ],
+                ),
+              ),
+              onTap,
+            );
+            final start =
+                report.start ??
+                (report.rows.isEmpty ? DateTime.now() : report.rows.first.date);
+            return SizedBox.expand(
+              child: FittedBox(
+                fit: BoxFit.fill,
+                child: SizedBox(
+                  width: 1024,
+                  height: height,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: Image.asset(
+                          'assets/images/scenes/advance_report_reference.png',
+                          fit: BoxFit.fill,
+                        ),
+                      ),
+                      Positioned(
+                        left: 52,
+                        top: math.max(safe + 12, height * 50 / 1536),
+                        width: 78,
+                        height: 78,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xDC080F14),
+                            border: Border.all(
+                              color: const Color(0xFFE6B46B),
+                              width: 2,
+                            ),
+                          ),
+                          child: IconButton(
+                            onPressed: _busy ? null : _back,
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              color: Color(0xFFE6B46B),
+                              size: 40,
+                            ),
+                          ),
+                        ),
+                      ),
+                      at(
+                        176,
+                        65,
+                        650,
+                        66,
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: label('Авансовый отчёт', 43, bold: true),
+                        ),
+                      ),
+                      at(
+                        180,
+                        132,
+                        348,
+                        70,
+                        tap(
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 17),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.calendar_month,
+                                  color: Color(0xFFE6B46B),
+                                  size: 32,
+                                ),
+                                const SizedBox(width: 18),
+                                Expanded(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      label('С ${_date(start)}', 26),
+                                      label(
+                                        _archive == null
+                                            ? 'до следующей сдачи'
+                                            : 'Сдан ${_date(report.submittedAt!)}',
+                                        19,
+                                        color: muted,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.chevron_right,
+                                  color: Colors.white,
+                                  size: 30,
+                                ),
+                              ],
+                            ),
+                          ),
+                          () => setState(() {
+                            _history = true;
+                            _archive = null;
+                          }),
+                        ),
+                      ),
+                      at(
+                        220,
+                        280,
+                        264,
+                        145,
+                        stat(
+                          'Получено\nиз кассы',
+                          report.received,
+                          Icons.payments_outlined,
+                          const Color(0xFFE6B46B),
+                          onTap: _archive == null ? _editCash : null,
+                        ),
+                      ),
+                      at(
+                        490,
+                        280,
+                        230,
+                        145,
+                        stat(
+                          'Расход',
+                          report.expenses,
+                          Icons.account_balance_wallet_outlined,
+                          const Color(0xFFEAEDEF),
+                          onTap: () => setState(() => _expanded = true),
+                        ),
+                      ),
+                      at(
+                        730,
+                        280,
+                        177,
+                        145,
+                        stat(
+                          'Остаток',
+                          report.balance,
+                          Icons.pie_chart_outline,
+                          report.balance < 0
+                              ? const Color(0xFFD59C89)
+                              : const Color(0xFF39AB79),
+                        ),
+                      ),
+                      at(
+                        482,
+                        280,
+                        1,
+                        142,
+                        Container(color: const Color(0x70776044)),
+                      ),
+                      at(
+                        720,
+                        280,
+                        1,
+                        142,
+                        Container(color: const Color(0x70776044)),
+                      ),
+                      at(
+                        76,
+                        612,
+                        540,
+                        70,
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.receipt_long_outlined,
+                              color: Color(0xFFE6B46B),
+                              size: 44,
+                            ),
+                            const SizedBox(width: 20),
+                            label('Список расходов', 31),
+                          ],
+                        ),
+                      ),
+                      if (_archive == null)
+                        at(
+                          700,
+                          618,
+                          250,
+                          61,
+                          tap(
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: const Color(0xFFE6B46B),
+                                  width: 2,
+                                ),
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xB0553416),
+                                    Color(0xD0101619),
+                                  ],
+                                ),
+                              ),
+                              child: Center(
+                                child: label(
+                                  '+  Добавить расход',
+                                  25,
+                                  color: const Color(0xFFE6B46B),
+                                ),
+                              ),
+                            ),
+                            () => _editExpense(),
+                          ),
+                        ),
+                      at(
+                        56,
+                        696,
+                        912,
+                        550,
+                        Column(
+                          children: [
+                            _referenceRow(null, 0),
+                            Expanded(
+                              child: report.rows.isEmpty
+                                  ? Center(
+                                      child: label(
+                                        'Расходов пока нет',
+                                        28,
+                                        color: muted,
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      padding: EdgeInsets.zero,
+                                      itemCount: report.rows.length,
+                                      itemBuilder: (_, i) => tap(
+                                        _referenceRow(report.rows[i], i + 1),
+                                        _archive == null
+                                            ? () => _rowActions(report.rows[i])
+                                            : null,
+                                      ),
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      at(
+                        60,
+                        1307,
+                        435,
+                        128,
+                        tap(
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 28),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.description_outlined,
+                                  color: Color(0xFFE6B46B),
+                                  size: 60,
+                                ),
+                                const SizedBox(width: 25),
+                                Expanded(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      label(
+                                        'Открыть бланк',
+                                        29,
+                                        color: const Color(0xFFE6B46B),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      label(
+                                        'Полный отчёт для сдачи',
+                                        20,
+                                        color: muted,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.chevron_right,
+                                  color: Color(0xFFE6B46B),
+                                  size: 34,
+                                ),
+                              ],
+                            ),
+                          ),
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(
+                              builder: (_) => _AdvanceImagePreview(
+                                report: report,
+                                name: widget.session.displayName,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      at(
+                        530,
+                        1307,
+                        440,
+                        128,
+                        tap(
+                          Opacity(
+                            opacity: report.rows.isEmpty ? 0.5 : 1.0,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 35,
+                              ),
+                              child: Row(
                                 children: [
-                                  _text(_error!),
-                                  _action('Повторить', _reload),
+                                  const Icon(
+                                    Icons.task_alt,
+                                    color: Color(0xFF20180D),
+                                    size: 62,
+                                  ),
+                                  const SizedBox(width: 24),
+                                  Expanded(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        label(
+                                          _archive == null
+                                              ? 'Отчёт сдан'
+                                              : 'Сданный отчёт',
+                                          29,
+                                          color: const Color(0xFF20180D),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        label(
+                                          _archive == null
+                                              ? 'Зафиксировать и начать новый'
+                                              : 'Открыт из истории',
+                                          19,
+                                          color: const Color(0xFF302314),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ],
                               ),
-                            )
-                          : _data == null
-                          ? const Center(
-                              child: CircularProgressIndicator(color: gold),
-                            )
-                          : _history
-                          ? _historyList()
-                          : _body(_report!),
+                            ),
+                          ),
+                          _archive == null && report.rows.isNotEmpty
+                              ? _submit
+                              : null,
+                        ),
+                      ),
+                      if (_busy)
+                        at(
+                          55,
+                          1468,
+                          915,
+                          5,
+                          const LinearProgressIndicator(
+                            color: Color(0xFFE6B46B),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    ),
+  );
+
+  Widget _referenceRow(AdvanceRow? row, int index) {
+    final header = row == null;
+    Widget cell(String value, int flex, {Color? color, bool left = false}) =>
+        Expanded(
+          flex: flex,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Text(
+              value,
+              textAlign: left ? TextAlign.left : TextAlign.center,
+              style: TextStyle(
+                fontSize: header ? 21 : 23,
+                height: 1.2,
+                color: color ?? (header ? muted : const Color(0xFFEAEDEF)),
+              ),
+            ),
+          ),
+        );
+    return Container(
+      constraints: BoxConstraints(minHeight: header ? 54 : 78),
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: header ? const Color(0xCC20282C) : const Color(0x35081013),
+        border: const Border(bottom: BorderSide(color: Color(0xFF303639))),
+      ),
+      child: Row(
+        children: [
+          cell(header ? '№' : '$index', 5),
+          cell(header ? 'Дата' : _date(row.date).substring(0, 5), 9),
+          if (!header)
+            Icon(
+              row.automatic ? Icons.location_on_outlined : Icons.build_outlined,
+              color: const Color(0xFFE6B46B),
+              size: 29,
+            ),
+          cell(
+            header ? 'Наименование' : row.name,
+            header ? 25 : 22,
+            left: true,
+          ),
+          cell(header ? 'Кол-во' : AdvanceRow.decimal(row.quantity, 3), 10),
+          cell(header ? 'Цена' : _money(row.price), 12),
+          cell(
+            header ? 'Сумма' : _money(row.total),
+            13,
+            color: header ? muted : const Color(0xFFE6B46B),
+          ),
+          cell(
+            header
+                ? 'Направление'
+                : row.direction.isEmpty
+                ? '—'
+                : row.direction,
+            20,
+            left: true,
+          ),
+          SizedBox(
+            width: 28,
+            child: header
+                ? const SizedBox.shrink()
+                : const Icon(
+                    Icons.more_vert,
+                    color: Color(0xFFE6B46B),
+                    size: 27,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      _data != null && !_history && !_expanded && _error == null
+      ? _referenceScreen(_report!)
+      : PopScope(
+          canPop: !_busy && !_history && _archive == null && !_expanded,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop && !_busy) _back();
+          },
+          child: AnnotatedRegion<SystemUiOverlayStyle>(
+            value: const SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: Brightness.light,
+              statusBarBrightness: Brightness.dark,
+              systemNavigationBarColor: Colors.transparent,
+              systemNavigationBarIconBrightness: Brightness.light,
+            ),
+            child: Scaffold(
+              backgroundColor: const Color(0xFF101517),
+              body: Stack(
+                children: [
+                  _CinematicMore.backdrop(),
+                  SafeArea(
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 5, 8, 5),
+                          child: Row(
+                            children: [
+                              IconButton(
+                                tooltip: 'Назад',
+                                onPressed: _busy ? null : _back,
+                                icon: const Icon(Icons.arrow_back, color: gold),
+                              ),
+                              Expanded(
+                                child: _text(
+                                  _history
+                                      ? 'История отчётов'
+                                      : 'Авансовый отчёт',
+                                  size: 22,
+                                  bold: true,
+                                ),
+                              ),
+                              if (!_history && _archive == null)
+                                IconButton(
+                                  tooltip: 'История отчётов',
+                                  onPressed: _busy || _data == null
+                                      ? null
+                                      : () => setState(() {
+                                          _history = true;
+                                          _expanded = false;
+                                        }),
+                                  icon: const Icon(Icons.history, color: gold),
+                                ),
+                            ],
+                          ),
+                        ),
+                        if (_busy)
+                          const LinearProgressIndicator(
+                            minHeight: 2,
+                            color: gold,
+                            backgroundColor: Colors.transparent,
+                          ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+                            child: _error != null
+                                ? Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        _text(_error!),
+                                        _action('Повторить', _reload),
+                                      ],
+                                    ),
+                                  )
+                                : _data == null
+                                ? const Center(
+                                    child: CircularProgressIndicator(
+                                      color: gold,
+                                    ),
+                                  )
+                                : _history
+                                ? _historyList()
+                                : _body(_report!),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-    ),
-  );
+          ),
+        );
 }
 
 class _AdvanceExpenseEditor extends StatefulWidget {
