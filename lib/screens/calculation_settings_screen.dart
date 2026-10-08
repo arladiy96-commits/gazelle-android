@@ -352,8 +352,8 @@ class _CalculationSettingsScreenState
       hero: hero,
       child: Row(
         children: [
-          _SettingsIconPlate(icon: icon, size: hero ? 66 : 52),
-          SizedBox(width: hero ? 18 : 14),
+          _SettingsIconPlate(icon: icon, size: hero ? 52 : 42),
+          SizedBox(width: hero ? 14 : 11),
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -365,26 +365,26 @@ class _CalculationSettingsScreenState
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: white,
-                    fontSize: hero ? 20 : 16,
+                    fontSize: hero ? 18 : 15,
                     fontWeight: FontWeight.w700,
                     height: 1.1,
                   ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 3),
                 Text(
                   subtitle,
                   maxLines: hero ? 3 : 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: muted,
-                    fontSize: hero ? 13 : 11.5,
+                    fontSize: hero ? 11.5 : 10.5,
                     height: 1.25,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 7),
           _SettingsChevronButton(hero: hero),
         ],
       ),
@@ -404,8 +404,8 @@ class _CalculationSettingsScreenState
       dense: true,
       child: Row(
         children: [
-          _SettingsIconPlate(icon: groupIcon(widget.group), size: 46),
-          const SizedBox(width: 13),
+          _SettingsIconPlate(icon: groupIcon(widget.group), size: 40),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -417,20 +417,20 @@ class _CalculationSettingsScreenState
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: white,
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     height: 1.12,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   field.$3,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: muted,
-                    fontSize: 10.5,
-                    height: 1.2,
+                    fontSize: 9.8,
+                    height: 1.18,
                   ),
                 ),
               ],
@@ -438,9 +438,9 @@ class _CalculationSettingsScreenState
           ),
           const SizedBox(width: 10),
           ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 138),
+            constraints: const BoxConstraints(maxWidth: 126),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
                 color: enabled
@@ -460,14 +460,14 @@ class _CalculationSettingsScreenState
                 textAlign: TextAlign.right,
                 style: TextStyle(
                   color: enabled ? const Color(0xFFFFD48F) : white,
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          const Icon(Icons.chevron_right_rounded, color: gold, size: 23),
+          const SizedBox(width: 6),
+          const Icon(Icons.chevron_right_rounded, color: gold, size: 21),
         ],
       ),
     );
@@ -514,8 +514,8 @@ class _CalculationSettingsScreenState
       dense: true,
       child: Row(
         children: [
-          const _SettingsIconPlate(icon: Icons.history_rounded, size: 46),
-          const SizedBox(width: 13),
+          const _SettingsIconPlate(icon: Icons.history_rounded, size: 40),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -524,7 +524,7 @@ class _CalculationSettingsScreenState
                   title,
                   style: const TextStyle(
                     color: white,
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -554,26 +554,26 @@ class _CalculationSettingsScreenState
   }
 
   Widget _sectionHeader(String title, IconData icon) => Padding(
-    padding: const EdgeInsets.fromLTRB(2, 10, 2, 8),
+    padding: const EdgeInsets.fromLTRB(2, 7, 2, 6),
     child: Row(
       children: [
         Container(
-          width: 34,
-          height: 28,
+          width: 31,
+          height: 25,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(7),
             color: const Color(0xC012181C),
             border: Border.all(color: const Color(0xFF6E5637), width: .7),
           ),
-          child: Icon(icon, color: gold, size: 19),
+          child: Icon(icon, color: gold, size: 17),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Flexible(
           child: Text(
             title.toUpperCase(),
             style: const TextStyle(
               color: sectionBlue,
-              fontSize: 11,
+              fontSize: 10.5,
               fontWeight: FontWeight.w700,
               letterSpacing: .25,
             ),
@@ -601,7 +601,7 @@ class _CalculationSettingsScreenState
         };
 
   Widget header() => Padding(
-    padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
+    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -610,10 +610,10 @@ class _CalculationSettingsScreenState
           tooltip: 'Назад',
           onTap: busy ? null : () => Navigator.pop(context),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.only(top: 3),
+            padding: const EdgeInsets.only(top: 2),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -625,7 +625,7 @@ class _CalculationSettingsScreenState
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: white,
-                    fontSize: 29,
+                    fontSize: 24,
                     fontWeight: FontWeight.w700,
                     height: 1.02,
                     shadows: [
@@ -637,9 +637,9 @@ class _CalculationSettingsScreenState
                     ],
                   ),
                 ),
-                const SizedBox(height: 7),
+                const SizedBox(height: 5),
                 Container(
-                  width: 58,
+                  width: 52,
                   height: 2,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(2),
@@ -648,13 +648,13 @@ class _CalculationSettingsScreenState
                     ),
                   ),
                 ),
-                const SizedBox(height: 7),
+                const SizedBox(height: 5),
                 Text(
                   subtitle,
                   style: const TextStyle(
                     color: Color(0xFFC3C7C8),
-                    fontSize: 12,
-                    height: 1.25,
+                    fontSize: 11,
+                    height: 1.2,
                   ),
                 ),
               ],
@@ -749,7 +749,7 @@ class _CalculationSettingsScreenState
 
                         return ListView(
                           physics: const BouncingScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(20, 2, 20, 28),
+                          padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
                           children: [
                             if (widget.settingsRoot) ...[
                               _sectionHeader(
@@ -771,7 +771,7 @@ class _CalculationSettingsScreenState
                               ),
                               for (final g in groups)
                                 Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.only(bottom: 6),
                                   child: _navigationTile(
                                     title: g,
                                     subtitle: groupSubtitle(g),
@@ -779,7 +779,7 @@ class _CalculationSettingsScreenState
                                     action: () => open(g),
                                   ),
                                 ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 4),
                               _sectionHeader('Изменения', Icons.history_rounded),
                               _navigationTile(
                                 title: 'История изменений',
@@ -799,7 +799,7 @@ class _CalculationSettingsScreenState
                               else
                                 for (final e in events)
                                   Padding(
-                                    padding: const EdgeInsets.only(bottom: 8),
+                                    padding: const EdgeInsets.only(bottom: 6),
                                     child: _historyTile(e),
                                   ),
                             ] else ...[
@@ -809,7 +809,7 @@ class _CalculationSettingsScreenState
                               ),
                               for (final f in entries(widget.group!))
                                 Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.only(bottom: 6),
                                   child: _parameterTile(book, f),
                                 ),
                               if (widget.group == 'Рабочий календарь') ...[
@@ -894,7 +894,7 @@ class _SettingsInteractivePlate extends StatelessWidget {
       children: [
         Container(
           constraints: BoxConstraints(
-            minHeight: hero ? 132 : (dense ? 78 : 86),
+            minHeight: hero ? 104 : (dense ? 66 : 70),
           ),
           decoration: _SettingsChrome.panelDecoration(
             radius: hero ? 19 : 15,
@@ -910,8 +910,8 @@ class _SettingsInteractivePlate extends StatelessWidget {
               onTap: onTap,
               child: Padding(
                 padding: EdgeInsets.symmetric(
-                  horizontal: hero ? 16 : 13,
-                  vertical: hero ? 18 : (dense ? 11 : 13),
+                  horizontal: hero ? 14 : 11,
+                  vertical: hero ? 13 : (dense ? 8 : 9),
                 ),
                 child: child,
               ),
@@ -985,8 +985,8 @@ class _SettingsChevronButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    width: hero ? 44 : 38,
-    height: hero ? 44 : 38,
+    width: hero ? 40 : 34,
+    height: hero ? 40 : 34,
     decoration: BoxDecoration(
       shape: BoxShape.circle,
       color: const Color(0xA50A1014),
@@ -998,7 +998,7 @@ class _SettingsChevronButton extends StatelessWidget {
     child: Icon(
       Icons.chevron_right_rounded,
       color: const Color(0xFFFFC977),
-      size: hero ? 28 : 24,
+      size: hero ? 25 : 22,
     ),
   );
 }
@@ -1016,8 +1016,8 @@ class _SettingsRoundButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     decoration: BoxDecoration(
       shape: BoxShape.circle,
       color: const Color(0xD20A1014),
@@ -1031,7 +1031,7 @@ class _SettingsRoundButton extends StatelessWidget {
       tooltip: tooltip,
       padding: EdgeInsets.zero,
       onPressed: onTap,
-      icon: Icon(icon, color: const Color(0xFFFFC977), size: 31),
+      icon: Icon(icon, color: const Color(0xFFFFC977), size: 28),
     ),
   );
 }
@@ -1109,7 +1109,7 @@ class _SettingsEmptyPlate extends StatelessWidget {
   Widget build(BuildContext context) => _SettingsInteractivePlate(
     child: Row(
       children: [
-        _SettingsIconPlate(icon: icon, size: 50),
+        _SettingsIconPlate(icon: icon, size: 42),
         const SizedBox(width: 14),
         Expanded(
           child: Column(
