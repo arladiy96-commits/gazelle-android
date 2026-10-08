@@ -29,6 +29,7 @@ import '../services/maintenance_service.dart';
 import '../services/activity_service.dart';
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
+import 'sales_invoice_screen.dart';
 
 part 'garage_home.dart';
 part 'work_dashboard.dart';
