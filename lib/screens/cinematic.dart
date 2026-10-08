@@ -1674,195 +1674,333 @@ class _CinematicMore extends StatelessWidget {
     );
   }
 
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: showNavigation
-        ? const Color(0xFF080E12)
-        : Colors.transparent,
-    body: Stack(
-      children: [
-        if (showNavigation) backdrop(),
-        SafeArea(
-          child: Column(
+  Widget _referenceTile(
+    BuildContext context,
+    (String, String, IconData, Color) item,
+  ) => Container(
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: const Color(0xFF655D4C), width: 1.2),
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xEE202525), Color(0xF0091216)],
+      ),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x60000000),
+          blurRadius: 10,
+          offset: Offset(2, 5),
+        ),
+      ],
+    ),
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: () => open(context, item),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xB010161A),
-                        border: Border.all(color: gold),
+              Container(
+                width: 94,
+                height: 98,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFFB99260),
+                      Color(0xFF404344),
+                      Color(0xFF0D171E),
+                      Color(0xFFBD8140),
+                    ],
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x90000000),
+                      blurRadius: 10,
+                      offset: Offset(3, 5),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(2),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFF292B29),
+                        Color(0xFF071017),
+                        Color(0xFF121B21),
+                      ],
+                    ),
+                  ),
+                  child: Icon(
+                    item.$3,
+                    color: item.$4 == gold ? const Color(0xFFE6B46B) : item.$4,
+                    size: 51,
+                    shadows: const [
+                      Shadow(
+                        color: Colors.black,
+                        blurRadius: 5,
+                        offset: Offset(1, 3),
                       ),
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        icon: const Icon(Icons.chevron_left, color: gold),
-                        tooltip: 'Назад',
-                        onPressed: () => navigate(context, 0),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 18),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.$1,
+                      style: const TextStyle(
+                        color: Color(0xFFEAEDEF),
+                        fontSize: 25,
+                        fontWeight: FontWeight.w600,
+                        height: 1.12,
                       ),
                     ),
-                    const SizedBox(width: 17),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Ещё',
-                            style: TextStyle(
-                              color: Color(0xFFF1EEE6),
-                              fontSize: 27,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          SizedBox(height: 3),
-                          SizedBox(
-                            width: 48,
-                            child: Divider(
-                              color: gold,
-                              height: 3,
-                              thickness: 1.5,
-                            ),
-                          ),
-                          SizedBox(height: 6),
-                          Text(
-                            'Управление, отчёты и настройки',
-                            style: TextStyle(
-                              color: Color(0xFFC1C4C5),
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
+                    const SizedBox(height: 8),
+                    Text(
+                      item.$2,
+                      style: const TextStyle(
+                        color: Color(0xFFA0A8AC),
+                        fontSize: 20,
+                        height: 1.18,
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 5),
+              const Icon(
+                Icons.chevron_right,
+                color: Color(0xFFD6DCE0),
+                size: 32,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Widget _referenceGroup(
+    BuildContext context,
+    (String, IconData, List<(String, String, IconData, Color)>) group,
+  ) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Container(
+        margin: const EdgeInsets.only(left: 12),
+        padding: const EdgeInsets.fromLTRB(26, 13, 32, 13),
+        decoration: BoxDecoration(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(22),
+            topRight: Radius.circular(36),
+            bottomLeft: Radius.circular(12),
+            bottomRight: Radius.circular(12),
+          ),
+          border: Border.all(color: const Color(0xFFAA8754), width: 2),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF54432C), Color(0xFF192124), Color(0xFF0B151B)],
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x95000000),
+              blurRadius: 7,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(group.$2, color: const Color(0xFFE6B46B), size: 38),
+            const SizedBox(width: 24),
+            Text(
+              group.$1,
+              style: const TextStyle(
+                fontSize: 27,
+                color: Color(0xFFE6B46B),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+      Container(
+        padding: const EdgeInsets.all(21),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(color: const Color(0xFFBC9660), width: 2),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xF0222928), Color(0xF0071117), Color(0xF0182020)],
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x44000000),
+              blurRadius: 12,
+              offset: Offset(0, 7),
+            ),
+            BoxShadow(color: Color(0x45CB8C43), blurRadius: 5),
+          ],
+        ),
+        child: Column(
+          children: [
+            for (var i = 0; i < group.$3.length; i += 2) ...[
+              if (i > 0) const SizedBox(height: 14),
+              SizedBox(
+                height: 132,
+                child: Row(
+                  children: [
+                    Expanded(child: _referenceTile(context, group.$3[i])),
+                    const SizedBox(width: 18),
+                    Expanded(
+                      child: i + 1 < group.$3.length
+                          ? _referenceTile(context, group.$3[i + 1])
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ],
+  );
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFF080E12),
+    body: Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/scenes/more_reference.png',
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+          ),
+        ),
+        SafeArea(
+          child: Column(
+            children: [
               Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(22, 2, 18, 10),
-                  itemCount: groups.length,
-                  itemBuilder: (context, index) {
-                    final group = groups[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 7, top: 6),
-                            child: Row(
-                              children: [
-                                Icon(group.$2, color: gold, size: 19),
-                                const SizedBox(width: 12),
-                                Text(
-                                  group.$1,
-                                  style: const TextStyle(
-                                    color: Color(0xFF7397A9),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
+                child: LayoutBuilder(
+                  builder: (context, box) {
+                    final scale = box.maxWidth / 864;
+                    return SingleChildScrollView(
+                      child: SizedBox(
+                        width: box.maxWidth,
+                        height: math.max(box.maxHeight, 1400 * scale),
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: SizedBox(
+                            width: box.maxWidth,
+                            height: 1400 * scale,
+                            child: FittedBox(
+                              fit: BoxFit.contain,
+                              alignment: Alignment.topCenter,
+                              child: SizedBox(
+                                width: 864,
+                                height: 1400,
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    32,
+                                    22,
+                                    32,
+                                    12,
                                   ),
-                                ),
-                                const SizedBox(width: 9),
-                                const Expanded(
-                                  child: Divider(
-                                    color: Color(0xFF62605A),
-                                    height: 1,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: FractionallySizedBox(
-                              widthFactor: index == 0 ? .80 : 1.0,
-                              child: Container(
-                                decoration: panel(),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 3,
-                                ),
-                                child: Column(
-                                  children: [
-                                    for (
-                                      var i = 0;
-                                      i < group.$3.length;
-                                      i++
-                                    ) ...[
-                                      if (i > 0)
-                                        const Divider(
-                                          height: 1,
-                                          color: Color(0xFF353A3D),
-                                        ),
-                                      Material(
-                                        color: Colors.transparent,
-                                        child: InkWell(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                          onTap: () =>
-                                              open(context, group.$3[i]),
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 5,
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                badge(
-                                                  group.$3[i].$3,
-                                                  group.$3[i].$4,
-                                                ),
-                                                const SizedBox(width: 13),
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                        group.$3[i].$1,
-                                                        style: const TextStyle(
-                                                          color: Color(
-                                                            0xFFE9EAEB,
-                                                          ),
-                                                          fontSize: 11,
-                                                          fontWeight:
-                                                              FontWeight.w500,
-                                                        ),
-                                                      ),
-                                                      const SizedBox(height: 3),
-                                                      Text(
-                                                        group.$3[i].$2,
-                                                        style: const TextStyle(
-                                                          color: Color(
-                                                            0xFF90999E,
-                                                          ),
-                                                          fontSize: 9,
-                                                        ),
-                                                      ),
-                                                    ],
+                                  child: Column(
+                                    children: [
+                                      SizedBox(
+                                        height: 150,
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 80,
+                                              height: 80,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: const Color(0xDE0C1418),
+                                                border: Border.all(
+                                                  color: const Color(
+                                                    0xFFE6B46B,
                                                   ),
+                                                  width: 2,
                                                 ),
-                                                const SizedBox(width: 4),
-                                                const Icon(
-                                                  Icons.chevron_right,
-                                                  color: Color(0xFFBDC3C5),
-                                                  size: 19,
+                                              ),
+                                              child: IconButton(
+                                                onPressed: () =>
+                                                    navigate(context, 0),
+                                                tooltip: 'Назад',
+                                                icon: const Icon(
+                                                  Icons.chevron_left,
+                                                  color: Color(0xFFE6B46B),
+                                                  size: 46,
                                                 ),
-                                              ],
+                                              ),
                                             ),
-                                          ),
+                                            const SizedBox(width: 40),
+                                            const Expanded(
+                                              child: Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Ещё',
+                                                    style: TextStyle(
+                                                      color: Color(0xFFF1EEE6),
+                                                      fontSize: 58,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  SizedBox(height: 7),
+                                                  Text(
+                                                    'Управление, отчёты и настройки',
+                                                    style: TextStyle(
+                                                      color: Color(0xFFB7BBBC),
+                                                      fontSize: 25,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
+                                      for (
+                                        var i = 0;
+                                        i < groups.length;
+                                        i++
+                                      ) ...[
+                                        if (i > 0) const SizedBox(height: 24),
+                                        _referenceGroup(context, groups[i]),
+                                      ],
                                     ],
-                                  ],
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ],
+                        ),
                       ),
                     );
                   },
