@@ -29,11 +29,18 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("permanentRelease") {
+            storeFile = System.getenv("MELNITSA_KEYSTORE_PATH")?.let { file(it) }
+            storePassword = System.getenv("MELNITSA_STORE_PASSWORD")
+            keyAlias = System.getenv("MELNITSA_KEY_ALIAS")
+            keyPassword = System.getenv("MELNITSA_KEY_PASSWORD")
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("permanentRelease")
         }
     }
 }
