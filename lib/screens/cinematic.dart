@@ -1519,6 +1519,12 @@ class _CinematicMore extends StatelessWidget {
               Color(0xFF44B7D4),
             ),
             ('Настройки', 'Параметры расчётов', Icons.settings, gold),
+            (
+              'Обновление приложения',
+              'Проверить новую версию',
+              Icons.system_update,
+              gold,
+            ),
           ],
         ),
       ];
@@ -1591,6 +1597,10 @@ class _CinematicMore extends StatelessWidget {
   );
   void open(BuildContext context, (String, String, IconData, Color) item) {
     HapticFeedback.selectionClick();
+    if (item.$1 == 'Обновление приложения') {
+      _showApplicationUpdate(context);
+      return;
+    }
     if (['Сотрудники', 'Настройки'].contains(item.$1) && !session.isAdmin)
       return;
     if (item.$1 == 'Сотрудники') {

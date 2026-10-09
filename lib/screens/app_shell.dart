@@ -30,6 +30,7 @@ import '../services/maintenance_service.dart';
 import '../services/activity_service.dart';
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
+import 'app_update_dialog.dart';
 import 'sales_invoice_screen.dart';
 
 part 'garage_home.dart';
@@ -48,6 +49,24 @@ part 'loading_invoice_screen.dart';
 part 'advance_report_screen.dart';
 part 'gas_calculation_screen.dart';
 part 'calculation_settings_screen.dart';
+
+Future<void> _showApplicationUpdate(
+  BuildContext context, {
+  bool automatic = false,
+}) => showAppUpdate(
+  context,
+  automatic: automatic,
+  beforeInstall: () async {
+    await Future.wait([
+      TestStore.flush(),
+      GasReportRepository.flush(),
+      AdvanceReportRepository.flush(),
+      LoadingInvoiceRepository.flush(),
+      MoneyRepository.flush(),
+    ]);
+    await TestPreferences.flushCurrent();
+  },
+);
 
 class AppShell extends StatefulWidget {
   final AppSession session;
@@ -77,6 +96,9 @@ class _AppShellState extends State<AppShell> {
     TestStore.revision.addListener(_syncGpsTracker);
     SessionService.revision.addListener(_accountChanged);
     scheduleMicrotask(_syncGpsTracker);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showApplicationUpdate(context, automatic: true);
+    });
   }
 
   void _accountChanged() {

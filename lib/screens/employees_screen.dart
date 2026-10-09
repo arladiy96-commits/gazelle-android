@@ -3,7 +3,7 @@ part of 'app_shell.dart';
 Future<void> _openAccountMenu(BuildContext context, AppSession supplied) async {
   final session = SessionService.current ?? supplied;
   final shell = context.findAncestorStateOfType<_AppShellState>();
-  final exit = await showModalBottomSheet<bool>(
+  final exit = await showModalBottomSheet<String>(
     context: context,
     backgroundColor: const Color(0xFF101920),
     showDragHandle: true,
@@ -29,7 +29,13 @@ Future<void> _openAccountMenu(BuildContext context, AppSession supplied) async {
             ),
             const SizedBox(height: 24),
             OutlinedButton.icon(
-              onPressed: () => Navigator.pop(c, true),
+              onPressed: () => Navigator.pop(c, 'update'),
+              icon: const Icon(Icons.system_update),
+              label: const Text('Обновление приложения'),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.pop(c, 'logout'),
               icon: const Icon(Icons.logout),
               label: const Text('Выйти из учётной записи'),
             ),
@@ -38,7 +44,9 @@ Future<void> _openAccountMenu(BuildContext context, AppSession supplied) async {
       ),
     ),
   );
-  if (exit == true && context.mounted) await shell?._logout();
+  if (!context.mounted) return;
+  if (exit == 'logout') await shell?._logout();
+  if (exit == 'update') await _showApplicationUpdate(context);
 }
 
 class _LoaderPendingScreen extends StatelessWidget {
