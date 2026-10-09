@@ -16,6 +16,7 @@ dependencies:
   geolocator: ^13.0.2
   image_picker: ^1.2.1
   path_provider: ^2.1.5
+  cryptography: ^2.9.0
 
 dev_dependencies:
   flutter_test:
