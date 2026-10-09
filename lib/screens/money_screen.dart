@@ -39,9 +39,7 @@ class _MoneyScreenState extends State<MoneyScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _repository = MoneyRepository(
-      '${widget.session.role.storageValue}:${widget.session.login}',
-    );
+    _repository = MoneyRepository(widget.session.ownerKey);
     _load();
   }
 

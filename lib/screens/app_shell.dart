@@ -25,6 +25,7 @@ import '../widgets/shift_route_map.dart';
 
 import '../models/app_role.dart';
 import '../services/session_service.dart';
+import '../services/account_scope.dart';
 import '../services/maintenance_service.dart';
 import '../services/activity_service.dart';
 import '../theme/app_theme.dart';
@@ -37,6 +38,7 @@ part 'maintenance_dashboard.dart';
 part 'metric_details.dart';
 part 'garage_sections.dart';
 part 'directions_screen.dart';
+part 'employees_screen.dart';
 part 'test_mode.dart';
 part 'cinematic.dart';
 part 'statistics_dashboard.dart';
@@ -58,27 +60,39 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _index = 0;
+  bool _loggingOut = false;
+  AppSession get _session => SessionService.current ?? widget.session;
 
   void _syncGpsTracker() {
-    GpsTrackerController.instance.syncWithJournal();
+    if (!_loggingOut &&
+        _session.role != AppRole.loader &&
+        AccountScope.signedIn) {
+      GpsTrackerController.instance.syncWithJournal().catchError((Object _) {});
+    }
   }
 
   @override
   void initState() {
     super.initState();
     TestStore.revision.addListener(_syncGpsTracker);
+    SessionService.revision.addListener(_accountChanged);
     scheduleMicrotask(_syncGpsTracker);
+  }
+
+  void _accountChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    SessionService.revision.removeListener(_accountChanged);
     TestStore.revision.removeListener(_syncGpsTracker);
     GpsTrackerController.instance.dispose();
     super.dispose();
   }
 
   List<_NavItem> get _items {
-    if (widget.session.role == AppRole.loader) {
+    if (_session.role == AppRole.loader) {
       return const [
         _NavItem(
           label: 'Смена',
@@ -123,22 +137,22 @@ class _AppShellState extends State<AppShell> {
   }
 
   List<Widget> get _pages {
-    if (widget.session.role == AppRole.loader) {
+    if (_session.role == AppRole.loader) {
       return [
-        LoaderShiftPage(session: widget.session),
-        LoaderHistoryPage(session: widget.session),
+        LoaderShiftPage(session: _session),
+        LoaderHistoryPage(session: _session),
       ];
     }
 
     return [
       HomePage(
-        session: widget.session,
+        session: _session,
         onNavigate: _selectTab,
         onQuickAdd: _openQuickAdd,
       ),
       if (_index == 1)
         WorkPage(
-          session: widget.session,
+          session: _session,
           onNavigate: _selectTab,
           onQuickAdd: _openQuickAdd,
         )
@@ -146,11 +160,11 @@ class _AppShellState extends State<AppShell> {
         const SizedBox.shrink(),
       const SizedBox.shrink(),
       _MillStatistics(
-        session: widget.session,
+        session: _session,
         onHome: () => setState(() => _index = 0),
       ),
       _CinematicMore(
-        session: widget.session,
+        session: _session,
         onNavigate: _selectTab,
         showNavigation: false,
       ),
@@ -168,27 +182,51 @@ class _AppShellState extends State<AppShell> {
 
   void _openQuickAdd() {
     HapticFeedback.mediumImpact();
-    _showQuickAddMenu(context, widget.session);
+    _showQuickAddMenu(context, _session);
   }
 
   Future<void> _logout() async {
-    HapticFeedback.mediumImpact();
-    await SessionService.clear();
-
-    if (!mounted) return;
-
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
-      (_) => false,
-    );
+    if (_loggingOut) return;
+    setState(() => _loggingOut = true);
+    try {
+      await GpsTrackerController.instance.stop();
+      await Future.wait([
+        TestStore.flush(),
+        GasReportRepository.flush(),
+        AdvanceReportRepository.flush(),
+        LoadingInvoiceRepository.flush(),
+        MoneyRepository.flush(),
+      ]);
+      await TestPreferences.flushCurrent();
+      await SessionService.clear();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loggingOut = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Не удалось выйти. Повторите попытку.')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loggingOut)
+      return const Scaffold(
+        backgroundColor: Color(0xFF091219),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    if (_session.role == AppRole.loader)
+      return _LoaderPendingScreen(session: _session);
     final items = _items;
     final pages = _pages;
     final extendDock =
-        widget.session.role != AppRole.loader && (_index == 3 || _index == 4);
+        _session.role != AppRole.loader && (_index == 3 || _index == 4);
     final dockExtent = extendDock
         ? 83.0 + MediaQuery.viewPaddingOf(context).bottom
         : 0.0;
@@ -198,7 +236,7 @@ class _AppShellState extends State<AppShell> {
     }
 
     return PopScope(
-      canPop: widget.session.role == AppRole.loader || _index == 0,
+      canPop: _session.role == AppRole.loader || _index == 0,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) _selectTab(0);
       },
@@ -206,7 +244,7 @@ class _AppShellState extends State<AppShell> {
         extendBody: extendDock,
         body: Stack(
           children: [
-            if (widget.session.role != AppRole.loader &&
+            if (_session.role != AppRole.loader &&
                 (_index == 0 || _index == 3 || _index == 4))
               Positioned.fill(
                 child: _ExtendedArtwork(
@@ -220,7 +258,7 @@ class _AppShellState extends State<AppShell> {
                   fit: _index == 0 ? BoxFit.fitWidth : BoxFit.cover,
                 ),
               )
-            else if (widget.session.role != AppRole.loader)
+            else if (_session.role != AppRole.loader)
               const Positioned.fill(child: ColoredBox(color: Color(0xFF071017)))
             else
               const _AppBackground(),
@@ -231,7 +269,7 @@ class _AppShellState extends State<AppShell> {
                 removeBottom: extendDock,
                 child: SafeArea(
                   top:
-                      !(widget.session.role != AppRole.loader &&
+                      !(_session.role != AppRole.loader &&
                           (_index == 1 || _index == 4)),
                   bottom: false,
                   child: _SceneTabStage(index: _index, children: pages),
@@ -240,18 +278,17 @@ class _AppShellState extends State<AppShell> {
             ),
           ],
         ),
-        bottomNavigationBar:
-            widget.session.role != AppRole.loader && _index <= 1
+        bottomNavigationBar: _session.role != AppRole.loader && _index <= 1
             ? null
             : _BottomNavigation(
                 items: items,
                 index: _index,
                 onChanged: (value) {
-                  if (widget.session.role != AppRole.loader && value == 2) {
+                  if (_session.role != AppRole.loader && value == 2) {
                     _openQuickAdd();
                     return;
                   }
-                  if (widget.session.role != AppRole.loader && value == 4) {
+                  if (_session.role != AppRole.loader && value == 4) {
                     _selectTab(4);
                     return;
                   }

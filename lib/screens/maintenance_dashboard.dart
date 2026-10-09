@@ -127,7 +127,7 @@ class _MaintenancePageState extends State<_MaintenancePage> {
   @override
   void initState() {
     super.initState();
-    _repository = MaintenanceRepository(widget.session.login);
+    _repository = MaintenanceRepository(widget.session.ownerKey);
     _filter = widget.initialItem;
     TestStore.revision.addListener(_load);
     _load();
@@ -1752,7 +1752,7 @@ class _VehicleDocumentsPage extends StatefulWidget {
 }
 
 class _VehicleDocumentsPageState extends State<_VehicleDocumentsPage> {
-  late final repository = MaintenanceRepository(widget.session.login);
+  late final repository = MaintenanceRepository(widget.session.ownerKey);
   MaintenanceBook? book;
   String? error;
   Timer? clock;

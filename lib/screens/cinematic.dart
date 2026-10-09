@@ -1522,6 +1522,25 @@ class _CinematicMore extends StatelessWidget {
           ],
         ),
       ];
+  List<(String, IconData, List<(String, String, IconData, Color)>)>
+  get visibleGroups => [
+    for (final group in groups)
+      if (group.$3.any(
+        (item) =>
+            session.isAdmin || !['Сотрудники', 'Настройки'].contains(item.$1),
+      ))
+        (
+          group.$1,
+          group.$2,
+          [
+            for (final item in group.$3)
+              if (session.isAdmin ||
+                  !['Сотрудники', 'Настройки'].contains(item.$1))
+                item,
+          ],
+        ),
+  ];
+
   static Widget backdrop() => Positioned.fill(
     child: Image.asset(
       'assets/images/scenes/more_dashboard.png',
@@ -1572,6 +1591,18 @@ class _CinematicMore extends StatelessWidget {
   );
   void open(BuildContext context, (String, String, IconData, Color) item) {
     HapticFeedback.selectionClick();
+    if (['Сотрудники', 'Настройки'].contains(item.$1) && !session.isAdmin)
+      return;
+    if (item.$1 == 'Сотрудники') {
+      Navigator.push(
+        context,
+        _SceneRoute<void>(
+          builder: (_) =>
+              _EmployeesScreen(onNavigate: (index) => navigate(context, index)),
+        ),
+      );
+      return;
+    }
     if (item.$1 == 'Направления') {
       Navigator.push(
         context,
@@ -1612,9 +1643,7 @@ class _CinematicMore extends StatelessWidget {
       Navigator.push(
         context,
         _SceneRoute<void>(
-          builder: (_) => SalesInvoiceScreen(
-            owner: '${session.role.storageValue}:${session.login}',
-          ),
+          builder: (_) => SalesInvoiceScreen(owner: session.ownerKey),
         ),
       );
       return;
@@ -2001,9 +2030,13 @@ class _CinematicMore extends StatelessWidget {
                                       ],
                                     ),
                                   ),
-                                  for (var i = 0; i < groups.length; i++) ...[
+                                  for (
+                                    var i = 0;
+                                    i < visibleGroups.length;
+                                    i++
+                                  ) ...[
                                     if (i > 0) const SizedBox(height: 24),
-                                    _referenceGroup(context, groups[i]),
+                                    _referenceGroup(context, visibleGroups[i]),
                                   ],
                                 ],
                               ),

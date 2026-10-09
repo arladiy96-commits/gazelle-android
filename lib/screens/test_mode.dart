@@ -48,9 +48,7 @@ Future<void> _testEditor(
     await Navigator.of(context).push<void>(
       _SceneRoute<void>(
         builder: (_) => LoadingInvoiceScreen(
-          owner: session == null
-              ? 'local'
-              : '${session.role.storageValue}:${session.login}',
+          owner: session == null ? 'local' : session.ownerKey,
         ),
       ),
     );

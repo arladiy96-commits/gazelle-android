@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../models/sales_invoice.dart';
 import '../services/test_store.dart';
+import '../services/account_scope.dart';
 
 class SalesInvoiceScreen extends StatefulWidget {
   final String owner;
@@ -15,6 +16,9 @@ class SalesInvoiceScreen extends StatefulWidget {
 }
 
 class _SalesInvoiceScreenState extends State<SalesInvoiceScreen> {
+  final _scope = AccountScope.capture();
+  Future<TestPreferences> _preferences() =>
+      _scope.bind(TestPreferences.getInstance);
   static const channel = MethodChannel('melnitsa/advance_image');
   var form = GlobalKey<FormState>();
   SalesInvoice doc = SalesInvoice();
@@ -30,7 +34,7 @@ class _SalesInvoiceScreenState extends State<SalesInvoiceScreen> {
 
   Future<void> load() async {
     try {
-      final raw = (await TestPreferences.getInstance()).getString(keyName);
+      final raw = (await _preferences()).getString(keyName);
       if (raw != null)
         doc = SalesInvoice.fromJson(jsonDecode(raw) as Map<String, dynamic>);
     } catch (e) {
@@ -44,10 +48,7 @@ class _SalesInvoiceScreenState extends State<SalesInvoiceScreen> {
     final snapshot = jsonEncode(doc.toJson());
     writes = writes
         .then((_) async {
-          await (await TestPreferences.getInstance()).setString(
-            keyName,
-            snapshot,
-          );
+          await (await _preferences()).setString(keyName, snapshot);
         })
         .catchError((Object e) {
           if (mounted)
