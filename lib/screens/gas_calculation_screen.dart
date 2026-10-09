@@ -289,12 +289,53 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
   Widget _scene(GasReport? r) => LayoutBuilder(
     builder: (context, box) {
       final scale = box.maxWidth / 864;
-      final sceneHeight = math.max(box.maxHeight, box.maxWidth * 1.6);
-      final sy = sceneHeight / 1536;
-      final safeTop = MediaQuery.paddingOf(context).top / sy;
-      final safeBottom = MediaQuery.paddingOf(context).bottom / sy;
-      // Keep the physical status bar above the artwork's header.
-      final headerY = math.max(68.0, safeTop + 8);
+      // Reserve the system inset for the whole artwork, not just its labels.
+      final topShift = math.max(
+        0.0,
+        MediaQuery.paddingOf(context).top - 56 * scale,
+      );
+      final sceneHeight = math.max(box.maxHeight, 1536 * scale + topShift);
+      // Header buttons and the tank/gauge section use uniform scaling.
+      // Extra screen height belongs to the rectangular panels and keyboard.
+      final flexibleScale = (sceneHeight - topShift - 515 * scale) / 1021;
+      final sy = scale;
+      final safeBottom = MediaQuery.paddingOf(context).bottom / flexibleScale;
+      const headerY = 68.0;
+      double sceneY(double y) {
+        if (y <= 180) return topShift + y * scale;
+        final panelsTop = topShift + 180 * scale;
+        if (y <= 680) return panelsTop + (y - 180) * flexibleScale;
+        final tanksTop = panelsTop + 500 * flexibleScale;
+        if (y <= 1015) return tanksTop + (y - 680) * scale;
+        return tanksTop + 335 * scale + (y - 1015) * flexibleScale;
+      }
+
+      Widget backgroundSlice(double start, double end) {
+        final sliceScale = (sceneY(end) - sceneY(start)) / (end - start);
+        return Positioned(
+          left: 0,
+          right: 0,
+          top: sceneY(start),
+          height: sceneY(end) - sceneY(start),
+          child: ClipRect(
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: -start * sliceScale,
+                  height: 1536 * sliceScale,
+                  child: Image.asset(
+                    'assets/images/scenes/gas_calculation_reference.png',
+                    fit: BoxFit.fill,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
       final calculation = r == null ? null : _calculation(r);
       final diff = calculation?.difference;
       final accent = diff == null
@@ -334,9 +375,9 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
       Widget at(double x, double y, double w, double h, Widget child) =>
           Positioned(
             left: x * scale,
-            top: y * sy,
+            top: sceneY(y),
             width: w * scale,
-            height: h * sy,
+            height: sceneY(y + h) - sceneY(y),
             child: child,
           );
       Widget text(
@@ -558,9 +599,21 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
                     1,
                     0,
                   ]),
-                  child: Image.asset(
-                    'assets/images/scenes/gas_calculation_reference.png',
-                    fit: BoxFit.fill,
+                  child: Stack(
+                    children: [
+                      // The roof also fills the physical status-bar area.
+                      Positioned.fill(
+                        child: Image.asset(
+                          'assets/images/scenes/gas_calculation_reference.png',
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
+                        ),
+                      ),
+                      backgroundSlice(0, 180),
+                      backgroundSlice(180, 680),
+                      backgroundSlice(680, 1015),
+                      backgroundSlice(1015, 1536),
+                    ],
                   ),
                 ),
               ),
