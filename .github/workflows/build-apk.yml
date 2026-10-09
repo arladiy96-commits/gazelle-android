@@ -1,55 +1,72 @@
 name: Build APK
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: melnitsa-main-release
+  cancel-in-progress: false
+
 jobs:
   build:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      MELNITSA_KEYSTORE_PATH: ${{ runner.temp }}/melnitsa-release.jks
+      MELNITSA_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+      MELNITSA_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      MELNITSA_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Show Flutter version
-        run: flutter --version
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Analyze project
-        run: flutter analyze --no-fatal-warnings --no-fatal-infos
-
-      - name: Build release APK
-        run: flutter build apk --release
-
-      - name: Publish APK to GitHub Releases
-        if: ${{ success() && github.event_name != 'pull_request' && github.event_name != 'pull_request_target' }}
+      - name: Check source visibility and signing secrets
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         shell: bash
         run: |
           set -euo pipefail
-          apk_path="build/app/outputs/flutter-apk/app-release.apk"
-          test -s "$apk_path"
-          release_tag="apk-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          gh release create "$release_tag" "$apk_path" \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
-            --title "Мельница — сборка ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" \
-            --notes "APK из сборки ${GITHUB_RUN_NUMBER}, попытка ${GITHUB_RUN_ATTEMPT}. Коммит: ${GITHUB_SHA}."
+          if [ "$(gh repo view "$GITHUB_REPOSITORY" --json visibility --jq .visibility)" != PUBLIC ]; then
+            echo '::error::In-app updates need public release downloads. This workflow supports a public repository only. Do not make private source public just to bypass this check; configure separate public distribution first.'
+            exit 1
+          fi
+          for name in KEYSTORE_BASE64 MELNITSA_STORE_PASSWORD MELNITSA_KEY_ALIAS MELNITSA_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then echo "::error::Missing signing secret: $name. Run scripts/setup_signing.py once."; exit 1; fi
+          done
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$MELNITSA_KEYSTORE_PATH"
+          keytool -list -keystore "$MELNITSA_KEYSTORE_PATH" -storepass:env MELNITSA_STORE_PASSWORD -alias "$MELNITSA_KEY_ALIAS" > /dev/null
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Set increasing version
+        shell: bash
+        run: |
+          set -euo pipefail
+          code=$(( $(date +%s) - 1577836800 ))
+          test "$code" -gt 2
+          test "$code" -lt 2100000000
+          version=$(python3 -c "from pathlib import Path; print(next(x.split(':',1)[1].strip().split('+')[0] for x in Path('pubspec.yaml').read_text().splitlines() if x.startswith('version:')))")
+          echo "UPDATE_CODE=$code" >> "$GITHUB_ENV"
+          echo "UPDATE_VERSION=$version" >> "$GITHUB_ENV"
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-warnings --no-fatal-infos
+      - name: Test release metadata validation
+        run: dart run test/app_update_manifest_test.dart
+      - name: Build signed APK
+        run: flutter build apk --release --build-number="$UPDATE_CODE" --build-name="$UPDATE_VERSION" --dart-define="UPDATE_REPOSITORY=$GITHUB_REPOSITORY"
+      - name: Publish release
+        run: python3 scripts/publish_update.py
+      - name: Remove temporary key
+        if: always()
+        shell: bash
+        run: rm -f "$MELNITSA_KEYSTORE_PATH"
