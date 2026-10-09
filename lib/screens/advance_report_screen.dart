@@ -1436,7 +1436,29 @@ class _AdvanceExpenseEditorState extends State<_AdvanceExpenseEditor> {
                 ],
               ),
               const SizedBox(height: 10),
-              field(_direction, 'Направление (необязательно)', maxLength: 120),
+              Row(
+                children: [
+                  Expanded(
+                    child: field(
+                      _direction,
+                      'Направление (необязательно)',
+                      maxLength: 120,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Выбрать направление',
+                    icon: const Icon(
+                      Icons.expand_more,
+                      color: Color(0xFFCEA15B),
+                    ),
+                    onPressed: () async {
+                      final name = await _pickDirection(context);
+                      if (mounted && name != null)
+                        setState(() => _direction.text = name);
+                    },
+                  ),
+                ],
+              ),
               const SizedBox(height: 18),
               Text(
                 'Сумма: ${quantity <= 999999999 && price <= 99999999999 ? AdvanceRow.decimal(AdvanceRow.calculateTotal(quantity, price), 2, grouped: true) : '—'} ₸',

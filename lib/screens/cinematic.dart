@@ -1572,6 +1572,13 @@ class _CinematicMore extends StatelessWidget {
   );
   void open(BuildContext context, (String, String, IconData, Color) item) {
     HapticFeedback.selectionClick();
+    if (item.$1 == 'Направления') {
+      Navigator.push(
+        context,
+        _SceneRoute<void>(builder: (_) => const _DirectionsScreen()),
+      );
+      return;
+    }
     if (item.$1 == 'Документы') {
       Navigator.push(
         context,

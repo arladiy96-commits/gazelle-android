@@ -184,22 +184,11 @@ class _TestRecordEditorState extends State<_TestRecordEditor> {
       baseOffset: 0,
       extentOffset: draft.text.length,
     );
-    final choices = type == 'Город'
-        ? const [
-            'Султан',
-            'Петрокондитер',
-            'Великанова',
-            'Визави',
-            'Казконд',
-            'Крылова',
-          ]
-        : const [
-            'Саумалколь',
-            'Щучинск',
-            'Новоишимское',
-            'Бишкуль',
-            'Пресновка',
-          ];
+    final choices = weight ? <String>[] : await TestStore.directionNames(type);
+    if (!mounted) {
+      draft.dispose();
+      return;
+    }
     final value = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -1173,7 +1162,13 @@ class _TestRecordEditorState extends State<_TestRecordEditor> {
                     ? const ['Город', 'Район']
                     : const ['Газ', 'Бензин'],
                 selected: type,
-                onChanged: (v) => setState(() => type = v),
+                onChanged: (v) => setState(() {
+                  type = v;
+                  if (kind == 'trip') {
+                    direction.clear();
+                    paid = false;
+                  }
+                }),
               ),
               const SizedBox(height: 12),
             ],
@@ -1186,25 +1181,9 @@ class _TestRecordEditorState extends State<_TestRecordEditor> {
                     tooltip: 'Выбрать направление',
                     icon: const Icon(Icons.expand_more, color: _amber),
                     onPressed: () async {
-                      final v = await _pickQuickValue(
+                      final v = await _pickDirection(
                         context,
-                        'Направление',
-                        type == 'Город'
-                            ? const [
-                                'Султан',
-                                'Петрокондитер',
-                                'Великанова',
-                                'Визави',
-                                'Казконд',
-                                'Крылова',
-                              ]
-                            : const [
-                                'Саумалколь',
-                                'Щучинск',
-                                'Новоишимское',
-                                'Бишкуль',
-                                'Пресновка',
-                              ],
+                        type: kind == 'trip' ? type : null,
                       );
                       if (v != null) {
                         final autoPaid = await TestStore.isPaidDirection(v);
@@ -2252,19 +2231,7 @@ class _MiniInvoiceEditorState extends State<_MiniInvoiceEditor> {
         _testField(direction, 'Направление (выберите или введите)'),
       if (!closed && step == 0)
         _detailButton('Выбрать направление', () async {
-          final v = await _pickQuickValue(context, 'Направление', const [
-            'Султан',
-            'Петрокондитер',
-            'Великанова',
-            'Визави',
-            'Казконд',
-            'Крылова',
-            'Саумалколь',
-            'Щучинск',
-            'Новоишимское',
-            'Бишкуль',
-            'Пресновка',
-          ]);
+          final v = await _pickDirection(context);
           if (v != null && mounted) setState(() => direction.text = v);
         }),
       if (book == null && error == null)

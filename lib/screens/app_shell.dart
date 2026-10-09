@@ -36,6 +36,7 @@ part 'work_dashboard.dart';
 part 'maintenance_dashboard.dart';
 part 'metric_details.dart';
 part 'garage_sections.dart';
+part 'directions_screen.dart';
 part 'test_mode.dart';
 part 'cinematic.dart';
 part 'statistics_dashboard.dart';
@@ -3485,7 +3486,7 @@ class _TripEntrySheet extends StatefulWidget {
 class _TripEntrySheetState extends State<_TripEntrySheet> {
   bool _saving = false;
   String _type = 'Город';
-  String _direction = 'Петропавловск';
+  String _direction = '';
   final TextEditingController _tonnageController = TextEditingController();
 
   @override
@@ -3493,10 +3494,6 @@ class _TripEntrySheetState extends State<_TripEntrySheet> {
     _tonnageController.dispose();
     super.dispose();
   }
-
-  List<String> get _directions => _type == 'Город'
-      ? const ['Петропавловск', 'Бишкуль']
-      : const ['Пресновка', 'Щучинск', 'Новоишимское'];
 
   @override
   Widget build(BuildContext context) {
@@ -3511,20 +3508,16 @@ class _TripEntrySheetState extends State<_TripEntrySheet> {
             onChanged: (value) {
               setState(() {
                 _type = value;
-                _direction = _directions.first;
+                _direction = '';
               });
             },
           ),
           const SizedBox(height: 14),
           _QuickSelectField(
             label: 'НАПРАВЛЕНИЕ',
-            value: _direction,
+            value: _direction.isEmpty ? 'Выбрать направление' : _direction,
             onTap: () async {
-              final result = await _pickQuickValue(
-                context,
-                'Направление',
-                _directions,
-              );
+              final result = await _pickDirection(context, type: _type);
               if (result != null && mounted) {
                 setState(() => _direction = result);
               }
