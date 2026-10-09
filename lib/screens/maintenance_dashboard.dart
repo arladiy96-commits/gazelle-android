@@ -224,12 +224,11 @@ class _MaintenancePageState extends State<_MaintenancePage> {
     if (item != null && mounted) await _record(item);
   }
 
-  Widget _panel(Widget child) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(16),
-    decoration: _CinematicMore.panel(),
-    child: child,
-  );
+  static const _gold = Color(0xFFE6B46B);
+  static const _white = Color(0xFFEAEDEF);
+  static const _muted = Color(0xFFA7B0B6);
+  static const _sceneAsset = 'assets/images/scenes/maintenance_reference.png';
+  bool _newestFirst = true;
 
   @override
   Widget build(BuildContext context) {
@@ -241,259 +240,732 @@ class _MaintenancePageState extends State<_MaintenancePage> {
     final remaining = oil == null
         ? null
         : oil.odometer + oilInterval - book!.odometer;
-    final rows =
-        (book?.entries ?? <MaintenanceEntry>[]).where((e) {
-          final item = MaintenanceCatalog.byId(e.itemId);
-          return !item.usesDate &&
-              !e.example &&
-              (_filter == null || e.itemId == _filter) &&
-              '${item.title} ${e.note} ${_serviceDate(e.date)} ${e.odometer}'
-                  .toLowerCase()
-                  .contains(_query.toLowerCase());
-        }).toList()..sort((a, b) {
-          final d = b.date.compareTo(a.date);
-          return d == 0 ? b.id.compareTo(a.id) : d;
-        });
-    return Scaffold(
-      backgroundColor: const Color(0xFF0B1115),
-      body: Stack(
-        children: [
-          _CinematicMore.backdrop(),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: Column(
-                children: [
-                  Row(
+    final allRows =
+        (book?.entries ?? <MaintenanceEntry>[])
+            .where(
+              (e) => !MaintenanceCatalog.byId(e.itemId).usesDate && !e.example,
+            )
+            .toList()
+          ..sort((a, b) {
+            final d = b.date.compareTo(a.date);
+            return d == 0 ? b.id.compareTo(a.id) : d;
+          });
+    final last = allRows.isEmpty ? null : allRows.first;
+    final rows = allRows.where((e) {
+      final item = MaintenanceCatalog.byId(e.itemId);
+      return (_filter == null || e.itemId == _filter) &&
+          '${item.title} ${e.note} ${_serviceDate(e.date)} ${e.odometer}'
+              .toLowerCase()
+              .contains(_query.toLowerCase());
+    }).toList();
+    if (!_newestFirst) {
+      final ascending = rows.reversed.toList();
+      rows
+        ..clear()
+        ..addAll(ascending);
+    }
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        backgroundColor: const Color(0xFF080E12),
+        body: LayoutBuilder(
+          builder: (context, box) {
+            final sx = box.maxWidth / 864;
+            final top = math.max(
+              0.0,
+              MediaQuery.paddingOf(context).top - 56 * sx,
+            );
+            final height = math.max(box.maxHeight, 1536 * sx + top);
+            // Uniform header and truck scaling; rectangular panels take extra height.
+            final stretch = (height - top - 440 * sx) / 1096;
+            double y(double value) {
+              if (value <= 150) return top + value * sx;
+              if (value <= 545) return top + 150 * sx + (value - 150) * stretch;
+              if (value <= 835)
+                return top + 150 * sx + 395 * stretch + (value - 545) * sx;
+              return top + 440 * sx + 395 * stretch + (value - 835) * stretch;
+            }
+
+            Widget at(double x, double yy, double w, double h, Widget child) =>
+                Positioned(
+                  left: x * sx,
+                  top: y(yy),
+                  width: w * sx,
+                  height: y(yy + h) - y(yy),
+                  child: child,
+                );
+            Widget slice(double start, double end) {
+              final factor = (y(end) - y(start)) / (end - start);
+              return Positioned(
+                left: 0,
+                right: 0,
+                top: y(start),
+                height: y(end) - y(start),
+                child: ClipRect(
+                  child: Stack(
                     children: [
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back, color: _amber),
-                      ),
-                      const Expanded(
-                        child: Text(
-                          'ТО и обслуживание',
-                          style: TextStyle(
-                            color: _paper,
-                            fontSize: 23,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: _load,
-                        tooltip: 'Обновить',
-                        icon: const Icon(Icons.refresh, color: _amber),
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        top: -start * factor,
+                        height: 1536 * factor,
+                        child: Image.asset(_sceneAsset, fit: BoxFit.fill),
                       ),
                     ],
                   ),
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Text(
-                        _error!,
-                        style: const TextStyle(color: Color(0xFFD59C89)),
+                ),
+              );
+            }
+
+            Widget label(
+              String value,
+              double size, {
+              Color color = _white,
+              bool bold = false,
+              Alignment align = Alignment.centerLeft,
+            }) => Align(
+              alignment: align,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: size * sx,
+                    height: 1.12,
+                    color: color,
+                    fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+                  ),
+                ),
+              ),
+            );
+            Widget tap(Widget child, VoidCallback? action, String title) =>
+                Semantics(
+                  button: true,
+                  label: title,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: action,
+                      borderRadius: BorderRadius.circular(12 * sx),
+                      splashColor: _gold.withValues(alpha: .14),
+                      child: child,
+                    ),
+                  ),
+                );
+            Widget smallStat(
+              IconData icon,
+              String title,
+              String value,
+              String detail,
+            ) => Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: 17 * sx,
+                vertical: 13 * stretch,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icon, color: _gold, size: 38 * sx),
+                  SizedBox(width: 14 * sx),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: label(title, 19, color: _muted)),
+                        Expanded(child: label(value, 27, bold: true)),
+                        if (detail.isNotEmpty)
+                          Expanded(child: label(detail, 19, color: _muted)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+            Widget entryTile(MaintenanceEntry entry) {
+              final item = MaintenanceCatalog.byId(entry.itemId);
+              return SizedBox(
+                height: 116 * stretch,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: LayoutBuilder(
+                        builder: (_, tile) {
+                          // Reuse the exact reference frame for every live history row.
+                          final tx = tile.maxWidth / 745;
+                          final ty = tile.maxHeight / 116;
+                          return ClipRect(
+                            child: Stack(
+                              children: [
+                                Positioned(
+                                  left: -60 * tx,
+                                  top: -972 * ty,
+                                  width: 864 * tx,
+                                  height: 1536 * ty,
+                                  child: Image.asset(
+                                    _sceneAsset,
+                                    fit: BoxFit.fill,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                     ),
-                  if (book == null)
-                    const Expanded(
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else ...[
-                    _panel(
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                    Positioned.fill(
+                      child: tap(
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            42 * sx,
+                            14 * stretch,
+                            76 * sx,
+                            13 * stretch,
+                          ),
+                          child: Row(
                             children: [
-                              const Icon(
-                                Icons.oil_barrel_outlined,
-                                color: _amber,
+                              _ServiceIcon(
+                                item.icon,
+                                color: _gold,
+                                size: 59 * sx,
                               ),
-                              const SizedBox(width: 10),
-                              const Expanded(
-                                child: Text(
-                                  'Замена масла',
-                                  style: TextStyle(color: _paper, fontSize: 18),
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () =>
-                                    _record(MaintenanceCatalog.byId('oil')),
-                                child: Text(
-                                  oil == null ? 'Добавить' : 'Заменено',
+                              SizedBox(width: 26 * sx),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: label(
+                                        item.id.startsWith('other_')
+                                            ? entry.note
+                                            : item.title,
+                                        27,
+                                        bold: true,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: label(
+                                        '${_serviceDate(entry.date)} · ${_serviceKm(entry.odometer)}',
+                                        23,
+                                        color: _muted,
+                                      ),
+                                    ),
+                                    if (!item.id.startsWith('other_') &&
+                                        entry.note.isNotEmpty)
+                                      Expanded(
+                                        child: label(
+                                          entry.note,
+                                          23,
+                                          color: _muted,
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                          Text(
-                            remaining == null
-                                ? 'Добавьте последнюю замену'
-                                : remaining > 0
-                                ? 'До замены ${_fmtInt((remaining).toDouble())} км'
-                                : remaining == 0
-                                ? 'Пора менять масло'
-                                : 'Просрочено на ${_fmtInt((-remaining).toDouble())} км',
-                            style: TextStyle(
-                              fontSize: 23,
-                              fontWeight: FontWeight.w600,
-                              color: remaining != null && remaining <= 0
-                                  ? const Color(0xFFD59C89)
-                                  : _amber,
-                            ),
-                          ),
-                          if (oil != null) ...[
-                            const SizedBox(height: 8),
-                            LinearProgressIndicator(
-                              value:
-                                  ((book.odometer - oil.odometer) / oilInterval)
-                                      .clamp(0.0, 1.0),
-                              color: _amber,
-                              backgroundColor: const Color(0xFF303639),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '${_serviceDate(oil.date)} · ${_fmtInt((oil.odometer).toDouble())} км → ${_fmtInt((oil.odometer + oilInterval).toDouble())} км',
-                              style: const TextStyle(
-                                color: _paper,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 6),
-                          Text(
-                            'Текущий пробег: ${_fmtInt((book.odometer).toDouble())} км · интервал ${_fmtInt(oilInterval.toDouble())} км',
-                            style: const TextStyle(
-                              color: Color(0xFFABB8C0),
-                              fontSize: 12,
-                            ),
+                        ),
+                        () => _record(item, entry: entry),
+                        'Изменить ${item.title}',
+                      ),
+                    ),
+                    Positioned(
+                      right: 23 * sx,
+                      top: 15 * stretch,
+                      bottom: 15 * stretch,
+                      child: PopupMenuButton<String>(
+                        tooltip: 'Действия с записью',
+                        color: const Color(0xFF11191D),
+                        icon: Icon(
+                          Icons.more_vert,
+                          color: _gold,
+                          size: 36 * sx,
+                        ),
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(value: 'edit', child: Text('Изменить')),
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Text('Удалить'),
                           ),
                         ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      onChanged: (v) => setState(() => _query = v),
-                      style: const TextStyle(color: _paper),
-                      decoration: const InputDecoration(
-                        hintText: 'Найти работу, дату или пробег',
-                        prefixIcon: Icon(Icons.search, color: _amber),
-                        filled: true,
-                        fillColor: Color(0xD010181D),
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'История · ${rows.length}',
-                            style: const TextStyle(color: _paper),
-                          ),
-                        ),
-                        if (_filter != null)
-                          TextButton(
-                            onPressed: () => setState(() => _filter = null),
-                            child: const Text('Все работы'),
-                          ),
-                      ],
-                    ),
-                    Expanded(
-                      child: rows.isEmpty
-                          ? const Center(
-                              child: Text(
-                                'Записей нет. Добавьте выполненную работу.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: _paper),
-                              ),
-                            )
-                          : ListView.separated(
-                              itemCount: rows.length,
-                              separatorBuilder: (_, i) =>
-                                  const SizedBox(height: 8),
-                              itemBuilder: (_, i) {
-                                final entry = rows[i];
-                                final item = MaintenanceCatalog.byId(
-                                  entry.itemId,
-                                );
-                                return Container(
-                                  decoration: _CinematicMore.panel(),
-                                  child: ListTile(
-                                    onTap: () => _record(item, entry: entry),
-                                    title: Text(
-                                      item.id.startsWith('other_')
-                                          ? entry.note
-                                          : item.title,
-                                      style: const TextStyle(
-                                        color: _paper,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      '${_serviceDate(entry.date)} · ${_fmtInt((entry.odometer).toDouble())} км${!item.id.startsWith('other_') && entry.note.isNotEmpty ? '\n${entry.note}' : ''}',
-                                      style: const TextStyle(
-                                        color: Color(0xFFABB8C0),
-                                      ),
-                                    ),
-                                    trailing: PopupMenuButton<String>(
-                                      icon: const Icon(
-                                        Icons.more_vert,
-                                        color: _amber,
-                                      ),
-                                      itemBuilder: (_) => const [
-                                        PopupMenuItem(
-                                          value: 'edit',
-                                          child: Text('Изменить'),
-                                        ),
-                                        PopupMenuItem(
-                                          value: 'delete',
-                                          child: Text('Удалить'),
-                                        ),
-                                      ],
-                                      onSelected: (v) async {
-                                        if (v == 'edit') {
-                                          await _record(item, entry: entry);
-                                          return;
-                                        }
-                                        if (await _testConfirm(
-                                              context,
-                                              'Удалить запись обслуживания?',
-                                            ) &&
-                                            mounted) {
-                                          await _testRun(context, () async {
-                                            await _repository.delete(entry.id);
-                                            await _load();
-                                          });
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xE0192125),
-                          foregroundColor: _amber,
-                          minimumSize: const Size(0, 52),
-                          side: const BorderSide(color: Color(0xFF776044)),
-                        ),
-                        onPressed: _add,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Добавить обслуживание'),
+                        onSelected: (v) async {
+                          if (v == 'edit') {
+                            await _record(item, entry: entry);
+                            return;
+                          }
+                          if (await _testConfirm(
+                                context,
+                                'Удалить запись обслуживания?',
+                              ) &&
+                              mounted) {
+                            await _testRun(context, () async {
+                              await _repository.delete(entry.id);
+                              await _load();
+                            });
+                          }
+                        },
                       ),
                     ),
                   ],
-                ],
+                ),
+              );
+            }
+
+            final oilCaption = remaining == null
+                ? 'Добавьте последнюю замену'
+                : remaining > 0
+                ? 'До замены ${_fmtInt(remaining.toDouble())} км'
+                : remaining == 0
+                ? 'Пора менять масло'
+                : 'Просрочено на ${_fmtInt((-remaining).toDouble())} км';
+            final progress = oil == null || book == null
+                ? 0.0
+                : ((book.odometer - oil.odometer) / oilInterval)
+                      .clamp(0.0, 1.0)
+                      .toDouble();
+            return SingleChildScrollView(
+              physics: height > box.maxHeight
+                  ? const ClampingScrollPhysics()
+                  : const NeverScrollableScrollPhysics(),
+              child: SizedBox(
+                width: box.maxWidth,
+                height: height,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Image.asset(
+                        _sceneAsset,
+                        fit: BoxFit.cover,
+                        alignment: Alignment.topCenter,
+                      ),
+                    ),
+                    slice(0, 150),
+                    slice(150, 545),
+                    slice(545, 835),
+                    slice(835, 1536),
+                    at(
+                      59,
+                      65,
+                      80,
+                      78,
+                      tap(
+                        Icon(
+                          Icons.arrow_back_rounded,
+                          color: _gold,
+                          size: 40 * sx,
+                        ),
+                        () => Navigator.pop(context),
+                        'Назад',
+                      ),
+                    ),
+                    at(
+                      734,
+                      65,
+                      80,
+                      78,
+                      tap(
+                        Icon(
+                          Icons.refresh_rounded,
+                          color: _gold,
+                          size: 40 * sx,
+                        ),
+                        _load,
+                        'Обновить',
+                      ),
+                    ),
+                    at(
+                      204,
+                      76,
+                      506,
+                      59,
+                      label('ТО и обслуживание', 47, bold: true),
+                    ),
+                    if (book == null)
+                      at(
+                        100,
+                        185,
+                        660,
+                        207,
+                        Center(
+                          child: _error == null
+                              ? const CircularProgressIndicator(color: _gold)
+                              : tap(
+                                  Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Text(
+                                      _error!,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(color: _white),
+                                    ),
+                                  ),
+                                  _load,
+                                  'Повторить загрузку',
+                                ),
+                        ),
+                      )
+                    else ...[
+                      at(
+                        133,
+                        204,
+                        79,
+                        58,
+                        const _ServiceIcon('oil', color: _gold, size: 34),
+                      ),
+                      at(
+                        228,
+                        202,
+                        351,
+                        34,
+                        label('Замена масла', 29, color: _muted),
+                      ),
+                      at(
+                        604,
+                        198,
+                        146,
+                        42,
+                        tap(
+                          Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0x503A593B),
+                              borderRadius: BorderRadius.circular(99),
+                              border: Border.all(
+                                color: const Color(0xFF74976B),
+                                width: .7,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  oil == null
+                                      ? Icons.add_circle_outline
+                                      : Icons.check_circle,
+                                  color: const Color(0xFFA2C397),
+                                  size: 22 * sx,
+                                ),
+                                SizedBox(width: 6 * sx),
+                                Flexible(
+                                  child: label(
+                                    oil == null ? 'Добавить' : 'Заменено',
+                                    20,
+                                    color: const Color(0xFFA2C397),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          () => _record(MaintenanceCatalog.byId('oil')),
+                          'Записать замену масла',
+                        ),
+                      ),
+                      at(
+                        226,
+                        242,
+                        516,
+                        48,
+                        label(
+                          oilCaption,
+                          41,
+                          bold: true,
+                          color: remaining != null && remaining <= 0
+                              ? const Color(0xFFD59C89)
+                              : _gold,
+                        ),
+                      ),
+                      at(
+                        135,
+                        294,
+                        610,
+                        19,
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(99),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: const Color(0xFF5A6368),
+                              ),
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                            child: Padding(
+                              padding: EdgeInsets.all(2 * sx),
+                              child: LinearProgressIndicator(
+                                value: progress,
+                                color: _gold,
+                                backgroundColor: const Color(0xFF252E34),
+                                minHeight: 8,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      at(
+                        135,
+                        327,
+                        610,
+                        29,
+                        label(
+                          oil == null
+                              ? 'Последняя замена ещё не указана'
+                              : '${_serviceDate(oil.date)} · ${_serviceKm(oil.odometer)} → ${_serviceKm(oil.odometer + oilInterval)}',
+                          25,
+                        ),
+                      ),
+                      at(
+                        135,
+                        361,
+                        610,
+                        29,
+                        label(
+                          'Текущий пробег: ${_serviceKm(book.odometer)} · интервал ${_serviceKm(oilInterval)}',
+                          23,
+                          color: _muted,
+                        ),
+                      ),
+                      at(
+                        76,
+                        432,
+                        245,
+                        99,
+                        smallStat(
+                          Icons.access_time_rounded,
+                          'Последняя работа',
+                          last == null ? '—' : _serviceDate(last.date),
+                          last == null ? '' : _serviceKm(last.odometer),
+                        ),
+                      ),
+                      at(
+                        341,
+                        432,
+                        222,
+                        99,
+                        smallStat(
+                          Icons.description_outlined,
+                          'Работ в истории',
+                          '${allRows.length}',
+                          '',
+                        ),
+                      ),
+                      at(
+                        582,
+                        432,
+                        222,
+                        99,
+                        smallStat(
+                          Icons.build_outlined,
+                          'Следующее ТО',
+                          oil == null
+                              ? '—'
+                              : _serviceKm(oil.odometer + oilInterval),
+                          remaining == null
+                              ? ''
+                              : remaining > 0
+                              ? 'через ${_serviceKm(remaining)}'
+                              : 'пора обслужить',
+                        ),
+                      ),
+                      if (_error != null)
+                        at(
+                          103,
+                          549,
+                          658,
+                          41,
+                          tap(
+                            Container(
+                              color: const Color(0xEA0B1115),
+                              child: label(
+                                _error!,
+                                23,
+                                color: const Color(0xFFD59C89),
+                              ),
+                            ),
+                            _load,
+                            'Повторить загрузку',
+                          ),
+                        ),
+                      at(
+                        94,
+                        845,
+                        670,
+                        57,
+                        TextField(
+                          onChanged: (v) => setState(() => _query = v),
+                          style: TextStyle(color: _white, fontSize: 28 * sx),
+                          textAlignVertical: TextAlignVertical.center,
+                          decoration: InputDecoration(
+                            hintText: 'Найти работу, дату или пробег',
+                            hintStyle: TextStyle(
+                              color: _muted,
+                              fontSize: 28 * sx,
+                            ),
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: _gold,
+                              size: 35 * sx,
+                            ),
+                            prefixIconConstraints: BoxConstraints(
+                              minWidth: 69 * sx,
+                            ),
+                            contentPadding: EdgeInsets.symmetric(
+                              vertical: 10 * stretch,
+                            ),
+                            filled: false,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                          ),
+                        ),
+                      ),
+                      at(
+                        74,
+                        924,
+                        231,
+                        40,
+                        label('История · ${rows.length}', 27),
+                      ),
+                      if (_filter != null)
+                        at(
+                          310,
+                          924,
+                          212,
+                          40,
+                          tap(
+                            label('Все работы', 23, color: _gold),
+                            () => setState(() => _filter = null),
+                            'Все работы',
+                          ),
+                        ),
+                      at(
+                        570,
+                        921,
+                        217,
+                        45,
+                        PopupMenuButton<bool>(
+                          tooltip: 'Порядок истории',
+                          initialValue: _newestFirst,
+                          color: const Color(0xFF11191D),
+                          onSelected: (value) =>
+                              setState(() => _newestFirst = value),
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              value: true,
+                              child: Text('Сначала новые'),
+                            ),
+                            PopupMenuItem(
+                              value: false,
+                              child: Text('Сначала старые'),
+                            ),
+                          ],
+                          child: Row(
+                            children: [
+                              Icon(Icons.sort, color: _gold, size: 28 * sx),
+                              SizedBox(width: 8 * sx),
+                              Expanded(
+                                child: label(
+                                  _newestFirst
+                                      ? 'Сначала новые'
+                                      : 'Сначала старые',
+                                  21,
+                                  color: _gold,
+                                ),
+                              ),
+                              Icon(
+                                Icons.expand_more,
+                                color: _gold,
+                                size: 25 * sx,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      at(
+                        60,
+                        972,
+                        745,
+                        354,
+                        ColoredBox(
+                          color: const Color(0xFF091015),
+                          child: rows.isEmpty
+                              ? Container(
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: const Color(0xFF776044),
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: EdgeInsets.all(28 * sx),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    _query.isNotEmpty || _filter != null
+                                        ? 'По вашему запросу ничего не найдено.'
+                                        : 'Записей нет. Добавьте выполненную работу.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: _muted,
+                                      fontSize: 25 * sx,
+                                    ),
+                                  ),
+                                )
+                              : ListView.builder(
+                                  padding: EdgeInsets.zero,
+                                  primary: false,
+                                  keyboardDismissBehavior:
+                                      ScrollViewKeyboardDismissBehavior.onDrag,
+                                  itemCount: rows.length,
+                                  itemBuilder: (_, i) => entryTile(rows[i]),
+                                ),
+                        ),
+                      ),
+                      at(
+                        150,
+                        1358,
+                        568,
+                        98,
+                        tap(
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 68 * sx,
+                                height: 68 * sx,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: _gold,
+                                    width: 2 * sx,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.add,
+                                  size: 47 * sx,
+                                  color: _gold,
+                                ),
+                              ),
+                              SizedBox(width: 20 * sx),
+                              Flexible(
+                                child: label(
+                                  'Добавить обслуживание',
+                                  31,
+                                  color: _gold,
+                                  bold: true,
+                                ),
+                              ),
+                            ],
+                          ),
+                          _add,
+                          'Добавить обслуживание',
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
-          ),
-        ],
+            );
+          },
+        ),
       ),
     );
   }
