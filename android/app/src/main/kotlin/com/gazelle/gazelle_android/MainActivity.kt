@@ -18,6 +18,8 @@ import io.flutter.plugin.common.MethodChannel
 class MoneyShareFileProvider : FileProvider()
 
 class MainActivity : FlutterActivity() {
+    private var updateChannel: MethodChannel? = null
+    private val appUpdate by lazy { AppUpdateBridge(this) }
     private var advanceChannel: MethodChannel? = null
     private val advanceExport by lazy { AdvanceImageExport(this) }
     private var moneyShareChannel: MethodChannel? = null
@@ -30,6 +32,10 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        updateChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "melnitsa/app_update")
+        updateChannel?.setMethodCallHandler { call, result ->
+            appUpdate.handle(call.method, call.arguments as? Map<*, *> ?: emptyMap<Any, Any>(), result)
+        }
         advanceChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "melnitsa/advance_image")
         advanceChannel?.setMethodCallHandler { call, result ->
             advanceExport.handle(call.method, call.arguments as? Map<*, *> ?: emptyMap<Any, Any>(), result)
@@ -190,6 +196,8 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        updateChannel?.setMethodCallHandler(null)
+        updateChannel = null
         advanceChannel?.setMethodCallHandler(null)
         advanceChannel = null
         moneyShareChannel?.setMethodCallHandler(null)
