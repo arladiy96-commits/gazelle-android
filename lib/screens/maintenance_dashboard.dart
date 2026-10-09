@@ -1874,122 +1874,414 @@ class _VehicleDocumentsPageState extends State<_VehicleDocumentsPage> {
     if (mounted) await load();
   }
 
+  bool _editingDocument = false;
+  Future<void> _updateDocument(MaintenanceItem item) async {
+    if (book == null || _editingDocument) return;
+    _editingDocument = true;
+    try {
+      await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => _VehicleDocumentDatesDialog(
+          item: item,
+          entry: book!.latest(item.id),
+          repository: repository,
+        ),
+      );
+      if (mounted) await load();
+    } finally {
+      _editingDocument = false;
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFF0B1115),
-    body: Stack(
-      children: [
-        _CinematicMore.backdrop(),
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back, color: _amber),
-                    ),
-                    const Expanded(
-                      child: Text(
-                        'Документы',
-                        style: TextStyle(
-                          color: _paper,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: load,
-                      tooltip: 'Обновить данные',
-                      icon: const Icon(Icons.refresh, color: _amber),
-                    ),
-                  ],
+  Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
+    value: const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.light,
+    ),
+    child: Scaffold(
+      backgroundColor: const Color(0xFF080E12),
+      body: LayoutBuilder(
+        builder: (context, box) {
+          const gold = Color(0xFFE6B46B),
+              white = Color(0xFFEAEDEF),
+              muted = Color(0xFFA7B0B6);
+          final sx = box.maxWidth / 864;
+          final height = math.max(box.maxHeight, 1536 * sx);
+          final sy = height / 1536;
+          Widget at(double x, double y, double w, double h, Widget child) =>
+              Positioned(
+                left: x * sx,
+                top: y * sy,
+                width: w * sx,
+                height: h * sy,
+                child: child,
+              );
+          Widget text(
+            String value,
+            double size, {
+            Color color = white,
+            bool bold = false,
+            Alignment align = Alignment.centerLeft,
+          }) => Align(
+            alignment: align,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: size * sx,
+                  color: color,
+                  height: 1.1,
+                  fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
                 ),
-                if (error != null)
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text(
-                      error!,
-                      style: const TextStyle(color: Color(0xFFD59C89)),
+              ),
+            ),
+          );
+          Widget tap(Widget child, VoidCallback? action, String label) =>
+              Semantics(
+                button: true,
+                label: label,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: action,
+                    borderRadius: BorderRadius.circular(10 * sx),
+                    splashColor: gold.withValues(alpha: .12),
+                    child: child,
+                  ),
+                ),
+              );
+          List<Widget> panel(String id, double offset) {
+            final item = MaintenanceCatalog.byId(id);
+            final entry = book?.latest(id);
+            final remaining = entry?.nextDate == null
+                ? null
+                : days(entry!.nextDate!);
+            final future = entry != null && days(entry.date) > 0;
+            final expired = remaining != null && remaining < 0;
+            final urgent = remaining != null && remaining <= 30;
+            final label = remaining == null
+                ? 'Укажите даты'
+                : expired
+                ? 'Истёк'
+                : remaining == 0
+                ? 'Истекает сегодня'
+                : future
+                ? 'Ещё не действует'
+                : urgent
+                ? 'Скоро истекает'
+                : 'Действует';
+            final color = remaining == null || future && !expired
+                ? gold
+                : urgent
+                ? const Color(0xFFE86448)
+                : const Color(0xFF72D69A);
+            final counterTitle = remaining == null
+                ? 'Осталось дней'
+                : expired
+                ? 'Просрочено'
+                : future
+                ? 'До начала'
+                : 'Осталось дней';
+            final count = remaining == null
+                ? '—'
+                : expired
+                ? '${-remaining}'
+                : future
+                ? '${days(entry.date)}'
+                : '$remaining';
+            Widget pos(double x, double y, double w, double h, Widget child) =>
+                at(x, y + offset, w, h, child);
+            return [
+              // A tap on the panel opens the existing document details sheet.
+              pos(
+                88,
+                377,
+                632,
+                361,
+                tap(
+                  const SizedBox.expand(),
+                  book == null ? null : () => open(item),
+                  'Открыть ${item.title}',
+                ),
+              ),
+              pos(
+                115,
+                395,
+                88,
+                84,
+                Icon(
+                  id == 'insurance'
+                      ? Icons.shield_outlined
+                      : Icons.fact_check_outlined,
+                  color: gold,
+                  size: 77 * sx,
+                ),
+              ),
+              pos(247, 397, 460, 49, text(item.title, 46, bold: true)),
+              pos(
+                247,
+                455,
+                274,
+                32,
+                text(
+                  id == 'insurance'
+                      ? 'Полис ОСАГО / КАСКО'
+                      : 'Диагностическая карта',
+                  23,
+                  color: muted,
+                ),
+              ),
+              pos(
+                528,
+                423,
+                185,
+                45,
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12 * sx),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: .09),
+                    borderRadius: BorderRadius.circular(16 * sx),
+                    border: Border.all(
+                      color: color.withValues(alpha: .65),
+                      width: .8,
                     ),
                   ),
-                Expanded(
-                  child: book == null
-                      ? const Center(child: CircularProgressIndicator())
-                      : ListView(
-                          children: [
-                            for (final id in ['insurance', 'inspection'])
-                              card(MaintenanceCatalog.byId(id)),
-                          ],
-                        ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        urgent && !future ? Icons.error : Icons.circle,
+                        color: color,
+                        size: 20 * sx,
+                      ),
+                      SizedBox(width: 9 * sx),
+                      Expanded(
+                        child: text(label, 23, color: color, bold: true),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
+              ),
+              pos(
+                733,
+                412,
+                54,
+                64,
+                tap(
+                  Icon(Icons.chevron_right, color: gold, size: 40 * sx),
+                  book == null ? null : () => open(item),
+                  'Сведения: ${item.title}',
+                ),
+              ),
+              pos(
+                104,
+                533,
+                37,
+                35,
+                Icon(
+                  Icons.calendar_month_outlined,
+                  color: muted,
+                  size: 32 * sx,
+                ),
+              ),
+              pos(164, 533, 306, 35, text('Дата заключения', 25, color: muted)),
+              pos(
+                501,
+                532,
+                246,
+                38,
+                text(
+                  entry == null ? '—' : _serviceDate(entry.date),
+                  33,
+                  bold: true,
+                ),
+              ),
+              pos(
+                104,
+                584,
+                37,
+                35,
+                Icon(
+                  Icons.calendar_month_outlined,
+                  color: muted,
+                  size: 32 * sx,
+                ),
+              ),
+              pos(164, 585, 306, 35, text('Дата завершения', 25, color: muted)),
+              pos(
+                501,
+                584,
+                246,
+                38,
+                text(
+                  entry?.nextDate == null
+                      ? '—'
+                      : _serviceDate(entry!.nextDate!),
+                  33,
+                  bold: true,
+                ),
+              ),
+              pos(
+                104,
+                663,
+                37,
+                41,
+                Icon(Icons.hourglass_empty_rounded, color: gold, size: 39 * sx),
+              ),
+              pos(164, 666, 168, 34, text(counterTitle, 24, color: muted)),
+              pos(
+                338,
+                655,
+                150,
+                54,
+                text(
+                  '$count${remaining == null ? "" : " дн."}',
+                  45,
+                  color: color,
+                  bold: true,
+                ),
+              ),
+              pos(
+                512,
+                650,
+                269,
+                70,
+                tap(
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 19 * sx),
+                    child: Row(
+                      children: [
+                        Icon(Icons.refresh_rounded, color: gold, size: 41 * sx),
+                        SizedBox(width: 21 * sx),
+                        Expanded(
+                          child: text('Обновить', 27, color: gold, bold: true),
+                        ),
+                        Icon(Icons.chevron_right, color: gold, size: 34 * sx),
+                      ],
+                    ),
+                  ),
+                  book == null ? null : () => _updateDocument(item),
+                  'Обновить даты: ${item.title}',
+                ),
+              ),
+              // Keep taps on labels and dates equivalent to tapping the card.
+              pos(
+                88,
+                377,
+                632,
+                264,
+                ExcludeSemantics(
+                  child: tap(
+                    const SizedBox.expand(),
+                    book == null ? null : () => open(item),
+                    'Открыть документ',
+                  ),
+                ),
+              ),
+              pos(
+                88,
+                646,
+                407,
+                92,
+                ExcludeSemantics(
+                  child: tap(
+                    const SizedBox.expand(),
+                    book == null ? null : () => open(item),
+                    'Открыть документ',
+                  ),
+                ),
+              ),
+            ];
+          }
+
+          return SingleChildScrollView(
+            physics: height > box.maxHeight
+                ? const ClampingScrollPhysics()
+                : const NeverScrollableScrollPhysics(),
+            child: SizedBox(
+              height: height,
+              width: box.maxWidth,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: Image.asset(
+                      'assets/images/scenes/documents_reference.png',
+                      fit: BoxFit.fill,
+                    ),
+                  ),
+                  at(
+                    54,
+                    150,
+                    65,
+                    68,
+                    tap(
+                      Icon(
+                        Icons.arrow_back_rounded,
+                        color: gold,
+                        size: 48 * sx,
+                      ),
+                      () => Navigator.pop(context),
+                      'Назад',
+                    ),
+                  ),
+                  at(150, 151, 561, 68, text('Документы', 57, bold: true)),
+                  at(
+                    752,
+                    150,
+                    69,
+                    68,
+                    tap(
+                      Icon(Icons.refresh_rounded, color: gold, size: 51 * sx),
+                      load,
+                      'Обновить данные',
+                    ),
+                  ),
+                  if (error != null)
+                    at(
+                      86,
+                      250,
+                      694,
+                      67,
+                      tap(
+                        Container(
+                          color: const Color(0xDC10171B),
+                          padding: EdgeInsets.all(8 * sx),
+                          child: text(
+                            error!,
+                            25,
+                            color: const Color(0xFFE7A087),
+                          ),
+                        ),
+                        load,
+                        'Повторить загрузку',
+                      ),
+                    ),
+                  if (book == null && error == null)
+                    at(
+                      310,
+                      510,
+                      244,
+                      122,
+                      const Center(
+                        child: CircularProgressIndicator(color: gold),
+                      ),
+                    )
+                  else ...[
+                    ...panel('insurance', 0),
+                    ...panel('inspection', 473),
+                  ],
+                ],
+              ),
             ),
-          ),
-        ),
-      ],
+          );
+        },
+      ),
     ),
   );
-  Widget card(MaintenanceItem item) {
-    final entry = book!.latest(item.id);
-    final urgent = entry?.nextDate != null && days(entry!.nextDate!) <= 30;
-    return Container(
-      margin: const EdgeInsets.only(top: 14),
-      decoration: _CinematicMore.panel(),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(17),
-          onTap: () => open(item),
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      item.id == 'insurance'
-                          ? Icons.shield_outlined
-                          : Icons.fact_check_outlined,
-                      color: _amber,
-                      size: 28,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        item.title,
-                        style: const TextStyle(
-                          color: _paper,
-                          fontSize: 21,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const Icon(Icons.chevron_right, color: _amber),
-                  ],
-                ),
-                const SizedBox(height: 22),
-                dates(entry),
-                const SizedBox(height: 20),
-                Text(
-                  status(entry),
-                  style: TextStyle(
-                    color: urgent ? const Color(0xFFD59C89) : _amber,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _VehicleDocumentDatesDialog extends StatefulWidget {
