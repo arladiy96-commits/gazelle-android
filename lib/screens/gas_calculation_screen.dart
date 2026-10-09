@@ -575,48 +575,24 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
           child: Stack(
             children: [
               Positioned.fill(
-                child: ColorFiltered(
-                  // Same graphite / warm metal matrix used by the gas report panels.
-                  colorFilter: const ColorFilter.matrix([
-                    .84,
-                    .12,
-                    .04,
-                    0,
-                    0,
-                    .08,
-                    .70,
-                    .06,
-                    0,
-                    0,
-                    .04,
-                    .40,
-                    .24,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    1,
-                    0,
-                  ]),
-                  child: Stack(
-                    children: [
-                      // The roof also fills the physical status-bar area.
-                      Positioned.fill(
-                        child: Image.asset(
-                          'assets/images/scenes/gas_calculation_reference.png',
-                          fit: BoxFit.cover,
-                          alignment: Alignment.topCenter,
-                        ),
+                child: Stack(
+                  children: [
+                    // The roof also fills the physical status-bar area.
+                    Positioned.fill(
+                      child: Image.asset(
+                        'assets/images/scenes/gas_calculation_reference.png',
+                        fit: BoxFit.cover,
+                        alignment: Alignment.topCenter,
                       ),
-                      backgroundSlice(0, 180),
-                      backgroundSlice(180, 680),
-                      backgroundSlice(680, 1015),
-                      backgroundSlice(1015, 1536),
-                    ],
-                  ),
+                    ),
+                    backgroundSlice(0, 180),
+                    backgroundSlice(180, 680),
+                    backgroundSlice(680, 1015),
+                    backgroundSlice(1015, 1536),
+                  ],
                 ),
               ),
+
               at(
                 94,
                 headerY,
