@@ -79,7 +79,7 @@ class AdvanceImageExport(private val activity: Activity) {
                     activity.startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                         addCategory(Intent.CATEGORY_OPENABLE)
                         type = if (args["kind"] == "invoice") "application/pdf" else "image/png"
-                        putExtra(Intent.EXTRA_TITLE, "${when (args["kind"]) { "invoice" -> "invoice"; "gas" -> "gas_report"; else -> "avans" }}_${System.currentTimeMillis()}.${if (args["kind"] == "invoice") "pdf" else "png"}")
+                        putExtra(Intent.EXTRA_TITLE, "${when (args["kind"]) { "invoice" -> "invoice"; "gas" -> "gas_report"; "maintenance" -> "maintenance_report"; else -> "avans" }}_${System.currentTimeMillis()}.${if (args["kind"] == "invoice") "pdf" else "png"}")
                     }, requestCode)
                 } catch (e: Exception) {
                     pending = null; pendingBytes = null
