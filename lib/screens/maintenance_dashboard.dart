@@ -122,7 +122,6 @@ class _MaintenancePageState extends State<_MaintenancePage> {
   late final MaintenanceRepository _repository;
   MaintenanceBook? _book;
   String? _error;
-  String _query = '';
   String? _filter;
   int _loadId = 0;
   @override
@@ -251,13 +250,9 @@ class _MaintenancePageState extends State<_MaintenancePage> {
             return d == 0 ? b.id.compareTo(a.id) : d;
           });
     final last = allRows.isEmpty ? null : allRows.first;
-    final rows = allRows.where((e) {
-      final item = MaintenanceCatalog.byId(e.itemId);
-      return (_filter == null || e.itemId == _filter) &&
-          '${item.title} ${e.note} ${_serviceDate(e.date)} ${e.odometer}'
-              .toLowerCase()
-              .contains(_query.toLowerCase());
-    }).toList();
+    final rows = allRows
+        .where((e) => _filter == null || e.itemId == _filter)
+        .toList();
     if (!_newestFirst) {
       final ascending = rows.reversed.toList();
       rows
@@ -299,6 +294,48 @@ class _MaintenancePageState extends State<_MaintenancePage> {
                   height: y(yy + h) - y(yy),
                   child: child,
                 );
+            // All oil-panel elements share the same plane as its metal frame.
+            // The right edge of the reference is 8 px lower over 660 px.
+            Widget oilAt(
+              double x,
+              double yy,
+              double w,
+              double h,
+              Widget child,
+            ) => at(
+              x,
+              yy + (x - 135) * 8 / 660,
+              w,
+              h,
+              Transform(
+                alignment: Alignment.topLeft,
+                transform: Matrix4.identity()
+                  ..setEntry(1, 0, (8 / 660) * stretch / sx),
+                child: child,
+              ),
+            );
+            Widget historySurface(Widget child) => LayoutBuilder(
+              builder: (_, panel) {
+                final tx = panel.maxWidth / 620;
+                final ty = panel.maxHeight / 195;
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(8 * sx),
+                  child: Stack(
+                    children: [
+                      // A clean metal surface, without painted rows or a flat black gap.
+                      Positioned(
+                        left: -125 * tx,
+                        top: -195 * ty,
+                        width: 864 * tx,
+                        height: 1536 * ty,
+                        child: Image.asset(_sceneAsset, fit: BoxFit.fill),
+                      ),
+                      Positioned.fill(child: child),
+                    ],
+                  ),
+                );
+              },
+            );
             Widget slice(double start, double end) {
               final factor = (y(end) - y(start)) / (end - start);
               return Positioned(
@@ -608,21 +645,21 @@ class _MaintenancePageState extends State<_MaintenancePage> {
                         ),
                       )
                     else ...[
-                      at(
+                      oilAt(
                         133,
                         204,
                         79,
                         58,
                         const _ServiceIcon('oil', color: _gold, size: 34),
                       ),
-                      at(
+                      oilAt(
                         228,
                         202,
                         351,
                         34,
                         label('Замена масла', 29, color: _muted),
                       ),
-                      at(
+                      oilAt(
                         604,
                         198,
                         146,
@@ -662,7 +699,7 @@ class _MaintenancePageState extends State<_MaintenancePage> {
                           'Записать замену масла',
                         ),
                       ),
-                      at(
+                      oilAt(
                         226,
                         242,
                         516,
@@ -676,7 +713,7 @@ class _MaintenancePageState extends State<_MaintenancePage> {
                               : _gold,
                         ),
                       ),
-                      at(
+                      oilAt(
                         135,
                         294,
                         610,
@@ -702,7 +739,7 @@ class _MaintenancePageState extends State<_MaintenancePage> {
                           ),
                         ),
                       ),
-                      at(
+                      oilAt(
                         135,
                         327,
                         610,
@@ -714,7 +751,7 @@ class _MaintenancePageState extends State<_MaintenancePage> {
                           25,
                         ),
                       ),
-                      at(
+                      oilAt(
                         135,
                         361,
                         610,
@@ -787,41 +824,8 @@ class _MaintenancePageState extends State<_MaintenancePage> {
                           ),
                         ),
                       at(
-                        94,
-                        845,
-                        670,
-                        57,
-                        TextField(
-                          onChanged: (v) => setState(() => _query = v),
-                          style: TextStyle(color: _white, fontSize: 28 * sx),
-                          textAlignVertical: TextAlignVertical.center,
-                          decoration: InputDecoration(
-                            hintText: 'Найти работу, дату или пробег',
-                            hintStyle: TextStyle(
-                              color: _muted,
-                              fontSize: 28 * sx,
-                            ),
-                            prefixIcon: Icon(
-                              Icons.search,
-                              color: _gold,
-                              size: 35 * sx,
-                            ),
-                            prefixIconConstraints: BoxConstraints(
-                              minWidth: 69 * sx,
-                            ),
-                            contentPadding: EdgeInsets.symmetric(
-                              vertical: 10 * stretch,
-                            ),
-                            filled: false,
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                          ),
-                        ),
-                      ),
-                      at(
                         74,
-                        924,
+                        853,
                         231,
                         40,
                         label('История · ${rows.length}', 27),
@@ -829,7 +833,7 @@ class _MaintenancePageState extends State<_MaintenancePage> {
                       if (_filter != null)
                         at(
                           310,
-                          924,
+                          853,
                           212,
                           40,
                           tap(
@@ -840,7 +844,7 @@ class _MaintenancePageState extends State<_MaintenancePage> {
                         ),
                       at(
                         570,
-                        921,
+                        850,
                         217,
                         45,
                         PopupMenuButton<bool>(
@@ -883,12 +887,11 @@ class _MaintenancePageState extends State<_MaintenancePage> {
                       ),
                       at(
                         60,
-                        972,
+                        914,
                         745,
-                        354,
-                        ColoredBox(
-                          color: const Color(0xFF091015),
-                          child: rows.isEmpty
+                        420,
+                        historySurface(
+                          rows.isEmpty
                               ? Container(
                                   decoration: BoxDecoration(
                                     border: Border.all(
@@ -899,7 +902,7 @@ class _MaintenancePageState extends State<_MaintenancePage> {
                                   padding: EdgeInsets.all(28 * sx),
                                   alignment: Alignment.center,
                                   child: Text(
-                                    _query.isNotEmpty || _filter != null
+                                    _filter != null
                                         ? 'По вашему запросу ничего не найдено.'
                                         : 'Записей нет. Добавьте выполненную работу.',
                                     textAlign: TextAlign.center,
