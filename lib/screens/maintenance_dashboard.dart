@@ -223,6 +223,191 @@ class _MaintenancePageState extends State<_MaintenancePage> {
     if (item != null && mounted) await _record(item);
   }
 
+  bool _makingBlank = false;
+
+  Future<void> _openBlank() async {
+    if (_makingBlank) return;
+    _makingBlank = true;
+    try {
+      final now = DateUtils.dateOnly(DateTime.now());
+      var mode = 'month';
+      var month = DateTime(now.year, now.month);
+      var day = now;
+      var range = DateTimeRange(start: now, end: now);
+      final period = await showDialog<DateTimeRange>(
+        context: context,
+        builder: (dialog) => StatefulBuilder(
+          builder: (dialog, update) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF11191D),
+              title: const Text('Бланк обслуживания'),
+              content: SizedBox(
+                width: 340,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: mode,
+                      dropdownColor: const Color(0xFF11191D),
+                      decoration: const InputDecoration(labelText: 'Период'),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'month',
+                          child: Text('За месяц'),
+                        ),
+                        DropdownMenuItem(value: 'day', child: Text('За день')),
+                        DropdownMenuItem(
+                          value: 'range',
+                          child: Text('Произвольный период'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) update(() => mode = value);
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    if (mode == 'month')
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: () => update(
+                              () =>
+                                  month = DateTime(month.year, month.month - 1),
+                            ),
+                            icon: const Icon(Icons.chevron_left),
+                          ),
+                          Expanded(
+                            child: Text(
+                              '${_garageMonths[month.month - 1]} ${month.year}',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => update(
+                              () =>
+                                  month = DateTime(month.year, month.month + 1),
+                            ),
+                            icon: const Icon(Icons.chevron_right),
+                          ),
+                        ],
+                      )
+                    else
+                      TextButton.icon(
+                        icon: const Icon(Icons.calendar_month_outlined),
+                        label: Text(
+                          mode == 'day'
+                              ? _serviceDate(day)
+                              : '${_serviceDate(range.start)} — ${_serviceDate(range.end)}',
+                        ),
+                        onPressed: () async {
+                          if (mode == 'day') {
+                            final picked = await showDatePicker(
+                              context: dialog,
+                              initialDate: day,
+                              firstDate: DateTime(1900),
+                              lastDate: DateTime(2100, 12, 31),
+                            );
+                            if (picked != null && dialog.mounted)
+                              update(() => day = picked);
+                          } else {
+                            final picked = await showDateRangePicker(
+                              context: dialog,
+                              initialDateRange: range,
+                              firstDate: DateTime(1900),
+                              lastDate: DateTime(2100, 12, 31),
+                              helpText: 'Период обслуживания',
+                              saveText: 'Выбрать',
+                            );
+                            if (picked != null && dialog.mounted)
+                              update(() => range = picked);
+                          }
+                        },
+                      ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Дата, пробег, вид работы и что сделано. Все работы выбранного периода.',
+                      style: TextStyle(color: _muted, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialog),
+                  child: const Text('Отмена'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(
+                    dialog,
+                    mode == 'month'
+                        ? DateTimeRange(
+                            start: month,
+                            end: DateTime(month.year, month.month + 1, 0),
+                          )
+                        : mode == 'day'
+                        ? DateTimeRange(start: day, end: day)
+                        : range,
+                  ),
+                  child: const Text('Создать бланк'),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+      if (period == null || !mounted) return;
+      final book = await _repository.load();
+      if (!mounted) return;
+      final endExclusive = DateTime(
+        period.end.year,
+        period.end.month,
+        period.end.day + 1,
+      );
+      final entries =
+          book.entries
+              .where(
+                (e) =>
+                    !e.example &&
+                    !MaintenanceCatalog.byId(e.itemId).usesDate &&
+                    !e.date.isBefore(period.start) &&
+                    e.date.isBefore(endExclusive),
+              )
+              .toList()
+            ..sort((a, b) {
+              final d = a.date.compareTo(b.date);
+              return d == 0 ? a.id.compareTo(b.id) : d;
+            });
+      if (entries.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'За выбранный период работ нет. Выберите другой период.',
+            ),
+          ),
+        );
+        return;
+      }
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => _MaintenanceBlankPreview(
+            entries: entries,
+            period: period,
+            name: widget.session.displayName,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Не удалось подготовить бланк. Повторите попытку.'),
+          ),
+        );
+    } finally {
+      _makingBlank = false;
+    }
+  }
+
   static const _gold = Color(0xFFE6B46B);
   static const _white = Color(0xFFEAEDEF);
   static const _muted = Color(0xFFA7B0B6);
@@ -606,12 +791,12 @@ class _MaintenancePageState extends State<_MaintenancePage> {
                       78,
                       tap(
                         Icon(
-                          Icons.refresh_rounded,
+                          Icons.description_outlined,
                           color: _gold,
                           size: 40 * sx,
                         ),
-                        _load,
-                        'Обновить',
+                        _openBlank,
+                        'Создать бланк обслуживания',
                       ),
                     ),
                     at(
@@ -1933,6 +2118,330 @@ class _VehicleDocumentDatesDialogState
           child: Text(saving ? 'Сохранение…' : 'Сохранить'),
         ),
       ],
+    ),
+  );
+}
+
+// Print-oriented A4 pages. Text is measured and split before rasterization;
+// even a note longer than one page is kept in full.
+class _MaintenanceBlankPreview extends StatefulWidget {
+  final List<MaintenanceEntry> entries;
+  final DateTimeRange period;
+  final String name;
+  const _MaintenanceBlankPreview({
+    required this.entries,
+    required this.period,
+    required this.name,
+  });
+  @override
+  State<_MaintenanceBlankPreview> createState() =>
+      _MaintenanceBlankPreviewState();
+}
+
+class _MaintenanceBlankPreviewState extends State<_MaintenanceBlankPreview> {
+  static const _channel = MethodChannel('melnitsa/advance_image');
+  final List<dynamic> _pages = [];
+  int _page = 0;
+  bool _loading = true, _saving = false;
+  String? _error;
+  static const _widths = [48.0, 148.0, 172.0, 260.0, 492.0];
+
+  TextPainter _text(String value, {double size = 21, bool bold = false}) =>
+      TextPainter(
+        text: TextSpan(
+          text: value,
+          style: TextStyle(
+            color: Colors.black,
+            fontFamily: 'Roboto',
+            fontSize: size,
+            height: 1.2,
+            fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+
+  List<String> _wrap(String value, double width) {
+    final lines = <String>[];
+    for (final paragraph in value.replaceAll('\r', '').split('\n')) {
+      var line = '';
+      // Runes avoid breaking a UTF-16 surrogate pair in a saved description.
+      for (final rune in paragraph.runes) {
+        final candidate = '$line${String.fromCharCode(rune)}';
+        final measured = _text(candidate)..layout();
+        final tooWide = measured.width > width;
+        measured.dispose();
+        if (tooWide && line.isNotEmpty) {
+          lines.add(line);
+          line = String.fromCharCode(rune);
+        } else {
+          line = candidate;
+        }
+      }
+      lines.add(line);
+    }
+    return lines;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _render();
+  }
+
+  Future<void> _render() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+      _pages.clear();
+      _page = 0;
+    });
+    try {
+      // Each segment: row number, wrapped cells, first line, line count.
+      final layouts =
+          <List<({List<List<String>> cells, int offset, int count})>>[[]];
+      var used = 0;
+      const capacity = 44;
+      for (var i = 0; i < widget.entries.length; i++) {
+        final entry = widget.entries[i];
+        final item = MaintenanceCatalog.byId(entry.itemId);
+        final values = [
+          '${i + 1}',
+          _serviceDate(entry.date),
+          _serviceKm(entry.odometer),
+          item.id.startsWith('other_')
+              ? 'Другая работа · ${item.category}'
+              : item.title,
+          entry.note.trim().isEmpty ? '—' : entry.note,
+        ];
+        final cells = [
+          for (var c = 0; c < values.length; c++)
+            _wrap(values[c], _widths[c] - 16),
+        ];
+        final length = cells.map((c) => c.length).reduce(math.max);
+        var offset = 0;
+        while (offset < length) {
+          if (used >= capacity) {
+            layouts.add([]);
+            used = 0;
+          }
+          // One extra line of space accounts for cell padding and border.
+          final count = math.min(length - offset, capacity - used - 1);
+          if (count <= 0) {
+            layouts.add([]);
+            used = 0;
+            continue;
+          }
+          layouts.last.add((cells: cells, offset: offset, count: count));
+          used += count + 1;
+          offset += count;
+        }
+      }
+      for (var page = 0; page < layouts.length; page++) {
+        if (!mounted) return;
+        final recorder = PictureRecorder();
+        final canvas = Canvas(recorder);
+        canvas.drawRect(
+          const Rect.fromLTWH(0, 0, 1240, 1754),
+          Paint()..color = Colors.white,
+        );
+        void draw(
+          String value,
+          double x,
+          double y, {
+          double size = 21,
+          bool bold = false,
+          double width = 1120,
+        }) {
+          final p = _text(value, size: size, bold: bold)
+            ..layout(maxWidth: width);
+          p.paint(canvas, Offset(x, y));
+          p.dispose();
+        }
+
+        draw('МЕЛЬНИЦА', 60, 48, size: 24, bold: true);
+        draw('ОТЧЁТ ПО ТО И ОБСЛУЖИВАНИЮ', 60, 98, size: 32, bold: true);
+        draw(
+          'Период: ${_serviceDate(widget.period.start)} — ${_serviceDate(widget.period.end)}',
+          60,
+          155,
+          size: 23,
+        );
+        // A single-line employee name is scaled to fit the document header.
+        final name = _text('Сотрудник: ${widget.name}', size: 22)..layout();
+        final nameScale = math.min(1.0, 1120 / math.max(1.0, name.width));
+        canvas.save();
+        canvas.translate(60, 195);
+        canvas.scale(nameScale);
+        name.paint(canvas, Offset.zero);
+        canvas.restore();
+        name.dispose();
+        var y = 248.0;
+        final border = Paint()
+          ..color = const Color(0xFF454545)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1;
+        final titles = ['№', 'Дата', 'Пробег', 'Вид работы', 'Что сделано'];
+        var x = 60.0;
+        for (var c = 0; c < titles.length; c++) {
+          final rect = Rect.fromLTWH(x, y, _widths[c], 48);
+          canvas.drawRect(rect, Paint()..color = const Color(0xFFF0F0F0));
+          canvas.drawRect(rect, border);
+          draw(
+            titles[c],
+            x + 8,
+            y + 10,
+            size: 20,
+            bold: true,
+            width: _widths[c] - 16,
+          );
+          x += _widths[c];
+        }
+        y += 48;
+        for (final row in layouts[page]) {
+          final height = (row.count + 1) * 27.0;
+          x = 60;
+          for (var c = 0; c < row.cells.length; c++) {
+            canvas.drawRect(Rect.fromLTWH(x, y, _widths[c], height), border);
+            final lines = row.cells[c]
+                .skip(row.offset)
+                .take(row.count)
+                .toList();
+            for (var l = 0; l < lines.length; l++) {
+              draw(lines[l], x + 8, y + 10 + l * 27, width: _widths[c] - 16);
+            }
+            x += _widths[c];
+          }
+          y += height;
+        }
+        if (page == layouts.length - 1) {
+          draw(
+            'Всего работ за период: ${widget.entries.length}',
+            60,
+            y + 26,
+            size: 23,
+            bold: true,
+          );
+        } else {
+          draw('Продолжение на следующем листе', 60, y + 26, size: 20);
+        }
+        draw(
+          'Лист ${page + 1} из ${layouts.length}',
+          990,
+          1655,
+          size: 20,
+          width: 190,
+        );
+        draw(
+          'Сформировано ${_serviceDate(DateTime.now())}',
+          60,
+          1655,
+          size: 20,
+        );
+        final picture = recorder.endRecording();
+        final image = await picture.toImage(1240, 1754);
+        picture.dispose();
+        final data = await image.toByteData(format: ImageByteFormat.png);
+        image.dispose();
+        if (data == null) throw StateError('PNG encoding failed');
+        if (!mounted) return;
+        _pages.add(data.buffer.asUint8List());
+      }
+      if (mounted) setState(() => _loading = false);
+    } catch (_) {
+      if (mounted)
+        setState(() {
+          _loading = false;
+          _error = 'Не удалось сформировать бланк.';
+        });
+    }
+  }
+
+  Future<void> _save() async {
+    if (_saving || _loading || _pages.isEmpty) return;
+    setState(() => _saving = true);
+    try {
+      final saved = await _channel.invokeMethod<bool>('save', {
+        'bytes': _pages[_page],
+        'kind': 'maintenance',
+      });
+      if (saved == true && mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Лист ${_page + 1} сохранён')));
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Не удалось сохранить лист. Повторите попытку.'),
+          ),
+        );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => PopScope(
+    canPop: !_saving,
+    child: Scaffold(
+      backgroundColor: const Color(0xFF111619),
+      appBar: AppBar(
+        title: const Text('Бланк обслуживания'),
+        automaticallyImplyLeading: !_saving,
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                  ? Center(
+                      child: TextButton(
+                        onPressed: _render,
+                        child: Text('$_error Повторить'),
+                      ),
+                    )
+                  : InteractiveViewer(
+                      key: ValueKey(_page),
+                      minScale: 1,
+                      maxScale: 6,
+                      child: Center(
+                        child: Image.memory(_pages[_page], fit: BoxFit.contain),
+                      ),
+                    ),
+            ),
+            if (!_loading && _error == null) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    onPressed: _saving || _page == 0
+                        ? null
+                        : () => setState(() => _page--),
+                    icon: const Icon(Icons.chevron_left),
+                  ),
+                  Text('Лист ${_page + 1} из ${_pages.length}'),
+                  IconButton(
+                    onPressed: _saving || _page + 1 >= _pages.length
+                        ? null
+                        : () => setState(() => _page++),
+                    icon: const Icon(Icons.chevron_right),
+                  ),
+                ],
+              ),
+              TextButton.icon(
+                onPressed: _saving ? null : _save,
+                icon: const Icon(Icons.save_alt),
+                label: Text(
+                  _saving ? 'Сохранение…' : 'Сохранить этот лист как картинку',
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     ),
   );
 }
