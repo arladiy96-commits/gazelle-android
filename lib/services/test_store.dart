@@ -139,19 +139,77 @@ class SalaryRates {
 }
 
 class TestState {
+  final List<Map<String, dynamic>> directions;
+  static String directionKey(String name) =>
+      name.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+  static List<Map<String, dynamic>> defaultDirections() => [
+    for (final name in [
+      'Султан',
+      'Петрокондитер',
+      'Великанова',
+      'Визави',
+      'Казконд',
+      'Крылова',
+      'Петропавловск',
+    ])
+      {'id': 'city:$name', 'type': 'Город', 'name': name, 'active': true},
+    for (final name in [
+      'Саумалколь',
+      'Щучинск',
+      'Новоишимское',
+      'Бишкуль',
+      'Пресновка',
+    ])
+      {'id': 'region:$name', 'type': 'Район', 'name': name, 'active': true},
+  ];
+  List<String> directionNames([String? type]) =>
+      (directions
+          .where(
+            (e) => e['active'] != false && (type == null || e['type'] == type),
+          )
+          .map((e) => e['name'] as String)
+          .toSet()
+          .toList()
+        ..sort());
+  void migrateDirections() {
+    for (final r in records.where((e) => e['kind'] == 'trip')) {
+      final name = (r['direction'] as String? ?? '').trim();
+      if (name.isEmpty || !['Город', 'Район'].contains(r['type'])) continue;
+      var match = directions
+          .where(
+            (e) =>
+                e['type'] == r['type'] &&
+                directionKey(e['name'] as String) == directionKey(name),
+          )
+          .firstOrNull;
+      if (match == null) {
+        match = {
+          'id': 'legacy:${r['type']}:$name',
+          'type': r['type'],
+          'name': name,
+          'active': true,
+        };
+        directions.add(match);
+      }
+      r['directionId'] ??= match['id'];
+    }
+  }
+
   final List<Map<String, dynamic>> shifts, records;
   final List<Map<String, dynamic>> products;
   final List<Map<String, dynamic>> salaryRateHistory;
   final List<Map<String, dynamic>> calculationHistory;
   final Map<String, dynamic> initialCalculationSettings;
   TestState({
+    List<Map<String, dynamic>>? directions,
     List<Map<String, dynamic>> shifts = const [],
     List<Map<String, dynamic>> records = const [],
     List<Map<String, dynamic>>? products,
     List<Map<String, dynamic>> salaryRateHistory = const [],
     List<Map<String, dynamic>> calculationHistory = const [],
     Map<String, dynamic> initialCalculationSettings = const {},
-  }) : calculationHistory = [...calculationHistory],
+  }) : directions = directions ?? defaultDirections(),
+       calculationHistory = [...calculationHistory],
        initialCalculationSettings = {...initialCalculationSettings},
        salaryRateHistory = [...salaryRateHistory],
        shifts = [...shifts],
@@ -171,7 +229,8 @@ class TestState {
     List<Map<String, dynamic>> rows(String key) => [
       for (final e in j[key] as List) Map<String, dynamic>.from(e as Map),
     ];
-    return TestState(
+    final state = TestState(
+      directions: j['directions'] == null ? null : rows('directions'),
       shifts: rows('shifts'),
       records: rows('records'),
       products: rows('products'),
@@ -187,9 +246,12 @@ class TestState {
           Map<String, dynamic>.from(e as Map),
       ],
     );
+    state.migrateDirections();
+    return state;
   }
   Map<String, dynamic> toJson() => {
     'version': 2,
+    'directions': directions,
     'shifts': shifts,
     'records': records,
     'products': products,
@@ -618,6 +680,115 @@ class TestStore {
     return task;
   }
 
+  static Future<List<String>> directionNames([String? type]) async =>
+      (await load()).directionNames(type);
+  static Future<void> saveDirection({
+    String? id,
+    required String type,
+    required String name,
+  }) => _change((b) {
+    final clean = name.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (!['Город', 'Район'].contains(type) ||
+        clean.isEmpty ||
+        clean.length > 120)
+      throw ArgumentError('Введите название до 120 символов');
+    final old = b.directions.where((e) => e['id'] == id).firstOrNull;
+    if (id != null && old == null) throw StateError('Направление уже удалено');
+    if (old != null && old['type'] != type)
+      throw ArgumentError('Категорию существующего направления менять нельзя');
+    final duplicate = b.directions
+        .where(
+          (e) =>
+              e['id'] != id &&
+              e['type'] == type &&
+              TestState.directionKey(e['name'] as String) ==
+                  TestState.directionKey(clean),
+        )
+        .firstOrNull;
+    if (duplicate != null && (old != null || duplicate['active'] != false))
+      throw ArgumentError('Такое направление уже есть');
+    if (old == null && duplicate != null) {
+      duplicate['active'] = true;
+      return b;
+    }
+    if (old != null) {
+      final previous = old['name'] as String;
+      for (final r in b.records) {
+        if (r['directionId'] == id ||
+            (r['kind'] == 'trip' &&
+                r['type'] == type &&
+                TestState.directionKey('${r['direction']}') ==
+                    TestState.directionKey(previous))) {
+          r['direction'] = clean;
+          r['directionId'] = id;
+        }
+      }
+      final sharedName = b.directions.any(
+        (e) =>
+            e['id'] != id &&
+            CalculationSettings.name(e['name'] as String) ==
+                CalculationSettings.name(previous),
+      );
+      // Keep name-based paid-route and allowance rules attached after rename.
+      void renameRules(Map<String, dynamic> settings) {
+        for (final key in ['paidDirections', 'allowanceDirections']) {
+          final names = settings[key] as List?;
+          if (names != null)
+            settings[key] = [
+              if (sharedName &&
+                  names.any(
+                    (n) =>
+                        CalculationSettings.name('$n') ==
+                        CalculationSettings.name(previous),
+                  ))
+                previous,
+              for (final n in names)
+                if (CalculationSettings.name('$n') ==
+                    CalculationSettings.name(previous))
+                  clean
+                else
+                  n,
+            ];
+        }
+      }
+
+      b.initialCalculationSettings.addAll(
+        CalculationSettings.decode(b.initialCalculationSettings),
+      );
+      renameRules(b.initialCalculationSettings);
+      for (final event in b.calculationHistory) {
+        final settings = Map<String, dynamic>.from(event['settings'] as Map);
+        renameRules(settings);
+        event['settings'] = settings;
+      }
+      for (final r in [...b.records, ...b.shifts]) {
+        if (r['calculationSettings'] is Map) {
+          final settings = Map<String, dynamic>.from(
+            r['calculationSettings'] as Map,
+          );
+          renameRules(settings);
+          r['calculationSettings'] = settings;
+        }
+      }
+      old['name'] = clean;
+      old['active'] = true;
+    } else {
+      b.directions.add({
+        'id': _id(),
+        'type': type,
+        'name': clean,
+        'active': true,
+      });
+    }
+    return b;
+  });
+  static Future<void> deleteDirection(String id) => _change((b) {
+    final row = b.directions.where((e) => e['id'] == id).firstOrNull;
+    if (row == null) throw StateError('Направление уже удалено');
+    row['active'] = false;
+    return b;
+  });
+
   static Future<bool> isPaidDirection(String name) async =>
       ((await load()).calculationSettings['paidDirections'] as List).any(
         (v) => CalculationSettings.name('$v') == CalculationSettings.name(name),
@@ -753,6 +924,31 @@ class TestStore {
         (!['Город', 'Район'].contains(e['type']) ||
             (e['direction'] as String? ?? '').trim().isEmpty))
       throw ArgumentError('Укажите тип и направление');
+    if (kind == 'trip') {
+      final name = (e['direction'] as String).trim().replaceAll(
+        RegExp(r'\s+'),
+        ' ',
+      );
+      var route = b.directions
+          .where(
+            (r) =>
+                r['type'] == e['type'] &&
+                TestState.directionKey(r['name'] as String) ==
+                    TestState.directionKey(name),
+          )
+          .firstOrNull;
+      if (route?['active'] == false &&
+          !(old?['directionId'] == route?['id'] && old?['type'] == e['type']))
+        throw ArgumentError(
+          'Направление удалено. Выберите другое или восстановите его в разделе «Направления»',
+        );
+      if (route == null) {
+        route = {'id': _id(), 'type': e['type'], 'name': name, 'active': true};
+        b.directions.add(route);
+      }
+      e['directionId'] = route['id'];
+      e['direction'] = route['name'];
+    }
     if (kind == 'fuel' && !['Газ', 'Бензин'].contains(e['type']))
       throw ArgumentError('Выберите топливо');
     if (kind == 'other' && (e['note'] as String? ?? '').trim().isEmpty)
@@ -770,6 +966,20 @@ class TestStore {
                     CalculationSettings.name(e['direction'] as String),
               );
     if (kind == 'invoice') {
+      final matches = b.directions
+          .where(
+            (r) =>
+                r['active'] != false &&
+                TestState.directionKey(r['name'] as String) ==
+                    TestState.directionKey('${e['direction'] ?? ''}'),
+          )
+          .toList();
+      if (matches.length == 1) {
+        e['directionId'] = matches.single['id'];
+        e['direction'] = matches.single['name'];
+      } else {
+        e.remove('directionId');
+      }
       if (old?['status'] == 'closed')
         throw StateError('Закрытую накладную нельзя редактировать');
       final items = [
@@ -970,6 +1180,7 @@ class TestStore {
     final start = DateTime.now().subtract(const Duration(hours: 4));
     final id = _id();
     return TestState(
+      directions: b.directions,
       salaryRateHistory: b.salaryRateHistory,
       calculationHistory: b.calculationHistory,
       initialCalculationSettings: b.initialCalculationSettings,
