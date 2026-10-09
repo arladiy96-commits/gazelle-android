@@ -1,6 +1,7 @@
 import 'dart:convert';
 
-import 'package:shared_preferences/shared_preferences.dart';
+import 'test_store.dart';
+import 'account_scope.dart';
 
 /// Integer tiyn: invoice arithmetic never uses floating point.
 class MoneyCount {
@@ -140,13 +141,17 @@ class MoneyLedger {
 
 /// Separate from shifts and salary; scoped to the current login and role.
 class MoneyRepository {
+  final _scope = AccountScope.capture();
+  Future<TestPreferences> _preferences() =>
+      _scope.bind(TestPreferences.getInstance);
   final String _key;
   static Future<void> _queue = Future<void>.value();
+  static Future<void> flush() => _queue;
   MoneyRepository(String owner)
     : _key = 'melnitsa_money_v1_${base64Url.encode(utf8.encode(owner))}';
   Future<MoneyLedger> load() async {
     await _queue;
-    final raw = (await SharedPreferences.getInstance()).getString(_key);
+    final raw = (await _preferences()).getString(_key);
     if (raw == null) return MoneyLedger(MoneyCount.empty(), []);
     final j = jsonDecode(raw) as Map<String, dynamic>;
     if (j['version'] != 1)
@@ -166,7 +171,7 @@ class MoneyRepository {
       'history': history.map((e) => e.toJson()).toList(),
     });
     final task = _queue.then((_) async {
-      final disk = await SharedPreferences.getInstance();
+      final disk = await _preferences();
       if (!await disk.setString(_key, raw))
         throw StateError('Не удалось сохранить подсчёт');
     });

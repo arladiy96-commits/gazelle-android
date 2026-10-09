@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:geolocator/geolocator.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import 'account_scope.dart';
 
 import 'test_store.dart';
 
@@ -10,7 +11,7 @@ class GpsRouteStore {
   static const storageKey = 'gazelle_real_gps_routes_v1';
 
   static Future<Map<String, dynamic>> _root() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await TestPreferences.getInstance();
     final raw = prefs.getString(storageKey);
     if (raw == null || raw.trim().isEmpty) return <String, dynamic>{};
     try {
@@ -22,7 +23,7 @@ class GpsRouteStore {
   }
 
   static Future<void> _saveRoot(Map<String, dynamic> data) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await TestPreferences.getInstance();
     await prefs.setString(storageKey, jsonEncode(data));
   }
 
@@ -31,10 +32,7 @@ class GpsRouteStore {
     final route = root[shiftId];
     if (route is Map<String, dynamic>) return route;
     if (route is Map) return Map<String, dynamic>.from(route);
-    return {
-      'distanceKm': 0.0,
-      'points': <Map<String, dynamic>>[],
-    };
+    return {'distanceKm': 0.0, 'points': <Map<String, dynamic>>[]};
   }
 
   static Future<List<Map<String, dynamic>>> points(String shiftId) async {
@@ -63,13 +61,15 @@ class GpsRouteStore {
     required double accuracy,
     double? speed,
   }) async {
+    final account = AccountScope.capture();
     final root = await _root();
+    account.check();
     final current = root[shiftId];
     final route = current is Map<String, dynamic>
         ? Map<String, dynamic>.from(current)
         : current is Map
-            ? Map<String, dynamic>.from(current)
-            : <String, dynamic>{};
+        ? Map<String, dynamic>.from(current)
+        : <String, dynamic>{};
 
     final rawPoints = route['points'] as List? ?? const [];
     final pts = [
@@ -112,7 +112,7 @@ class GpsRouteStore {
         ((route['distanceKm'] as num?)?.toDouble() ?? 0.0) + addedKm;
     route['updatedAt'] = DateTime.now().toIso8601String();
     root[shiftId] = route;
-    await _saveRoot(root);
+    await account.bind(() => _saveRoot(root));
     return addedKm;
   }
 }
@@ -123,15 +123,26 @@ class GpsTrackerController {
   static final GpsTrackerController instance = GpsTrackerController._();
 
   StreamSubscription<Position>? _sub;
-  Future<void> _locationQueue=Future<void>.value();
+  Future<void> _locationQueue = Future<void>.value();
   String? _shiftId;
   bool _syncing = false;
+  bool _syncAgain = false;
+  int _lifecycle = 0;
 
   Future<void> syncWithJournal() async {
-    if (_syncing) return;
+    if (!AccountScope.signedIn ||
+        AccountScope.capture().role.storageValue == 'loader')
+      return;
+    if (_syncing) {
+      _syncAgain = true;
+      return;
+    }
+    final account = AccountScope.capture();
+    final lifecycle = _lifecycle;
     _syncing = true;
     try {
       final state = await TestStore.load();
+      if (!account.valid || lifecycle != _lifecycle) return;
       final active = state.active;
       if (active == null) {
         await stop();
@@ -146,6 +157,7 @@ class GpsTrackerController {
       }
 
       final ok = await _ensureReady();
+      if (!account.valid || lifecycle != _lifecycle) return;
       if (!ok) {
         await stop();
         return;
@@ -154,6 +166,8 @@ class GpsTrackerController {
       if (_sub != null && _shiftId == shiftId) return;
 
       await stop();
+      if (!account.valid) return;
+      final running = _lifecycle;
       _shiftId = shiftId;
 
       try {
@@ -162,25 +176,40 @@ class GpsTrackerController {
             accuracy: LocationAccuracy.best,
           ),
         ).timeout(const Duration(seconds: 8));
-        await _handlePosition(shiftId, first);
+        if (!account.valid || running != _lifecycle) return;
+        await account.bind(() => _handlePosition(shiftId, first));
       } catch (_) {}
 
-      _sub = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.best,
-          distanceFilter: 10,
-        ),
-      ).listen((position) {
-        _locationQueue=_locationQueue.then(
-          (_)=>_handlePosition(shiftId, position)
-        ).catchError((Object error) {
-          // Ошибка записи точки не прерывает дальнейшие обновления.
-        });
-      }, onError:(Object error) {
-        // При потере сигнала не записываем вымышленные координаты.
-      });
+      if (!account.valid || running != _lifecycle) return;
+      _sub =
+          Geolocator.getPositionStream(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.best,
+              distanceFilter: 10,
+            ),
+          ).listen(
+            (position) {
+              _locationQueue = _locationQueue
+                  .then(
+                    (_) =>
+                        account.bind(() => _handlePosition(shiftId, position)),
+                  )
+                  .catchError((Object error) {
+                    // Ошибка записи точки не прерывает дальнейшие обновления.
+                  });
+            },
+            onError: (Object error) {
+              // При потере сигнала не записываем вымышленные координаты.
+            },
+          );
     } finally {
       _syncing = false;
+      if (_syncAgain) {
+        _syncAgain = false;
+        scheduleMicrotask(() {
+          syncWithJournal().catchError((Object _) {});
+        });
+      }
     }
   }
 
@@ -218,6 +247,7 @@ class GpsTrackerController {
   }
 
   Future<void> stop() async {
+    _lifecycle++;
     await _sub?.cancel();
     _sub = null;
     _shiftId = null;

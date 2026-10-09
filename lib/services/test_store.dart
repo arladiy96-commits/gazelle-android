@@ -1,4 +1,5 @@
 import '../models/calculation_settings.dart';
+import 'account_scope.dart';
 
 import 'dart:convert';
 
@@ -9,22 +10,32 @@ import 'package:shared_preferences/shared_preferences.dart';
 class TestPreferences {
   static const storageKey = 'gazelle_miniapp_sandbox_v2';
   static final revision = ValueNotifier<int>(0);
-  static Future<TestPreferences>? _opening;
+  static final _instances = <String, Future<TestPreferences>>{};
+  final AccountToken _scope;
+  final String _storageKey;
   final SharedPreferences _disk;
   Map<String, dynamic> _values;
   Future<void> _queue = Future<void>.value();
-  TestPreferences._(this._disk, this._values);
-  static Future<TestPreferences> getInstance() => _opening ??= _open();
-  static Future<TestPreferences> _open() async {
+  TestPreferences._(this._disk, this._values, this._scope, this._storageKey);
+  static Future<TestPreferences> getInstance() {
+    final scope = AccountScope.capture();
+    final key = '${scope.id}:${scope.generation}';
+    return _instances.putIfAbsent(key, () => _open(scope));
+  }
+
+  static Future<TestPreferences> _open(AccountToken scope) async {
     final disk = await SharedPreferences.getInstance();
-    final raw = disk.getString(storageKey);
+    scope.check();
+    final key = '${storageKey}_account_${scope.id}';
+    final raw = disk.getString(key);
     final values = raw == null
         ? <String, dynamic>{}
         : Map<String, dynamic>.from(jsonDecode(raw) as Map);
-    return TestPreferences._(disk, values);
+    return TestPreferences._(disk, values, scope, key);
   }
 
   Object? get(String key) {
+    _scope.check();
     final match = RegExp(r'^home_day_(\d+)_(\d+)_(\d+)_(.+)$').firstMatch(key);
     if (match != null) {
       final d = DateTime(
@@ -70,6 +81,7 @@ class TestPreferences {
   int? getInt(String key) => (get(key) as num?)?.toInt();
   double? getDouble(String key) => (get(key) as num?)?.toDouble();
   Set<String> getKeys() {
+    _scope.check();
     final keys = _values.keys.toSet();
     final b = TestState.decode(_values['journal'] as String?);
     for (final s in b.shifts) {
@@ -80,7 +92,9 @@ class TestPreferences {
   }
 
   Future<bool> _write(String? key, Object? value, {bool reset = false}) {
+    _scope.check();
     final task = _queue.then((_) async {
+      _scope.check();
       final next = reset
           ? <String, dynamic>{}
           : Map<String, dynamic>.from(_values);
@@ -91,7 +105,7 @@ class TestPreferences {
           next[key] = value;
         }
       }
-      if (!await _disk.setString(storageKey, jsonEncode(next)))
+      if (!await _disk.setString(_storageKey, jsonEncode(next)))
         throw StateError('Не удалось сохранить тестовые данные');
       _values = next;
       revision.value++;
@@ -107,9 +121,14 @@ class TestPreferences {
   Future<bool> setBool(String k, bool v) => _write(k, v);
   Future<bool> remove(String k) => _write(k, null);
   Future<bool> clear() => _write(null, null, reset: true);
+  static Future<void> flushCurrent() async {
+    final p = await getInstance();
+    await p._queue;
+  }
+
   @visibleForTesting
   static void resetCache() {
-    _opening = null;
+    _instances.clear();
   }
 }
 
@@ -654,6 +673,7 @@ class TestState {
 class TestStore {
   static final revision = TestPreferences.revision;
   static Future<void> _queue = Future<void>.value();
+  static Future<void> flush() => _queue;
   static Future<TestState> load() async {
     final p = await TestPreferences.getInstance();
     final b = TestState.decode(p.getString('journal'));
@@ -669,13 +689,16 @@ class TestStore {
   }
 
   static Future<void> _change(TestState Function(TestState) change) {
-    final task = _queue.then((_) async {
-      final next = change(await load());
-      await (await TestPreferences.getInstance()).setString(
-        'journal',
-        jsonEncode(next.toJson()),
-      );
-    });
+    final scope = AccountScope.capture();
+    final task = _queue.then(
+      (_) => scope.bind(() async {
+        final next = change(await load());
+        await (await TestPreferences.getInstance()).setString(
+          'journal',
+          jsonEncode(next.toJson()),
+        );
+      }),
+    );
     _queue = task.then<void>((_) {}, onError: (Object e, StackTrace s) {});
     return task;
   }
@@ -795,10 +818,12 @@ class TestStore {
       );
   static Future<void> setCalculationSetting(String key, Object value) =>
       _change((b) {
+        AccountScope.requireAdmin();
         b.changeCalculationSetting(key, value, DateTime.now());
         return b;
       });
   static Future<void> setSalaryRate(String key, double value) => _change((b) {
+    AccountScope.requireAdmin();
     b.changeSalaryRate(key, value, DateTime.now());
     return b;
   });
@@ -1167,14 +1192,19 @@ class TestStore {
     return b;
   });
   static Future<void> reset() {
-    final task = _queue.then((_) async {
-      await (await TestPreferences.getInstance()).clear();
-    });
+    AccountScope.requireAdmin();
+    final scope = AccountScope.capture();
+    final task = _queue.then(
+      (_) => scope.bind(() async {
+        await (await TestPreferences.getInstance()).clear();
+      }),
+    );
     _queue = task.then<void>((_) {}, onError: (Object e, StackTrace s) {});
     return task;
   }
 
   static Future<void> seed() => _change((b) {
+    AccountScope.requireAdmin();
     if (b.shifts.isNotEmpty || b.records.isNotEmpty)
       throw StateError('Пример доступен только в пустом журнале');
     final start = DateTime.now().subtract(const Duration(hours: 4));

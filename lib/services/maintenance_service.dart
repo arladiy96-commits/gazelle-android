@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'test_store.dart';
+import 'account_scope.dart';
 
 /// Stable IDs keep history intact when a title or the catalogue order changes.
 class MaintenanceItem {
@@ -164,6 +165,9 @@ class MaintenanceBook {
 }
 
 class MaintenanceRepository {
+  final _scope = AccountScope.capture();
+  Future<TestPreferences> _preferences() =>
+      _scope.bind(TestPreferences.getInstance);
   final String account;
   MaintenanceRepository(this.account);
   String get key => 'maintenance_v1_${Uri.encodeComponent(account)}';
@@ -189,7 +193,7 @@ class MaintenanceRepository {
   }
 
   Future<MaintenanceBook> load() async {
-    final prefs = await TestPreferences.getInstance();
+    final prefs = await _preferences();
     final raw = prefs.getString(key);
     final state = await TestStore.load();
     if (raw == null) return MaintenanceBook(odometer: initialOdometer(state));
@@ -219,7 +223,7 @@ class MaintenanceRepository {
   }
 
   Future<void> save(MaintenanceBook book) async {
-    final prefs = await TestPreferences.getInstance();
+    final prefs = await _preferences();
     final json = book.toJson();
     json['journalKm'] = journalKm(await TestStore.load());
     if (!await prefs.setString(key, jsonEncode(json)))

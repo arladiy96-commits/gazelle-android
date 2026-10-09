@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../models/advance_report.dart';
 import 'test_store.dart';
+import 'account_scope.dart';
 
 class AdvanceReportData {
   final AdvanceLedger ledger;
@@ -12,17 +13,20 @@ class AdvanceReportData {
 /// Reads existing trips, writes only report metadata/manual expenses/snapshots.
 /// Uses the same sandbox as the existing journal, without modifying trips.
 class AdvanceReportRepository {
+  final _scope = AccountScope.capture();
+  Future<TestPreferences> _preferences() =>
+      _scope.bind(TestPreferences.getInstance);
   final String _key;
   static Future<void> _queue = Future<void>.value();
+  static Future<void> flush() => _queue;
   AdvanceReportRepository(String owner)
     : _key = 'advance_report_v1_${base64Url.encode(utf8.encode(owner))}';
   List<Map<String, dynamic>> _allowanceRecords(TestState book) => [
     for (final r in book.records)
       {...r, 'calculationSettings': book.settingsFor(r)},
   ];
-  Future<AdvanceLedger> _ledger() async => AdvanceLedger.decode(
-    (await TestPreferences.getInstance()).getString(_key),
-  );
+  Future<AdvanceLedger> _ledger() async =>
+      AdvanceLedger.decode((await _preferences()).getString(_key));
   Future<AdvanceReportData> load() async {
     await _queue;
     final ledger = await _ledger();
@@ -37,10 +41,7 @@ class AdvanceReportRepository {
   ) {
     final task = _queue.then((_) async {
       final next = await edit(await _ledger());
-      await (await TestPreferences.getInstance()).setString(
-        _key,
-        jsonEncode(next.toJson()),
-      );
+      await (await _preferences()).setString(_key, jsonEncode(next.toJson()));
     });
     _queue = task.then<void>((_) {}, onError: (Object _, StackTrace __) {});
     return task;

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'test_store.dart';
+import 'account_scope.dart';
 
 /// A view of the existing journal; no trips, fuel or shifts are copied to storage.
 class GasReportDay {
@@ -85,6 +86,7 @@ class GasReport {
 class GasReportRepository {
   static const storageKey = 'gas_reports_v1';
   static Future<void> _queue = Future<void>.value();
+  static Future<void> flush() => _queue;
   static String key(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}';
   static Map<String, dynamic> _months(TestPreferences p) {
@@ -232,14 +234,17 @@ class GasReportRepository {
   static Future<void> _change(
     Future<void> Function(TestPreferences, Map<String, dynamic>) action,
   ) {
-    final task = _queue.then((_) async {
-      final p = await TestPreferences.getInstance(), months = _months(p);
-      await action(p, months);
-      await p.setString(
-        storageKey,
-        jsonEncode({'version': 1, 'months': months}),
-      );
-    });
+    final scope = AccountScope.capture();
+    final task = _queue.then(
+      (_) => scope.bind(() async {
+        final p = await TestPreferences.getInstance(), months = _months(p);
+        await action(p, months);
+        await p.setString(
+          storageKey,
+          jsonEncode({'version': 1, 'months': months}),
+        );
+      }),
+    );
     _queue = task.then<void>((_) {}, onError: (Object e, StackTrace s) {});
     return task;
   }
