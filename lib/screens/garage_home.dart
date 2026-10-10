@@ -45,8 +45,12 @@ class _ReferenceHomeDashboard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) =>
-      _TestLive(builder: (TestState book) => _buildDashboard(context, book));
+  Widget build(BuildContext context) => _HomeGuideEntry(
+    key: ValueKey('home-guide-${session.accountId}'),
+    child: _TestLive(
+      builder: (TestState book) => _buildDashboard(context, book),
+    ),
+  );
 
   Widget _buildDashboard(BuildContext context, TestState book) {
     final padding = MediaQuery.paddingOf(context);
@@ -3031,4 +3035,444 @@ class _PaidRoutesDashboardState extends State<_PaidRoutesDashboard> {
       ),
     ),
   );
+}
+
+class _HomeGuideStep {
+  final IconData icon;
+  final String title, location, explanation, example;
+  const _HomeGuideStep(
+    this.icon,
+    this.title,
+    this.location,
+    this.explanation,
+    this.example,
+  );
+}
+
+const _homeGuideSteps = <_HomeGuideStep>[
+  _HomeGuideStep(
+    Icons.home_outlined,
+    'Как устроена Главная',
+    'Главная → показатели и текущая смена',
+    'Сверху — заработок и выбранный месяц. На боковых панелях — итоги этого месяца. В центре — управление сменой. Внизу сцены — показатели текущей смены. Это разные периоды: смена и месяц.',
+    'Добавленный сегодня рейс учитывается в своей смене и в итогах соответствующего месяца.',
+  ),
+  _HomeGuideStep(
+    Icons.person_outline,
+    'Имя и учётная запись',
+    'Нажмите на имя и роль вверху слева',
+    'Здесь видно, под какой учётной записью вы работаете. Нажатие открывает меню профиля: проверка обновления приложения и выход из учётной записи. Рабочие данные каждого сотрудника хранятся отдельно.',
+    'Перед началом работы проверьте своё имя. Для смены сотрудника выйдите и войдите под другой учётной записью.',
+  ),
+  _HomeGuideStep(
+    Icons.calendar_month_outlined,
+    'Выбор месяца',
+    'Стрелки возле заработка или название месяца',
+    'Стрелки переключают месяцы. Нажатие на название месяца открывает выбор. Заработок и боковые панели показывают данные выбранного месяца. Переключение месяца не переносит рейсы и не меняет дату текущей смены.',
+    'Чтобы посмотреть прошлый месяц, переключите его сверху. Перед просмотром текущих итогов вернитесь к текущему месяцу.',
+  ),
+  _HomeGuideStep(
+    Icons.play_circle_outline,
+    'Открыть смену',
+    'Круглая кнопка «Начать смену» в центре',
+    'Нажмите кнопку и введите показание одометра на начало работы — общий пробег автомобиля. Проверьте число и подтвердите открытие. После этого рейсы и топливо добавляются в открытую смену.',
+    'На одометре 255 000 км → введите 255000. Это общий пробег, а не расстояние за сегодняшний день.',
+  ),
+  _HomeGuideStep(
+    Icons.speed_outlined,
+    'Если одометр не работает',
+    'Форма открытия → «Одометр не работает»',
+    'Выберите эту возможность, если показания недоступны. Начальное показание не потребуется. При завершении укажите расстояние за смену вручную. Ручной пробег используется в сводке дня, статистике и отчётах.',
+    'За смену проехали 120 км → при завершении введите 120, а не общий пробег автомобиля.',
+  ),
+  _HomeGuideStep(
+    Icons.add_circle_outline,
+    'Добавить рейс',
+    'Большая кнопка «+» в нижнем меню → рейс',
+    'При открытой смене нажмите «+» и выберите добавление рейса. Укажите город или район, направление и перевезённый вес в килограммах. Проверьте дату и отметку «Платное направление», затем сохраните запись.',
+    'Перевезли 3 тонны → укажите 3000 кг. Для следующего рейса добавьте новую запись.',
+  ),
+  _HomeGuideStep(
+    Icons.local_shipping_outlined,
+    'Платные направления',
+    'Форма рейса → «Платное направление»',
+    'Отметка определяет, учитывается ли рейс как платный. Она может заполняться по настройкам направления — перед сохранением проверьте её. На Главной панель «Платные направления» показывает количество за выбранный месяц; нажмите её, чтобы открыть список.',
+    'Одинаковое направление может встречаться несколько раз. Проверяйте платность конкретного рейса, а не только его название.',
+  ),
+  _HomeGuideStep(
+    Icons.local_gas_station_outlined,
+    'Добавить топливо',
+    'Кнопка «+» → топливо',
+    'Выберите «Газ» или «Бензин», введите количество литров и сохраните. Дата заполняется автоматически. Запись относится к открытой смене. Эти данные показывают полученное топливо, а не измеренный расход.',
+    'Получили 50 литров газа → выберите «Газ» и введите 50. Сумму покупки в тенге сюда вводить не нужно.',
+  ),
+  _HomeGuideStep(
+    Icons.touch_app_outlined,
+    'Открыть подробности показателей',
+    'Боковые панели Главной',
+    '«Газ» и «Бензин» открывают данные по топливу. «Город» и «Район» — перевезённый вес. «Пробег» — данные по километрам. Нажимайте на саму панель нужного показателя. Период берётся из месяца, выбранного на Главной.',
+    'Хотите проверить заправку → нажмите «Газ». Хотите проверить районную поездку → нажмите «Район».',
+  ),
+  _HomeGuideStep(
+    Icons.today_outlined,
+    'Перейти в сводку дня',
+    'Подробности показателя → дата в списке по дням',
+    'В открытом разделе найдите нужный день и нажмите его строку или дату. Откроется общая сводка: смена, рейсы и их вес, добавленное топливо, пробег и часы. Через сводку нужной даты можно исправлять прошлые записи.',
+    'Например: Главная → «Газ» → нужная дата → сводка этого дня. Из «Города» или «Района» можно прийти в ту же сводку.',
+  ),
+  _HomeGuideStep(
+    Icons.format_list_bulleted,
+    'Проверить текущую смену',
+    'Нижняя панель навигации → «Работа»',
+    'На Главной четыре сектора под центральной кнопкой показывают состояние смены, число рейсов, добавленное топливо и итог завершения. Для списка действий перейдите в «Работу». Обычное нажатие на действие текущей смены открывает его редактирование.',
+    'Ошиблись в весе только что добавленного рейса → «Работа» → нужное действие → исправьте и сохраните.',
+  ),
+  _HomeGuideStep(
+    Icons.stop_circle_outlined,
+    'Завершить смену',
+    'Круглая кнопка «Завершить смену» в центре',
+    'Введите конечное показание одометра и фактически отработанные часы. Если используете ручной пробег — укажите километры за смену. Перед подтверждением проверьте значения. Таймер длительности не заменяет поле отработанных часов.',
+    'Начало: 255000, конец: 255120 → пробег 120 км. Отработали 8,5 часа → укажите 8,5, а не 8:30.',
+  ),
+  _HomeGuideStep(
+    Icons.payments_outlined,
+    'Посмотреть заработок',
+    'Нажмите на сумму «Заработано за месяц»',
+    'Откроется раздел зарплаты выбранного месяца. В нём можно посмотреть составляющие начислений и перейти к данным по дням через «Посмотреть по дням». Начисления зависят от записанной работы и настроек расчёта.',
+    'Если итог вызывает вопрос, сначала проверьте нужный месяц, часы, вес рейсов и отметки платных направлений.',
+  ),
+  _HomeGuideStep(
+    Icons.description_outlined,
+    'Создать бланк из зарплаты',
+    'Главная → сумма заработка → «Создать отчёт»',
+    'Откроется «Отчёт для сверки» за выбранный месяц. В картинке указаны городской вес, районный вес, платные поездки и отработанные выходные. Изображение можно увеличить. Кнопка «Поделиться картинкой» открывает выбор приложения для отправки.',
+    'Выберите месяц → откройте зарплату → «Создать отчёт» → проверьте данные → «Поделиться картинкой». Получателя выбираете вы.',
+  ),
+  _HomeGuideStep(
+    Icons.check_circle_outline,
+    'Порядок рабочего дня',
+    'Начать → добавить действия → проверить → завершить',
+    'Откройте смену, добавляйте каждый рейс и полученное топливо, проверьте действия в «Работе», затем завершите смену с пробегом и часами. Для проверки истории используйте боковые панели и сводку дня. Всё обучение можно повторить по кнопке «?» на Главной.',
+    'В ходе обучения ничего не добавляется в журнал. Теперь можно вернуться на Главную и начать настоящую работу.',
+  ),
+];
+
+class _HomeGuideEntry extends StatefulWidget {
+  final Widget child;
+  const _HomeGuideEntry({super.key, required this.child});
+  @override
+  State<_HomeGuideEntry> createState() => _HomeGuideEntryState();
+}
+
+class _HomeGuideEntryState extends State<_HomeGuideEntry> {
+  static const _offeredKey = 'home_guide_offered_v1';
+  static const _doneKey = 'home_guide_completed_v1';
+  late final AccountToken _owner = AccountScope.capture();
+  Timer? _retry;
+  bool _opening = false, _checked = false;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _offer());
+  }
+
+  @override
+  void dispose() {
+    _retry?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _offer() async {
+    if (!mounted || !_owner.valid || _checked || _opening) return;
+    if (!TickerMode.of(context) || ModalRoute.of(context)?.isCurrent != true) {
+      _retry = Timer(const Duration(seconds: 2), _offer);
+      return;
+    }
+    _checked = true;
+    try {
+      final prefs = await _owner.bind(() => TestPreferences.getInstance());
+      if (!mounted ||
+          !_owner.valid ||
+          _opening ||
+          prefs.getBool(_offeredKey) == true)
+        return;
+      // Another route, including the update prompt, may have opened while loading.
+      if (ModalRoute.of(context)?.isCurrent != true) {
+        _checked = false;
+        _retry = Timer(const Duration(seconds: 2), _offer);
+        return;
+      }
+      _opening = true;
+      final start = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          backgroundColor: const Color(0xFF111B22),
+          title: const Text('Знакомство с Главной'),
+          content: const Text(
+            'Покажем, как открыть смену, добавить рейс и топливо, проверить день и создать бланк из зарплаты.\n\nПримерно 5 минут. Можно пропустить и вернуться через «?» на Главной.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('Позже'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(c, true),
+              child: const Text('Начать'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || !_owner.valid) return;
+      await prefs.setBool(_offeredKey, true);
+      _opening = false;
+      if (start == true && mounted && _owner.valid) await _open();
+    } catch (_) {
+      // An unavailable preference must never prevent normal work.
+    } finally {
+      _opening = false;
+    }
+  }
+
+  Future<void> _open() async {
+    if (_opening || !_owner.valid) return;
+    _opening = true;
+    _retry?.cancel();
+    _checked = true;
+    try {
+      final done = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(builder: (_) => const _HomeGuideReader()),
+      );
+      if (!mounted || !_owner.valid) return;
+      final prefs = await _owner.bind(() => TestPreferences.getInstance());
+      await prefs.setBool(_offeredKey, true);
+      if (done == true && _owner.valid) await prefs.setBool(_doneKey, true);
+    } catch (_) {
+      if (mounted && _owner.valid)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Не удалось сохранить отметку обучения. Его можно открыть повторно.',
+            ),
+          ),
+        );
+    } finally {
+      _opening = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    children: [
+      widget.child,
+      Positioned(
+        top: MediaQuery.paddingOf(context).top + 4,
+        right: 12,
+        child: Material(
+          color: const Color(0xE6101A21),
+          shape: const CircleBorder(),
+          child: IconButton(
+            tooltip: 'Обучение по Главной',
+            onPressed: _open,
+            icon: const Icon(Icons.help_outline, color: _millGold),
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+class _HomeGuideReader extends StatefulWidget {
+  const _HomeGuideReader();
+  @override
+  State<_HomeGuideReader> createState() => _HomeGuideReaderState();
+}
+
+class _HomeGuideReaderState extends State<_HomeGuideReader> {
+  int _step = 0;
+  final _scroll = ScrollController();
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _go(int value) {
+    setState(() => _step = value);
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+  }
+
+  Future<void> _contents() async {
+    final selected = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: const Color(0xFF111B22),
+      isScrollControlled: true,
+      builder: (c) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(c).height * .75,
+          child: ListView(
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: Text('Темы обучения', style: TextStyle(fontSize: 20)),
+              ),
+              for (var i = 0; i < _homeGuideSteps.length; i++)
+                ListTile(
+                  leading: Icon(_homeGuideSteps[i].icon, color: _millGold),
+                  title: Text('${i + 1}. ${_homeGuideSteps[i].title}'),
+                  selected: _step == i,
+                  onTap: () => Navigator.pop(c, i),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (mounted && selected != null) _go(selected);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final step = _homeGuideSteps[_step];
+    final last = _step == _homeGuideSteps.length - 1;
+    return Scaffold(
+      backgroundColor: const Color(0xFF09141B),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF101A21),
+        title: const Text('Обучение · Главная', style: TextStyle(fontSize: 18)),
+        actions: [
+          IconButton(
+            tooltip: 'Все темы',
+            onPressed: _contents,
+            icon: const Icon(Icons.list_alt, color: _millGold),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: LinearProgressIndicator(
+                      value: (_step + 1) / _homeGuideSteps.length,
+                      color: _millGold,
+                      backgroundColor: const Color(0xFF283139),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Text(
+                    '${_step + 1} / ${_homeGuideSteps.length}',
+                    style: const TextStyle(color: Color(0xFFB6C0C6)),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                controller: _scroll,
+                padding: const EdgeInsets.all(22),
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF20282B),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFF65563E)),
+                      ),
+                      child: Icon(step.icon, size: 42, color: _millGold),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    step.title,
+                    style: const TextStyle(
+                      color: _millWhite,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    step.location,
+                    style: const TextStyle(
+                      color: _millGold,
+                      fontSize: 15,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  Text(
+                    step.explanation,
+                    style: const TextStyle(
+                      color: Color(0xFFD6DCDF),
+                      fontSize: 17,
+                      height: 1.6,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF14212A),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      step.example,
+                      style: const TextStyle(
+                        color: Color(0xFFB9C7CF),
+                        fontSize: 15,
+                        height: 1.6,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Row(
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFFAFB9C0),
+                    ),
+                    child: const Text('Пропустить'),
+                  ),
+                  const Spacer(),
+                  if (_step > 0)
+                    IconButton(
+                      tooltip: 'Назад',
+                      onPressed: () => _go(_step - 1),
+                      icon: const Icon(Icons.chevron_left, color: _millGold),
+                    ),
+                  FilledButton(
+                    onPressed: () {
+                      if (last) {
+                        Navigator.pop(context, true);
+                      } else {
+                        _go(_step + 1);
+                      }
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _millGold,
+                      foregroundColor: const Color(0xFF101A21),
+                    ),
+                    child: Text(last ? 'На Главную' : 'Далее'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
