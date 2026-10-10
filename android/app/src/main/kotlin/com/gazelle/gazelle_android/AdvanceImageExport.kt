@@ -20,6 +20,14 @@ class AdvanceImageExport(private val activity: Activity) {
 
     fun handle(method: String, args: Map<*, *>, result: MethodChannel.Result) {
         when (method) {
+            "renderGeneral", "renderGeneralPdf" -> Thread {
+                try {
+                    val bytes = GeneralReportDocument.render(args, method == "renderGeneralPdf")
+                    activity.runOnUiThread { result.success(bytes) }
+                } catch (e: Exception) {
+                    activity.runOnUiThread { result.error("general_report", e.message, null) }
+                }
+            }.start()
             "renderInvoice" -> Thread {
                 try {
                     val document = InvoiceDocument.render(activity, args)
@@ -78,8 +86,8 @@ class AdvanceImageExport(private val activity: Activity) {
                 try {
                     activity.startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                         addCategory(Intent.CATEGORY_OPENABLE)
-                        type = if (args["kind"] == "invoice") "application/pdf" else "image/png"
-                        putExtra(Intent.EXTRA_TITLE, "${when (args["kind"]) { "invoice" -> "invoice"; "gas" -> "gas_report"; "maintenance" -> "maintenance_report"; else -> "avans" }}_${System.currentTimeMillis()}.${if (args["kind"] == "invoice") "pdf" else "png"}")
+                        type = if ((args["kind"] == "invoice" || args["kind"] == "generalPdf")) "application/pdf" else "image/png"
+                        putExtra(Intent.EXTRA_TITLE, "${when (args["kind"]) { "generalPdf", "generalPng" -> "general_report"; "invoice" -> "invoice"; "gas" -> "gas_report"; "maintenance" -> "maintenance_report"; else -> "avans" }}_${System.currentTimeMillis()}.${if ((args["kind"] == "invoice" || args["kind"] == "generalPdf")) "pdf" else "png"}")
                     }, requestCode)
                 } catch (e: Exception) {
                     pending = null; pendingBytes = null
