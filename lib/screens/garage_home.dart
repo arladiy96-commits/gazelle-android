@@ -45,16 +45,10 @@ class _ReferenceHomeDashboard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => _HomeGuideEntry(
-    key: ValueKey('home-guide-${session.accountId}'),
-    child: _TestLive(
-      builder: (TestState book) =>
-          Builder(builder: (inner) => _buildDashboard(inner, book)),
-    ),
-  );
+  Widget build(BuildContext context) =>
+      _TestLive(builder: (TestState book) => _buildDashboard(context, book));
 
   Widget _buildDashboard(BuildContext context, TestState book) {
-    final guide = context.findAncestorStateOfType<_HomeGuideEntryState>();
     final padding = MediaQuery.paddingOf(context);
     final scale = size.width / 853;
     const offsetX = 0.0;
@@ -86,7 +80,6 @@ class _ReferenceHomeDashboard extends StatelessWidget {
     Widget place(double x, double y, double w, double h, Widget child) =>
         Positioned(left: x, top: y, width: w, height: h, child: child);
     final scene = SizedBox(
-      key: guide?.sceneKey,
       width: 853,
       height: 1844,
       child: Stack(
@@ -321,7 +314,6 @@ class _ReferenceHomeDashboard extends StatelessWidget {
       ),
       child: RepaintBoundary(
         child: SingleChildScrollView(
-          controller: guide?.scroll,
           physics: const ClampingScrollPhysics(),
           child: SizedBox(
             width: size.width,
@@ -357,7 +349,6 @@ class _ReferenceHomeDashboard extends StatelessWidget {
                               label: 'Профиль $name',
                               onTap: () => _openAccountMenu(context, session),
                               child: Row(
-                                key: guide?.profileKey,
                                 children: [
                                   Container(
                                     width: 64 * scale,
@@ -414,7 +405,6 @@ class _ReferenceHomeDashboard extends StatelessWidget {
                     width: 480 * scale,
                     height: 126 * scale,
                     child: Column(
-                      key: guide?.salaryKey,
                       children: [
                         _millText('Заработано за месяц', 22 * scale),
                         Expanded(
@@ -464,7 +454,6 @@ class _ReferenceHomeDashboard extends StatelessWidget {
                           label: 'Выбрать месяц',
                           onTap: () => _chooseMonth(context),
                           child: AnimatedSwitcher(
-                            key: guide?.monthKey,
                             duration: const Duration(milliseconds: 120),
                             child: _millText(
                               '${_garageMonths[month.month - 1]} ${month.year} ⌄',
@@ -480,14 +469,11 @@ class _ReferenceHomeDashboard extends StatelessWidget {
                     left: 8,
                     right: 8,
                     bottom: padding.bottom + 3,
-                    child: KeyedSubtree(
-                      key: guide?.navKey,
-                      child: _MillNavigation(
-                        onWork: () => onNavigate(1),
-                        onAdd: onQuickAdd,
-                        onInvoices: () => onNavigate(3),
-                        onMore: () => _openHomeMenu(context, session),
-                      ),
+                    child: _MillNavigation(
+                      onWork: () => onNavigate(1),
+                      onAdd: onQuickAdd,
+                      onInvoices: () => onNavigate(3),
+                      onMore: () => _openHomeMenu(context, session),
                     ),
                   ),
                 ],
@@ -3045,535 +3031,4 @@ class _PaidRoutesDashboardState extends State<_PaidRoutesDashboard> {
       ),
     ),
   );
-}
-
-class _HomeGuideEntry extends StatefulWidget {
-  final Widget child;
-  const _HomeGuideEntry({super.key, required this.child});
-  @override
-  State<_HomeGuideEntry> createState() => _HomeGuideEntryState();
-}
-
-class _HomeGuideEntryState extends State<_HomeGuideEntry> {
-  static const _offeredKey = 'home_spotlight_offered_v2';
-  static const _doneKey = 'home_spotlight_completed_v2';
-  late final AccountToken _owner = AccountScope.capture();
-  final sceneKey = GlobalKey(),
-      profileKey = GlobalKey(),
-      salaryKey = GlobalKey(),
-      monthKey = GlobalKey(),
-      navKey = GlobalKey();
-  final scroll = ScrollController();
-  Timer? _retry;
-  bool _opening = false, _checked = false;
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _offer());
-  }
-
-  @override
-  void dispose() {
-    _retry?.cancel();
-    scroll.dispose();
-    super.dispose();
-  }
-
-  Future<void> _offer() async {
-    if (!mounted || !_owner.valid || _checked || _opening) return;
-    if (!TickerMode.of(context) || ModalRoute.of(context)?.isCurrent != true) {
-      _retry = Timer(const Duration(seconds: 2), _offer);
-      return;
-    }
-    _checked = true;
-    try {
-      final prefs = await _owner.bind(() => TestPreferences.getInstance());
-      if (!mounted ||
-          !_owner.valid ||
-          _opening ||
-          prefs.getBool(_offeredKey) == true)
-        return;
-      // Another route, including the update prompt, may have opened while loading.
-      if (ModalRoute.of(context)?.isCurrent != true) {
-        _checked = false;
-        _retry = Timer(const Duration(seconds: 2), _offer);
-        return;
-      }
-      _opening = true;
-      final start = await showDialog<bool>(
-        context: context,
-        builder: (c) => AlertDialog(
-          backgroundColor: const Color(0xFF111B22),
-          title: const Text('Знакомство с Главной'),
-          content: const Text(
-            'Покажем, как открыть смену, добавить рейс и топливо, проверить день и создать бланк из зарплаты.\n\nПодсветим элементы прямо на Главной. Можно пропустить и вернуться через «?» на Главной.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(c, false),
-              child: const Text('Позже'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(c, true),
-              child: const Text('Начать'),
-            ),
-          ],
-        ),
-      );
-      if (!mounted || !_owner.valid) return;
-      await prefs.setBool(_offeredKey, true);
-      _opening = false;
-      if (start == true && mounted && _owner.valid) await _open();
-    } catch (_) {
-      // An unavailable preference must never prevent normal work.
-    } finally {
-      _opening = false;
-    }
-  }
-
-  Future<void> _open() async {
-    if (_opening || !_owner.valid) return;
-    _opening = true;
-    _retry?.cancel();
-    _checked = true;
-    try {
-      final done = await showGeneralDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        barrierColor: Colors.transparent,
-        transitionDuration: const Duration(milliseconds: 150),
-        pageBuilder: (_, __, ___) => _HomeSpotlight(measure: _measure),
-      );
-      if (!mounted || !_owner.valid) return;
-      final prefs = await _owner.bind(() => TestPreferences.getInstance());
-      await prefs.setBool(_offeredKey, true);
-      if (done == true && _owner.valid) await prefs.setBool(_doneKey, true);
-    } catch (_) {
-      if (mounted && _owner.valid)
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Не удалось сохранить отметку обучения. Его можно открыть повторно.',
-            ),
-          ),
-        );
-    } finally {
-      _opening = false;
-    }
-  }
-
-  Rect? _rect(GlobalKey key, [Rect? local]) {
-    final box = key.currentContext?.findRenderObject();
-    if (box is! RenderBox || !box.hasSize) return null;
-    final r = local ?? (Offset.zero & box.size);
-    return Rect.fromPoints(
-      box.localToGlobal(r.topLeft),
-      box.localToGlobal(r.bottomRight),
-    );
-  }
-
-  Future<Rect?> _measure(String target) async {
-    if (!mounted || !_owner.valid) return null;
-    Rect? locate() {
-      switch (target) {
-        case 'profile':
-          return _rect(profileKey);
-        case 'salary':
-          return _rect(salaryKey);
-        case 'month':
-          return _rect(monthKey);
-        case 'add':
-        case 'work':
-          final nav = _rect(navKey);
-          if (nav == null) return null;
-          final index = target == 'add' ? 2 : 1;
-          return Rect.fromLTWH(
-            nav.left + nav.width * index / 5,
-            nav.top,
-            nav.width / 5,
-            nav.height,
-          );
-      }
-      final rect = switch (target) {
-        'shift' => const Rect.fromLTWH(337, 1060, 180, 180),
-        'status' => const Rect.fromLTWH(66, 1290, 720, 145),
-        'paid' => const Rect.fromLTWH(66, 291, 190, 235),
-        'gas' => const Rect.fromLTWH(65, 542, 191, 226),
-        'petrol' => const Rect.fromLTWH(64, 798, 192, 196),
-        'city' => const Rect.fromLTWH(636, 306, 161, 236),
-        'region' => const Rect.fromLTWH(636, 565, 161, 214),
-        'mileage' => const Rect.fromLTWH(636, 807, 161, 201),
-        _ => const Rect.fromLTWH(337, 1060, 180, 180),
-      };
-      return _rect(sceneKey, rect);
-    }
-
-    var rect = locate();
-    if (rect == null) return null;
-    final media = MediaQuery.of(context);
-    final top = media.padding.top + 12;
-    final bottom = media.size.height - media.padding.bottom - 12;
-    if (scroll.hasClients) {
-      final delta = rect.top < top
-          ? rect.top - top
-          : rect.bottom > bottom
-          ? rect.bottom - bottom
-          : 0.0;
-      if (delta.abs() > 1) {
-        await scroll.animateTo(
-          (scroll.offset + delta)
-              .clamp(0.0, scroll.position.maxScrollExtent)
-              .toDouble(),
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-        );
-        await WidgetsBinding.instance.endOfFrame;
-        if (!mounted || !_owner.valid) return null;
-        rect = locate();
-      }
-    }
-    return rect?.inflate(5);
-  }
-
-  @override
-  Widget build(BuildContext context) => Stack(
-    children: [
-      widget.child,
-      Positioned(
-        top: MediaQuery.paddingOf(context).top + 4,
-        right: 12,
-        child: Material(
-          color: const Color(0xE6101A21),
-          shape: const CircleBorder(),
-          child: IconButton(
-            tooltip: 'Обучение по Главной',
-            onPressed: _open,
-            icon: const Icon(Icons.help_outline, color: _millGold),
-            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          ),
-        ),
-      ),
-    ],
-  );
-}
-
-class _SpotStep {
-  final String target, title, text;
-  const _SpotStep(this.target, this.title, this.text);
-}
-
-const _spotSteps = [
-  _SpotStep(
-    'profile',
-    'Ваша учётная запись',
-    'Здесь ваше имя и роль. Нажатие открывает выход из учётной записи и проверку обновлений. Перед сменой проверьте, что вошли под своим именем.',
-  ),
-  _SpotStep(
-    'month',
-    'Какой месяц показан',
-    'Нажмите на месяц, чтобы выбрать другой. Стрелки возле заработка переключают месяцы. Боковые показатели относятся к выбранному месяцу, а не только к сегодняшней смене.',
-  ),
-  _SpotStep(
-    'shift',
-    'Начало смены',
-    'Если смена закрыта, здесь «Начать смену». Нажмите и введите общий пробег с одометра, например 255000. Подтвердите открытие — затем добавляйте рейсы и топливо.',
-  ),
-  _SpotStep(
-    'shift',
-    'Одометр не работает?',
-    'В форме открытия выберите «Одометр не работает». Начальный одометр не нужен. В конце укажите километры за смену: например 120, если проехали 120 км.',
-  ),
-  _SpotStep(
-    'add',
-    'Добавить рейс',
-    'Нажмите «+» → добавление рейса. Выберите город или район, направление и введите вес в килограммах. 3 тонны — это 3000 кг. Проверьте платность и сохраните.',
-  ),
-  _SpotStep(
-    'paid',
-    'Платные направления',
-    'При добавлении рейса проверьте отметку «Платное направление». Эта панель показывает их количество за месяц. Нажмите её, чтобы посмотреть список платных поездок.',
-  ),
-  _SpotStep(
-    'add',
-    'Добавить топливо',
-    'Нажмите «+» → топливо. Выберите «Газ» или «Бензин» и введите литры. Например, 50 литров газа — это «Газ», 50. Сумму покупки в тенге сюда не вводим.',
-  ),
-  _SpotStep(
-    'gas',
-    'Газ за месяц',
-    'Нажмите эту панель — откроются данные по газу. Найдите нужную дату и нажмите её, чтобы перейти в сводку дня. Здесь учитывается полученный газ, а не расход по норме.',
-  ),
-  _SpotStep(
-    'petrol',
-    'Бензин за месяц',
-    'Нажмите панель для просмотра бензина по дням. Нажатие даты открывает сводку этого дня с рейсами, топливом, пробегом и часами.',
-  ),
-  _SpotStep(
-    'city',
-    'Городские рейсы',
-    'Здесь общий городской вес за выбранный месяц. Нажмите, чтобы открыть данные по дням; затем выберите дату для просмотра рейсов в сводке дня.',
-  ),
-  _SpotStep(
-    'region',
-    'Районные рейсы',
-    'Здесь вес районных поездок за месяц. Путь к подробностям тот же: панель → нужная дата → сводка дня. В ней проверяют и исправляют прошлые записи.',
-  ),
-  _SpotStep(
-    'mileage',
-    'Пробег',
-    'Нажмите панель, чтобы открыть километры по дням. Учитывается и ручной пробег. Нужную смену можно проверить через дату и сводку дня.',
-  ),
-  _SpotStep(
-    'status',
-    'Текущая смена',
-    'Эти четыре сектора показывают состояние смены, рейсы, добавленное топливо и итог завершения. Они относятся к смене; боковые панели — к выбранному месяцу.',
-  ),
-  _SpotStep(
-    'work',
-    'Проверить и исправить',
-    'Нажмите «Работа», чтобы увидеть действия текущей смены. Обычное нажатие на нужное действие открывает редактирование. Прошлые дни исправляются через сводку выбранной даты.',
-  ),
-  _SpotStep(
-    'shift',
-    'Завершение смены',
-    'При открытой смене эта кнопка становится «Завершить смену». Введите конечный одометр или ручной пробег и отработанные часы. Для 8 часов 30 минут укажите 8,5. Таймер не заменяет ввод часов.',
-  ),
-  _SpotStep(
-    'salary',
-    'Заработок за месяц',
-    'Нажмите на сумму — откроется зарплата выбранного месяца. Там есть составляющие начислений и «Посмотреть по дням». Если сумма непонятна, проверьте часы, тоннаж и платность рейсов.',
-  ),
-  _SpotStep(
-    'salary',
-    'Бланк из зарплаты',
-    'Нажмите сумму → «Создать отчёт». Получится бланк для сверки: городской и районный вес, платные поездки, отработанные выходные. «Поделиться картинкой» позволяет выбрать, куда его отправить.',
-  ),
-];
-
-class _HomeSpotlight extends StatefulWidget {
-  final Future<Rect?> Function(String) measure;
-  const _HomeSpotlight({required this.measure});
-  @override
-  State<_HomeSpotlight> createState() => _HomeSpotlightState();
-}
-
-class _HomeSpotlightState extends State<_HomeSpotlight>
-    with WidgetsBindingObserver {
-  int _step = 0, _request = 0;
-  Rect? _rect;
-  bool _busy = true;
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _locate());
-  }
-
-  @override
-  void dispose() {
-    _request++;
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeMetrics() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _locate();
-    });
-  }
-
-  Future<void> _locate() async {
-    final request = ++_request;
-    if (mounted)
-      setState(() {
-        _busy = true;
-        _rect = null;
-      });
-    final rect = await widget.measure(_spotSteps[_step].target);
-    if (mounted && request == _request)
-      setState(() {
-        _rect = rect;
-        _busy = false;
-      });
-  }
-
-  void _go(int value) {
-    setState(() => _step = value);
-    _locate();
-  }
-
-  @override
-  Widget build(BuildContext context) => Material(
-    type: MaterialType.transparency,
-    child: LayoutBuilder(
-      builder: (context, box) {
-        final media = MediaQuery.of(context);
-        final safeTop = media.padding.top + 12;
-        final safeBottom = media.padding.bottom + 12;
-        final screen = Offset.zero & box.biggest;
-        final rect = _rect?.intersect(screen.deflate(4));
-        final above = rect == null ? 0.0 : rect.top - safeTop - 14;
-        final below = rect == null
-            ? box.maxHeight - safeTop - safeBottom
-            : box.maxHeight - safeBottom - rect.bottom - 14;
-        final useAbove = above > below;
-        final available = math.max(140.0, useAbove ? above : below);
-        final height = math.min(310.0, available);
-        final step = _spotSteps[_step];
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: AbsorbPointer(
-                child: CustomPaint(painter: _SpotlightPainter(rect)),
-              ),
-            ),
-            // A full-screen hit surface prevents tutorial taps from changing real records.
-            const Positioned.fill(
-              child: ModalBarrier(
-                dismissible: false,
-                color: Colors.transparent,
-              ),
-            ),
-            Positioned(
-              left: 14,
-              right: 14,
-              top: useAbove ? safeTop : null,
-              bottom: useAbove ? null : safeBottom,
-              height: height,
-              child: Semantics(
-                liveRegion: true,
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF111C23),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFF967B4F)),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black54, blurRadius: 18),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            '${_step + 1} / ${_spotSteps.length}',
-                            style: const TextStyle(
-                              color: _millGold,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const Spacer(),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            style: TextButton.styleFrom(
-                              foregroundColor: const Color(0xFFB8C2C9),
-                            ),
-                            child: const Text('Пропустить'),
-                          ),
-                        ],
-                      ),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          key: ValueKey(_step),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                step.title,
-                                style: const TextStyle(
-                                  color: _millWhite,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                _busy
-                                    ? 'Показываем элемент…'
-                                    : rect == null
-                                    ? 'Элемент сейчас недоступен. Вернитесь на Главную и повторите обучение.'
-                                    : step.text,
-                                style: const TextStyle(
-                                  color: Color(0xFFD1DADF),
-                                  fontSize: 15,
-                                  height: 1.45,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          if (_step > 0)
-                            TextButton(
-                              onPressed: _busy ? null : () => _go(_step - 1),
-                              style: TextButton.styleFrom(
-                                foregroundColor: _millGold,
-                              ),
-                              child: const Text('Назад'),
-                            ),
-                          const Spacer(),
-                          FilledButton(
-                            onPressed: _busy
-                                ? null
-                                : () {
-                                    if (_step == _spotSteps.length - 1) {
-                                      Navigator.pop(context, true);
-                                    } else {
-                                      _go(_step + 1);
-                                    }
-                                  },
-                            style: FilledButton.styleFrom(
-                              backgroundColor: _millGold,
-                              foregroundColor: const Color(0xFF101A21),
-                            ),
-                            child: Text(
-                              _step == _spotSteps.length - 1
-                                  ? 'Готово'
-                                  : 'Далее',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    ),
-  );
-}
-
-class _SpotlightPainter extends CustomPainter {
-  final Rect? target;
-  const _SpotlightPainter(this.target);
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..fillType = PathFillType.evenOdd
-      ..addRect(Offset.zero & size);
-    if (target != null)
-      path.addRRect(
-        RRect.fromRectAndRadius(target!, const Radius.circular(12)),
-      );
-    canvas.drawPath(path, Paint()..color = const Color(0xC900060A));
-    if (target != null)
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(target!, const Radius.circular(12)),
-        Paint()
-          ..color = _millGold
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5,
-      );
-  }
-
-  @override
-  bool shouldRepaint(covariant _SpotlightPainter old) => old.target != target;
 }
