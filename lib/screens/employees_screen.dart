@@ -49,120 +49,6 @@ Future<void> _openAccountMenu(BuildContext context, AppSession supplied) async {
   if (exit == 'update') await _showApplicationUpdate(context);
 }
 
-class _LoaderPendingScreen extends StatelessWidget {
-  final AppSession session;
-  const _LoaderPendingScreen({required this.session});
-  @override
-  Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
-    value: const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: Colors.transparent,
-    ),
-    child: Scaffold(
-      backgroundColor: const Color(0xFF0A141B),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            'assets/images/scenes/employees_reference.png',
-            fit: BoxFit.cover,
-          ),
-          const ColoredBox(color: Color(0x66040B10)),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(22),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  InkWell(
-                    onTap: () => _openAccountMenu(context, session),
-                    borderRadius: BorderRadius.circular(16),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: const Color(0xFF232C31),
-                            foregroundColor: _amber,
-                            child: Text(
-                              session.displayName.characters.first
-                                  .toUpperCase(),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  session.displayName,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                  ),
-                                ),
-                                Text(
-                                  session.role.title,
-                                  style: const TextStyle(
-                                    color: Color(0xFFBEC6CB),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(Icons.expand_more, color: _amber),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.all(28),
-                        decoration: BoxDecoration(
-                          color: const Color(0xEA0D171F),
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(color: _amber),
-                        ),
-                        child: const Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.construction, color: _amber, size: 52),
-                            SizedBox(height: 20),
-                            Text(
-                              'На стадии разработки',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 25,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            SizedBox(height: 12),
-                            Text(
-                              'Раздел грузчика появится позже.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Color(0xFFBBC4CA),
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
 class _EmployeesScreen extends StatefulWidget {
   final ValueChanged<int>? onNavigate;
   const _EmployeesScreen({this.onNavigate});
@@ -241,7 +127,10 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
       final scale = box.maxWidth / 790;
       // A reusable crop of the empty reference frame; text and initials stay live.
       return SizedBox(
-        height: math.max(88.0, 80.0 * MediaQuery.textScalerOf(context).scale(1)),
+        height: math.max(
+          88.0,
+          80.0 * MediaQuery.textScalerOf(context).scale(1),
+        ),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -558,7 +447,11 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
                       ),
                       child: TextButton.icon(
                         onPressed: _edit,
-                        icon: const Icon(Icons.person_add_alt_1, color: gold, size: 20),
+                        icon: const Icon(
+                          Icons.person_add_alt_1,
+                          color: gold,
+                          size: 20,
+                        ),
                         label: const Text(
                           'Добавить сотрудника',
                           style: TextStyle(
@@ -601,7 +494,9 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
                     colors: [Color(0xFF343126), Color(0xFF1C2428)],
                   )
                 : null,
-            border: selected ? Border.all(color: const Color(0xFF716046)) : null,
+            border: selected
+                ? Border.all(color: const Color(0xFF716046))
+                : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -647,12 +542,29 @@ class _EmployeeEditorState extends State<_EmployeeEditor> {
       _confirmation = TextEditingController();
   late AppRole _role = widget.account?.role ?? widget.initialRole;
   late bool _active = widget.account?.active ?? true;
+  late final _rate = TextEditingController(
+    text: ((widget.account?.hourlyRateMinor ?? 0) / 100).toStringAsFixed(2),
+  );
+  late DateTime _payMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  late final _deduction = TextEditingController(
+    text:
+        ((widget.account?.deductions[LoaderService.monthKey(_payMonth)] ?? 0) /
+                100)
+            .toStringAsFixed(2),
+  );
   bool _busy = false, _hide = true;
   String? _error;
   bool get _self => widget.account?.id == SessionService.current?.accountId;
   @override
   void dispose() {
-    for (final c in [_name, _login, _password, _confirmation]) {
+    for (final c in [
+      _name,
+      _login,
+      _password,
+      _confirmation,
+      _rate,
+      _deduction,
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -678,6 +590,15 @@ class _EmployeeEditorState extends State<_EmployeeEditor> {
             ? null
             : _password.text,
         active: _active,
+        hourlyRateMinor: _role == AppRole.loader
+            ? LoaderService.parseMoney(_rate.text)
+            : null,
+        deductionMonth: _role == AppRole.loader
+            ? LoaderService.monthKey(_payMonth)
+            : null,
+        deductionMinor: _role == AppRole.loader
+            ? LoaderService.parseMoney(_deduction.text)
+            : null,
       );
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -691,6 +612,30 @@ class _EmployeeEditorState extends State<_EmployeeEditor> {
               : 'Не удалось сохранить сотрудника';
         });
     }
+  }
+
+  void _changePayMonth(int delta) {
+    final current = LoaderService.monthKey(_payMonth);
+    try {
+      if (LoaderService.parseMoney(_deduction.text) !=
+          (widget.account?.deductions[current] ?? 0)) {
+        setState(
+          () => _error = 'Сначала сохраните удержание за выбранный месяц, затем откройте карточку снова.',
+        );
+        return;
+      }
+    } catch (e) {
+      setState(() => _error = 'Проверьте сумму удержания');
+      return;
+    }
+    setState(() {
+      _payMonth = DateTime(_payMonth.year, _payMonth.month + delta);
+      _deduction.text =
+          ((widget.account?.deductions[LoaderService.monthKey(_payMonth)] ??
+                      0) /
+                  100)
+              .toStringAsFixed(2);
+    });
   }
 
   Widget field(
@@ -756,6 +701,42 @@ class _EmployeeEditorState extends State<_EmployeeEditor> {
                 secret: true,
               ),
               field(_confirmation, 'Повторите пароль', secret: true),
+              if (_role == AppRole.loader) ...[
+                const Divider(),
+                const Text(
+                  'Оплата грузчика',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                field(_rate, 'Часовая ставка, ₸'),
+                const Text(
+                  'Новая ставка применяется к новым сменам. Ставка сохранённых смен остаётся прежней.',
+                  style: TextStyle(fontSize: 12, color: Color(0xFFAEBAC2)),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: _busy ? null : () => _changePayMonth(-1),
+                      icon: const Icon(Icons.chevron_left),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Удержание за ${_payMonth.month.toString().padLeft(2, '0')}.${_payMonth.year}',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _busy ? null : () => _changePayMonth(1),
+                      icon: const Icon(Icons.chevron_right),
+                    ),
+                  ],
+                ),
+                field(_deduction, 'Сумма удержания за месяц, ₸'),
+                const Text(
+                  'Сохраните изменения перед переходом к другому месяцу.',
+                  style: TextStyle(fontSize: 12, color: Color(0xFFAEBAC2)),
+                ),
+              ],
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Доступ включён'),

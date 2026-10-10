@@ -25,6 +25,7 @@ import '../widgets/shift_route_map.dart';
 
 import '../models/app_role.dart';
 import '../services/session_service.dart';
+import '../services/loader_service.dart';
 import '../services/account_scope.dart';
 import '../services/maintenance_service.dart';
 import '../services/activity_service.dart';
@@ -40,6 +41,7 @@ part 'metric_details.dart';
 part 'garage_sections.dart';
 part 'directions_screen.dart';
 part 'employees_screen.dart';
+part 'loader_dashboard.dart';
 part 'test_mode.dart';
 part 'cinematic.dart';
 part 'statistics_dashboard.dart';
@@ -244,7 +246,7 @@ class _AppShellState extends State<AppShell> {
         body: Center(child: CircularProgressIndicator()),
       );
     if (_session.role == AppRole.loader)
-      return _LoaderPendingScreen(session: _session);
+      return _LoaderDashboard(session: _session);
     final items = _items;
     final pages = _pages;
     final extendDock =
