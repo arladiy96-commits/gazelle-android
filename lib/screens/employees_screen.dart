@@ -171,7 +171,7 @@ class _EmployeesScreen extends StatefulWidget {
 }
 
 class _EmployeesScreenState extends State<_EmployeesScreen> {
-  static const gold = Color(0xFFE1B366);
+  static const gold = Color(0xFFC7A568);
   List<EmployeeAccount>? _accounts;
   AppRole _role = AppRole.driver;
   String? _error;
@@ -220,20 +220,20 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
   }
 
   Widget _circle(IconData icon, VoidCallback action, String label) => Container(
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     decoration: BoxDecoration(
       shape: BoxShape.circle,
       gradient: const LinearGradient(
         colors: [Color(0xFF263036), Color(0xFF0A1218)],
       ),
-      border: Border.all(color: gold, width: 1.2),
+      border: Border.all(color: const Color(0xFF776547), width: 1),
       boxShadow: const [BoxShadow(color: Colors.black, blurRadius: 8)],
     ),
     child: IconButton(
       tooltip: label,
       onPressed: action,
-      icon: Icon(icon, color: gold, size: 27),
+      icon: Icon(icon, color: gold, size: 23),
     ),
   );
   Widget _card(EmployeeAccount account) => LayoutBuilder(
@@ -241,7 +241,7 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
       final scale = box.maxWidth / 790;
       // A reusable crop of the empty reference frame; text and initials stay live.
       return SizedBox(
-        height: box.maxWidth * 210 / 881,
+        height: math.max(88.0, 80.0 * MediaQuery.textScalerOf(context).scale(1)),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -264,6 +264,7 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
                 ),
               ),
             ),
+            const ColoredBox(color: Color(0x42071118)),
             Material(
               color: Colors.transparent,
               child: InkWell(
@@ -286,7 +287,7 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
                                 .toUpperCase(),
                             style: TextStyle(
                               color: gold,
-                              fontSize: 28 * math.min(1.0, scale * 2),
+                              fontSize: 23 * math.min(1.0, scale * 2),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -304,11 +305,11 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const SizedBox(height: 5),
+                            const SizedBox(height: 3),
                             Row(
                               children: [
                                 Icon(
@@ -326,20 +327,20 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
                                     account.role.title,
                                     style: const TextStyle(
                                       color: Color(0xFFADB7BE),
-                                      fontSize: 13,
+                                      fontSize: 11,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 4),
                             Text(
                               'Логин: ${account.login}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Color(0xFFC4CBD0),
-                                fontSize: 13,
+                                fontSize: 11,
                               ),
                             ),
                           ],
@@ -424,9 +425,24 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
               'assets/images/scenes/employees_reference.png',
               fit: BoxFit.cover,
             ),
+            const IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0x66061119),
+                      Color(0x8A061119),
+                      Color(0xA6061119),
+                    ],
+                  ),
+                ),
+              ),
+            ),
             SafeArea(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 18, 14, 6),
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
                 child: Column(
                   children: [
                     Row(
@@ -442,21 +458,21 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
                             'Сотрудники',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 29,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 23,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
                         _circle(Icons.refresh, _load, 'Обновить'),
                       ],
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 18),
                     Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         color: const Color(0xF00C151D),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: gold),
+                        border: Border.all(color: const Color(0xFF716046)),
                       ),
                       child: Row(
                         children: [
@@ -471,7 +487,7 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
                         onPressed: () => setState(() => _role = AppRole.admin),
                         icon: Icon(
                           Icons.admin_panel_settings_outlined,
-                          size: 18,
+                          size: 16,
                           color: _role == AppRole.admin
                               ? gold
                               : const Color(0xFFBAC3C9),
@@ -479,6 +495,7 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
                         label: Text(
                           'Администраторы · ${(_accounts ?? []).where((a) => a.role == AppRole.admin).length}',
                           style: TextStyle(
+                            fontSize: 12,
                             color: _role == AppRole.admin
                                 ? gold
                                 : const Color(0xFFBAC3C9),
@@ -509,7 +526,7 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: 16,
+                                    fontSize: 13,
                                   ),
                                 ),
                               ),
@@ -528,30 +545,30 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [
-                            Color(0xFF3B3020),
+                            Color(0xFF25251F),
                             Color(0xFF10191F),
-                            Color(0xFF29251D),
+                            Color(0xFF191F20),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: gold),
+                        border: Border.all(color: const Color(0xFF716046)),
                         boxShadow: const [
                           BoxShadow(color: Colors.black, blurRadius: 10),
                         ],
                       ),
                       child: TextButton.icon(
                         onPressed: _edit,
-                        icon: const Icon(Icons.person_add_alt_1, color: gold),
+                        icon: const Icon(Icons.person_add_alt_1, color: gold, size: 20),
                         label: const Text(
                           'Добавить сотрудника',
                           style: TextStyle(
                             color: gold,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
                           ),
                         ),
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 17),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
                     ),
@@ -576,15 +593,15 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
         onTap: () => setState(() => _role = role),
         borderRadius: BorderRadius.circular(12),
         child: Ink(
-          padding: const EdgeInsets.symmetric(vertical: 17, horizontal: 6),
+          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 6),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             gradient: selected
                 ? const LinearGradient(
-                    colors: [Color(0xFFB28340), Color(0xFF493823)],
+                    colors: [Color(0xFF343126), Color(0xFF1C2428)],
                   )
                 : null,
-            border: selected ? Border.all(color: gold) : null,
+            border: selected ? Border.all(color: const Color(0xFF716046)) : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -594,7 +611,7 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
                     ? Icons.local_shipping_outlined
                     : Icons.inventory_2_outlined,
                 color: selected ? gold : const Color(0xFF84929B),
-                size: 24,
+                size: 19,
               ),
               const SizedBox(width: 7),
               Flexible(
@@ -602,8 +619,8 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
                   '${role == AppRole.driver ? 'Водители' : 'Грузчики'}  $count',
                   style: TextStyle(
                     color: selected ? Colors.white : const Color(0xFF84929B),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
