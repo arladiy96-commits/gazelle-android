@@ -262,6 +262,16 @@ class _MillStatisticsState extends State<_MillStatistics> {
         selected,
         (SessionService.current ?? widget.session).displayName,
       );
+      if ((payload['pages'] as List).isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'За этот период нет записей. Выберите другой период.',
+            ),
+          ),
+        );
+        return;
+      }
       await Navigator.push<void>(
         context,
         MaterialPageRoute(
@@ -443,7 +453,7 @@ class _MillStatisticsState extends State<_MillStatistics> {
                     style: TextStyle(color: Colors.white, fontSize: 15),
                   ),
                   subtitle: const Text(
-                    'Работа, тоннаж и заработок · PDF / PNG',
+                    'По дням: вес, направления и платные рейсы',
                     style: TextStyle(color: Color(0xFFADB7BE), fontSize: 11),
                   ),
                   trailing: const Icon(Icons.chevron_right, color: gold),
@@ -935,119 +945,133 @@ Map<String, Object> _generalReportPayload(
   DateTimeRange range,
   String name,
 ) {
-  final totals = <String, double>{};
-  final rows = <List<String>>[];
-  var shiftCount = 0,
-      openCount = 0,
-      missingKm = 0,
-      missingHours = 0,
-      trips = 0,
-      paidTrips = 0;
-  var city = 0.0, region = 0.0, km = 0.0, hours = 0.0;
-  var salaryCents = 0;
-  final groups = <String, List<Map<String, dynamic>>>{};
+  final pages = <List<List<String>>>[];
+  var page = <List<String>>[];
+  void add(List<String> row) {
+    if (page.length == 24) {
+      pages.add(page);
+      page = [];
+    }
+    page.add(row);
+  }
+
+  var city = 0.0, region = 0.0;
+  var paid = 0, count = 0;
+  final shiftsByDay = <String, List<Map<String, dynamic>>>{};
   for (final shift in state.shifts) {
-    final key = TestState.dayKey(DateTime.parse(shift['start'] as String));
-    groups.putIfAbsent(key, () => []).add(shift);
+    final d = DateTime.parse(shift['start'] as String);
+    shiftsByDay.putIfAbsent(TestState.dayKey(d), () => []).add(shift);
   }
   for (final day in days) {
-    final shifts = groups[TestState.dayKey(day.date)] ?? [];
-    if (shifts.isEmpty && !day.active) continue;
-    final values = state.statistics(day.date, day: day.date);
-    final isOpen = shifts.any((s) => s['end'] == null);
-    final noKm = shifts.any((s) => !state.hasRecordedMileage(s));
-    final noHours = shifts.any((s) => s['hoursWorked'] is! num);
-    shiftCount += shifts.length;
-    openCount += shifts.where((s) => s['end'] == null).length;
-    missingKm += shifts.where((s) => !state.hasRecordedMileage(s)).length;
-    missingHours += shifts.where((s) => s['hoursWorked'] is! num).length;
-    for (final shift in shifts) {
-      paidTrips += state
-          .forShift(shift['id'] as String)
-          .where((e) => e['kind'] == 'trip' && e['isPaid'] == true)
-          .length;
+    final shifts = shiftsByDay[TestState.dayKey(day.date)] ?? [];
+    if (shifts.isEmpty) continue;
+    shifts.sort(
+      (a, b) => (a['start'] as String).compareTo(b['start'] as String),
+    );
+    final statuses = shifts
+        .map(
+          (shift) => state.holidayShift(shift)
+              ? 'Праздничный день'
+              : state.weekendShift(shift)
+              ? 'Выходной'
+              : 'Рабочий день',
+        )
+        .toSet();
+    final open = shifts.any((shift) => shift['end'] == null);
+    final title =
+        '${_reportDate(day.date)} · ${statuses.join(' / ')}${open ? ' · Смена не завершена' : ''}';
+    final entries = <Map<String, dynamic>>[
+      for (final shift in shifts)
+        ...state
+            .forShift(shift['id'] as String)
+            .where((r) => r['kind'] == 'trip'),
+    ]..sort((a, b) => (a['date'] as String).compareTo(b['date'] as String));
+    var dayCity = 0.0, dayRegion = 0.0;
+    var dayPaid = 0;
+    final tripRows = <List<String>>[];
+    for (final entry in entries) {
+      final amount = (entry['amount'] as num?)?.toDouble() ?? 0;
+      final isCity = entry['type'] == 'Город';
+      final isPaid = entry['isPaid'] == true;
+      if (isCity) {
+        dayCity += amount;
+      } else {
+        dayRegion += amount;
+      }
+      if (isPaid) dayPaid++;
+      final direction = (entry['direction'] as String? ?? '').trim();
+      tripRows.add([
+        'trip',
+        direction.isEmpty ? 'Направление не указано' : direction,
+        isCity ? _reportNumber(amount) : '—',
+        isCity ? '—' : _reportNumber(amount),
+        isPaid ? 'Да' : 'Нет',
+      ]);
     }
-    trips += day.trips;
-    city += day.city;
-    region += day.region;
-    km += day.km;
-    final dayHours = values['all_hours'] ?? 0;
-    hours += dayHours;
-    final cents = (day.salary * 100).round();
-    salaryCents += cents;
-    // Preserve the same base-pay allocation as the statistics screen.
-    values['base_salary'] =
-        (values['base_salary'] ?? 0) + day.salary - (values['salary'] ?? 0);
-    for (final key in [
-      'base_salary',
-      'city_pay',
-      'region_pay',
-      'paid_routes_pay',
-      'weekend_pay',
-      'holiday_pay',
-      'gas',
-      'petrol',
-    ]) {
-      totals[key] = (totals[key] ?? 0) + (values[key] ?? 0);
+    if (tripRows.isEmpty) tripRows.add(['note', 'Рейсов нет', '', '', '']);
+    // Keep the day heading with a trip; repeat it if the day spans pages.
+    var offset = 0;
+    while (offset < tripRows.length) {
+      if (24 - page.length < 3) {
+        if (page.isNotEmpty) pages.add(page);
+        page = [];
+      }
+      add(['day', '$title${offset > 0 ? ' · Продолжение' : ''}', '', '', '']);
+      final room = 24 - page.length;
+      final remaining = tripRows.length - offset;
+      final take = remaining < room ? remaining : room;
+      for (var i = 0; i < take; i++) add(tripRows[offset++]);
+      if (offset == tripRows.length) {
+        if (page.length == 24) {
+          // Move the last trip to the next page with its day total.
+          final last = page.removeLast();
+          pages.add(page);
+          page = [];
+          add(['day', '$title · Продолжение', '', '', '']);
+          add(last);
+        }
+        add([
+          'total',
+          'Итого за день · ${entries.length} рейсов',
+          _reportNumber(dayCity),
+          _reportNumber(dayRegion),
+          '$dayPaid',
+        ]);
+      }
     }
-    rows.add([
-      '${_reportDate(day.date)}${isOpen ? '*' : ''}',
-      '${_reportNumber(dayHours)}${noHours ? '*' : ''}',
-      '${day.trips}',
-      _reportNumber(day.city / 1000, 3),
-      _reportNumber(day.region / 1000, 3),
-      '${_reportNumber(day.km)}${noKm ? '*' : ''}',
-      _reportNumber(cents / 100),
-    ]);
+    city += dayCity;
+    region += dayRegion;
+    paid += dayPaid;
+    count += entries.length;
   }
-  String n(String key) => _reportNumber(totals[key] ?? 0);
+  if (page.isNotEmpty) pages.add(page);
+  if (pages.isNotEmpty) {
+    page = pages.removeLast();
+    if (24 - page.length < 2) {
+      pages.add(page);
+      page = [];
+    }
+    add([
+      'grand',
+      'ИТОГО ЗА ПЕРИОД · $count рейсов',
+      _reportNumber(city),
+      _reportNumber(region),
+      '$paid',
+    ]);
+    add([
+      'note',
+      'Всего перевезено: ${_reportNumber(city + region)} кг. Платных рейсов: $paid.',
+      '',
+      '',
+      '',
+    ]);
+    pages.add(page);
+  }
   return {
     'name': name,
     'period': '${_reportDate(range.start)} — ${_reportDate(range.end)}',
     'created': 'Сформирован ${_reportDate(DateTime.now())}',
-    'summary': <List<String>>[
-      ['Смен / незавершённых', '$shiftCount / $openCount'],
-      ['Отработано часов (внесено)', _reportNumber(hours)],
-      ['Рейсов / платных направлений', '$trips / $paidTrips'],
-      ['Город, т', _reportNumber(city / 1000, 3)],
-      ['Район, т', _reportNumber(region / 1000, 3)],
-      ['Всего перевезено, т', _reportNumber((city + region) / 1000, 3)],
-      ['Пробег (внесено), км', _reportNumber(km)],
-      ['Получено газа, л', n('gas')],
-      ['Получено бензина, л', n('petrol')],
-    ],
-    'pay': <List<String>>[
-      ['Основная оплата', n('base_salary')],
-      ['За тоннаж города', n('city_pay')],
-      ['За тоннаж района', n('region_pay')],
-      ['Платные направления', n('paid_routes_pay')],
-      ['Выходные', n('weekend_pay')],
-      ['Праздничные', n('holiday_pay')],
-      ['Всего начислено, ₸', _reportNumber(salaryCents / 100)],
-    ],
-    'rows': rows,
-    'total': [
-      'ИТОГО',
-      _reportNumber(hours),
-      '$trips',
-      _reportNumber(city / 1000, 3),
-      _reportNumber(region / 1000, 3),
-      _reportNumber(km),
-      _reportNumber(salaryCents / 100),
-    ],
-    'notes': <String>[
-      if (rows.isEmpty) 'За выбранный период записей нет.',
-      if (openCount > 0)
-        '* Незавершённых смен: $openCount. Итоги предварительные.',
-      if (missingHours > 0)
-        '* Часы не внесены в $missingHours сменах; указана известная сумма.',
-      if (missingKm > 0)
-        '* Пробег не внесён в $missingKm сменах; указана известная сумма.',
-      'Тоннаж: 1 т = 1 000 кг. Топливо: получено, а не израсходовано.',
-      'Удержания и выплаты не учтены. «Начислено» не означает «К выплате».',
-      'День смены определяется датой её начала. Показаны дни с записями.',
-      'Суммы округлены до 0,01 ₸; возможна разница округления составляющих.',
-    ],
+    'pages': pages,
   };
 }
 
@@ -1063,15 +1087,10 @@ class _GeneralReportPreviewState extends State<_GeneralReportPreview> {
   static const channel = MethodChannel('melnitsa/advance_image');
   dynamic _image;
   String? _error;
-  bool _busy = false, _detail = true;
+  bool _busy = false;
   int _page = 0;
-  int get _pages =>
-      1 + (_detail ? ((widget.payload['rows'] as List).length + 24) ~/ 25 : 0);
-  Map<String, Object> get _args => {
-    ...widget.payload,
-    'detail': _detail,
-    'page': _page,
-  };
+  int get _pages => (widget.payload['pages'] as List).length;
+  Map<String, Object> get _args => {...widget.payload, 'page': _page};
   @override
   void initState() {
     super.initState();
@@ -1138,19 +1157,12 @@ class _GeneralReportPreviewState extends State<_GeneralReportPreview> {
       body: SafeArea(
         child: Column(
           children: [
-            SwitchListTile(
-              title: const Text('Подробный бланк'),
-              subtitle: const Text('Итоги и таблица по дням'),
-              value: _detail,
-              onChanged: _busy
-                  ? null
-                  : (v) {
-                      setState(() {
-                        _detail = v;
-                        _page = 0;
-                      });
-                      _render();
-                    },
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text(
+                'По дням · город / район · направления · платность',
+                style: TextStyle(color: Color(0xFFADB7BE), fontSize: 12),
+              ),
             ),
             Expanded(
               child: _busy
