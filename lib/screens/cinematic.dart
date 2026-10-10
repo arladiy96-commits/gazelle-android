@@ -1457,12 +1457,6 @@ class _CinematicMore extends StatelessWidget {
               gold,
             ),
             (
-              'Расходная накладная',
-              'Создание бланка А4',
-              Icons.description_outlined,
-              gold,
-            ),
-            (
               'Авансовый отчёт',
               'Расходы и архив',
               Icons.assignment_outlined,
@@ -1645,15 +1639,6 @@ class _CinematicMore extends StatelessWidget {
         context,
         _SceneRoute<void>(
           builder: (_) => const _CalculationSettingsScreen(settingsRoot: true),
-        ),
-      );
-      return;
-    }
-    if (item.$1 == 'Расходная накладная') {
-      Navigator.push(
-        context,
-        _SceneRoute<void>(
-          builder: (_) => SalesInvoiceScreen(owner: session.ownerKey),
         ),
       );
       return;
