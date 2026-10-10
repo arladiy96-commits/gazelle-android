@@ -18,11 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      MELNITSA_KEYSTORE_PATH: ${{ runner.temp }}/melnitsa-release.jks
       MELNITSA_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
       MELNITSA_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       MELNITSA_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     steps:
+      - name: Set signing file path
+        shell: bash
+        run: echo "MELNITSA_KEYSTORE_PATH=$RUNNER_TEMP/melnitsa-release.jks" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
@@ -69,4 +71,4 @@ jobs:
       - name: Remove temporary key
         if: always()
         shell: bash
-        run: rm -f "$MELNITSA_KEYSTORE_PATH"
+        run: rm -f "$RUNNER_TEMP/melnitsa-release.jks"
