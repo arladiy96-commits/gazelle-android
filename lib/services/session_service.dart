@@ -27,12 +27,16 @@ class EmployeeAccount {
   final String id, name, login;
   final AppRole role;
   final bool active;
+  final int hourlyRateMinor;
+  final Map<String, int> deductions;
   const EmployeeAccount({
     required this.id,
     required this.name,
     required this.login,
     required this.role,
     required this.active,
+    this.hourlyRateMinor = 0,
+    this.deductions = const {},
   });
   factory EmployeeAccount.fromJson(Map<String, dynamic> row) => EmployeeAccount(
     id: row['id'] as String,
@@ -40,6 +44,8 @@ class EmployeeAccount {
     login: row['login'] as String,
     role: AppRole.fromStorage(row['role'] as String),
     active: row['active'] == true,
+    hourlyRateMinor: (row['hourlyRateMinor'] as num?)?.toInt() ?? 0,
+    deductions: Map<String, int>.from(row['loaderDeductions'] as Map? ?? {}),
   );
   AppSession get session =>
       AppSession(accountId: id, displayName: name, login: login, role: role);
@@ -196,6 +202,9 @@ class SessionService {
     required AppRole role,
     String? password,
     bool active = true,
+    int? hourlyRateMinor,
+    String? deductionMonth,
+    int? deductionMinor,
   }) {
     AccountScope.requireAdmin();
     final token = AccountScope.capture();
@@ -203,6 +212,17 @@ class SessionService {
       token.check();
       AccountScope.requireAdmin();
       _validate(name, login, password);
+      if (hourlyRateMinor != null &&
+          (hourlyRateMinor < 0 || hourlyRateMinor > 100000000)) {
+        throw ArgumentError('Ставка должна быть от 0 до 1 000 000 ₸');
+      }
+      if (deductionMinor != null &&
+          (deductionMinor < 0 ||
+              deductionMinor > 10000000000 ||
+              deductionMonth == null ||
+              !RegExp(r'^\d{4}-(0[1-9]|1[0-2])$').hasMatch(deductionMonth))) {
+        throw ArgumentError('Проверьте месяц и сумму удержания');
+      }
       final rows = await _rows();
       token.check();
       final old = rows.where((e) => e['id'] == id).firstOrNull;
@@ -229,6 +249,13 @@ class SessionService {
         'serverId': old?['serverId'],
         'createdAt': old?['createdAt'] ?? DateTime.now().toIso8601String(),
       };
+      if (hourlyRateMinor != null) row['hourlyRateMinor'] = hourlyRateMinor;
+      if (deductionMinor != null) {
+        row['loaderDeductions'] = <String, dynamic>{
+          ...Map<String, dynamic>.from(old?['loaderDeductions'] as Map? ?? {}),
+          deductionMonth!: deductionMinor,
+        };
+      }
       if (password != null) {
         final salt = _random(24);
         row['salt'] = salt;
@@ -243,6 +270,17 @@ class SessionService {
       if (id == current?.accountId)
         current = EmployeeAccount.fromJson(row).session;
     });
+  }
+
+  /// The loader can read only their own pay settings, never the account list.
+  static Future<EmployeeAccount> ownLoaderSettings() async {
+    final token = AccountScope.capture();
+    if (token.role != AppRole.loader) throw StateError('Доступно грузчику');
+    final rows = await _rows();
+    token.check();
+    return EmployeeAccount.fromJson(
+      rows.firstWhere((r) => r['id'] == token.id),
+    );
   }
 
   static Future<void> clear() => _serial(() async {
