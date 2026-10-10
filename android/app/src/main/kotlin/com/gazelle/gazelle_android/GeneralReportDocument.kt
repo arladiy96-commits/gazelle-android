@@ -15,10 +15,17 @@ object GeneralReportDocument {
     private const val ROWS_PER_PAGE = 25
 
     fun render(args: Map<*, *>, pdf: Boolean): ByteArray {
-        val rows = table(args, "rows", 7)
-        require(rows.size <= 367) { "Период слишком большой" }
-        val detailed = args["detail"] == true
-        val pages = 1 + if (detailed) (rows.size + ROWS_PER_PAGE - 1) / ROWS_PER_PAGE else 0
+        val sheets = (args["pages"] as? List<*>)?.map { raw ->
+            val rows = raw as? List<*> ?: error("Нет строк")
+            require(rows.size <= 24)
+            rows.map { item ->
+                val row = item as? List<*> ?: error("Строка")
+                require(row.size == 5)
+                row.map { it?.toString().orEmpty().take(240) }
+            }
+        } ?: error("Нет страниц")
+        val pages = sheets.size
+        require(pages in 1..1000) { "Нет данных или слишком большой отчёт" }
         if (pdf) {
             val document = PdfDocument()
             try {
@@ -26,7 +33,7 @@ object GeneralReportDocument {
                     val page = document.startPage(PdfDocument.PageInfo.Builder(595, 842, index + 1).create())
                     page.canvas.save()
                     page.canvas.scale(0.5f, 0.5f)
-                    draw(page.canvas, args, rows, index, pages)
+                    draw(page.canvas, args, sheets[index], index, pages)
                     page.canvas.restore()
                     document.finishPage(page)
                 }
@@ -37,7 +44,7 @@ object GeneralReportDocument {
         require(index in 0 until pages)
         val bitmap = Bitmap.createBitmap(WIDTH, HEIGHT, Bitmap.Config.ARGB_8888)
         try {
-            draw(Canvas(bitmap), args, rows, index, pages)
+            draw(Canvas(bitmap), args, sheets[index], index, pages)
             return ByteArrayOutputStream().use { out ->
                 check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, out))
                 out.toByteArray()
@@ -79,67 +86,45 @@ object GeneralReportDocument {
             text(value, 80f, y, 23f, bold = true)
         }
         text("МЕЛЬНИЦА", 64f, 77f, 23f, bold = true, color = gold)
-        text("ОТЧЁТ О РАБОТЕ ВОДИТЕЛЯ", 64f, 124f, 34f, bold = true)
+        text("ОТЧЁТ ПО РЕЙСАМ И ТОННАЖУ", 64f, 124f, 34f, bold = true)
         text(args["name"].toString(), 64f, 168f, 26f, bold = true)
         text(args["period"].toString(), 64f, 205f, 23f, color = muted)
         rule(229f)
-        if (page == 0) {
-            title("ИТОГИ РАБОТЫ", 277f)
-            var y = 324f
-            val summary = table(args, "summary", 2)
-            require(summary.size <= 9)
-            for (row in summary) {
-                text(row[0], 80f, y, width = 710f)
-                text(row[1], 830f, y, width = 278f, bold = true)
-                rule(y + 14f); y += 47f
+        val widths = listOf(532f, 190f, 190f, 150f)
+        fun row(cells: List<String>, y: Float, header: Boolean = false, total: Boolean = false) {
+            if (header || total) {
+                paint.color = Color.rgb(240, 241, 237)
+                canvas.drawRect(64f, y, 1126f, y + 49f, paint)
             }
-            title("НАЧИСЛЕНИЯ, ₸", 803f)
-            y = 851f
-            val pay = table(args, "pay", 2)
-            require(pay.size <= 7)
-            pay.forEachIndexed { i, row ->
-                val total = i == pay.lastIndex
-                text(row[0], 80f, y, if (total) 25f else 23f, width = 710f, bold = total)
-                text(row[1], 830f, y, if (total) 27f else 23f, width = 278f, bold = total)
-                rule(y + 14f); y += 47f
+            var x = 64f
+            cells.forEachIndexed { i, cell ->
+                text(cell, x + 10f, y + 31f, if (header) 21f else 23f,
+                    width = widths[i] - 20f, bold = header || total)
+                paint.color = line; paint.strokeWidth = 1f
+                canvas.drawLine(x, y, x, y + 49f, paint)
+                x += widths[i]
             }
-            val notes = args["notes"] as? List<*> ?: emptyList<Any>()
-            require(notes.size <= 8)
-            y = 1240f
-            notes.forEach { text(it.toString(), 64f, y, 19f, color = muted); y += 31f }
-        } else {
-            title("ДЕТАЛИЗАЦИЯ ПО ДНЯМ", 277f)
-            val widths = listOf(168f, 106f, 80f, 163f, 163f, 132f, 250f)
-            val headers = listOf("Дата", "Часы", "Рейсы", "Город, т", "Район, т", "Км", "Начислено, ₸")
-            fun row(cells: List<String>, y: Float, header: Boolean = false, total: Boolean = false) {
-                if (header || total) {
-                    paint.color = Color.rgb(240, 241, 237)
-                    canvas.drawRect(64f, y, 1126f, y + 43f, paint)
-                }
-                var x = 64f
-                cells.forEachIndexed { i, cell ->
-                    text(cell, x + 8f, y + 28f, if (header) 19f else 21f,
-                        width = widths[i] - 16f, bold = header || total)
-                    paint.color = line; paint.strokeWidth = 1f
-                    canvas.drawLine(x, y, x, y + 43f, paint)
-                    x += widths[i]
-                }
-                paint.color = line
-                canvas.drawLine(1126f, y, 1126f, y + 43f, paint)
-                rule(y); rule(y + 43f)
-            }
-            row(headers, 312f, header = true)
-            var y = 355f
-            rows.drop((page - 1) * ROWS_PER_PAGE).take(ROWS_PER_PAGE).forEach {
-                row(it, y); y += 43f
-            }
-            if (page == pages - 1) {
-                val total = (args["total"] as? List<*>)?.map { it.toString() } ?: error("Нет итогов")
-                require(total.size == 7)
-                row(total, y, total = true)
-            }
-            text("* Неполные данные: пояснения на первой странице.", 64f, 1510f, 18f, color = muted)
+            paint.color = line
+            canvas.drawLine(1126f, y, 1126f, y + 49f, paint)
+            rule(y); rule(y + 49f)
         }
+        row(listOf("Направление", "Город, кг", "Район, кг", "Платное"), 259f, header = true)
+        var y = 308f
+        for (entry in rows) {
+            when (entry[0]) {
+                "day" -> {
+                    paint.color = Color.rgb(227, 232, 231)
+                    canvas.drawRect(64f, y, 1126f, y + 49f, paint)
+                    text(entry[1], 76f, y + 31f, 22f, width = 1038f, bold = true)
+                    rule(y); rule(y + 49f)
+                }
+                "note" -> text(entry[1], 76f, y + 31f, 21f, width = 1038f, color = muted)
+                else -> row(entry.drop(1), y, total = entry[0] == "total" || entry[0] == "grand")
+            }
+            y += 49f
+        }
+        text("В итогах столбец «Платное» — количество платных рейсов.", 64f, 1515f, 18f, color = muted)
+        text("День указан по началу смены. Статус дня и платность — из журнала.", 64f, 1546f, 18f, color = muted)
         rule(1583f)
         text(args["created"].toString(), 64f, 1618f, 18f, color = muted)
         text("Страница ${page + 1} из $pages", 910f, 1618f, 18f, width = 216f, color = muted)
