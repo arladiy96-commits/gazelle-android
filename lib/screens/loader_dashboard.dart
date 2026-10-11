@@ -397,12 +397,48 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
   void _stepTime(int delta) => _setTime(_enteredMinutes + delta);
 
   Widget _paperScreen(double width, double height) {
-    final sx = width / 864, sy = height / 1536;
+    final insets = MediaQuery.paddingOf(context);
+    final sx = width / 864, sy = (height - insets.top - insets.bottom) / 1536;
+    // Extend only the top photograph behind the system status bar.
+    // The paper sheets and their controls retain the same safe-area coordinates.
+    Widget backgroundBand(
+      String asset,
+      double from,
+      double to,
+      double top,
+      double bandHeight,
+    ) => Positioned(
+      left: 0,
+      right: 0,
+      top: top,
+      height: bandHeight,
+      child: ClipRect(
+        child: LayoutBuilder(
+          builder: (_, box) {
+            final imageHeight = box.maxHeight / (to - from);
+            return Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  top: -from * imageHeight,
+                  width: width,
+                  height: imageHeight,
+                  child: RepaintBoundary(
+                    child: Image.asset(asset, fit: BoxFit.fill),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+    final headerEnd = insets.top + 110 * sy;
     final history = _tab == 1;
     Widget at(double x, double y, double w, double h, Widget child) =>
         Positioned(
           left: x * sx,
-          top: y * sy,
+          top: insets.top + y * sy,
           width: w * sx,
           height: h * sy,
           child: child,
@@ -493,13 +529,14 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
           );
     return Stack(
       children: [
-        Positioned.fill(
-          child: RepaintBoundary(
-            child: Image.asset(
-              history ? _paperHistory : _paperShift,
-              fit: BoxFit.fill,
-            ),
-          ),
+        // Contiguous slices: no second full-size scene under SafeArea.
+        backgroundBand(_paperShift, 0, 110 / 1536, 0, headerEnd),
+        backgroundBand(
+          history ? _paperHistory : _paperShift,
+          110 / 1536,
+          1,
+          headerEnd,
+          height - headerEnd,
         ),
         at(
           104,
@@ -899,23 +936,8 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
       child: Scaffold(
         resizeToAvoidBottomInset: false,
         backgroundColor: const Color(0xFF07121A),
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            Positioned.fill(
-              child: RepaintBoundary(
-                child: Image.asset(
-                  _tab == 1 ? _paperHistory : _paperShift,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            SafeArea(
-              child: LayoutBuilder(
-                builder: (_, box) => _paperScreen(box.maxWidth, box.maxHeight),
-              ),
-            ),
-          ],
+        body: LayoutBuilder(
+          builder: (_, box) => _paperScreen(box.maxWidth, box.maxHeight),
         ),
       ),
     ),
