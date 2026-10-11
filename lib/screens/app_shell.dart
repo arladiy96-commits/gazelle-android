@@ -80,6 +80,28 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
+  String? _lastGpsIssue;
+  void _gpsIssueChanged() {
+    final message = GpsTrackerController.instance.issue.value;
+    if (!mounted || message == null || message == _lastGpsIssue) return;
+    _lastGpsIssue = message;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 8),
+          action: SnackBarAction(
+            label: 'Настройки',
+            onPressed: () {
+              GpsTrackerController.instance.openSettings();
+            },
+          ),
+        ),
+      );
+    });
+  }
+
   int _index = 0;
   bool _loggingOut = false;
   AppSession get _session => SessionService.current ?? widget.session;
@@ -95,6 +117,7 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
+    GpsTrackerController.instance.issue.addListener(_gpsIssueChanged);
     TestStore.revision.addListener(_syncGpsTracker);
     SessionService.revision.addListener(_accountChanged);
     scheduleMicrotask(_syncGpsTracker);
@@ -110,6 +133,7 @@ class _AppShellState extends State<AppShell> {
   @override
   void dispose() {
     SessionService.revision.removeListener(_accountChanged);
+    GpsTrackerController.instance.issue.removeListener(_gpsIssueChanged);
     TestStore.revision.removeListener(_syncGpsTracker);
     GpsTrackerController.instance.dispose();
     super.dispose();
