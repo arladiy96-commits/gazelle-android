@@ -1152,6 +1152,59 @@ class TestStore {
       throw ArgumentError('Введите неотрицательное число часов');
   }
 
+  /// Exactly-once import: the counter and imported watermark share one journal
+  /// write. A crash/retry, Activity recreation or repeated snapshot cannot add km twice.
+  static Future<void> importGpsSnapshots(List<dynamic> snapshots) {
+    final scope = AccountScope.capture();
+    final task = _queue.then(
+      (_) => scope.bind(() async {
+        final state = await load();
+        var changed = false;
+        for (final raw in snapshots) {
+          if (raw is! Map) continue;
+          final id = raw['shiftId'];
+          final token = raw['token'];
+          final metres = (raw['metres'] as num?)?.toDouble();
+          if (id is! String ||
+              token is! String ||
+              token.isEmpty ||
+              metres == null ||
+              !metres.isFinite ||
+              metres < 0)
+            continue;
+          final shift = state.shifts.where((s) => s['id'] == id).firstOrNull;
+          if (shift == null) continue; // Deleted shift must not be resurrected.
+          final counters = Map<String, dynamic>.from(
+            shift['gpsNativeCounters'] as Map? ?? {},
+          );
+          final previous = (counters[token] as num?)?.toDouble() ?? 0.0;
+          if (metres > previous) {
+            shift['gpsKm'] =
+                ((shift['gpsKm'] as num?)?.toDouble() ?? 0.0) +
+                (metres - previous) / 1000.0;
+            counters[token] = metres;
+            shift['gpsNativeCounters'] = counters;
+            changed = true;
+          }
+          final gaps = (raw['gaps'] as num?)?.toInt() ?? 0;
+          if (shift['gpsSignalGaps'] != gaps) {
+            shift['gpsSignalGaps'] = gaps;
+            changed = true;
+          }
+        }
+        if (changed) {
+          scope.check();
+          await (await TestPreferences.getInstance()).setString(
+            'journal',
+            jsonEncode(state.toJson()),
+          );
+        }
+      }),
+    );
+    _queue = task.then<void>((_) {}, onError: (Object e, StackTrace s) {});
+    return task;
+  }
+
   static Future<void> gps(String id, {bool? paused, double addKm = 0}) =>
       _change((b) {
         final s = b.shifts.firstWhere((s) => s['id'] == id);

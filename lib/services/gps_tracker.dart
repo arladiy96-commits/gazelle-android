@@ -1,257 +1,211 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'account_scope.dart';
-
 import 'test_store.dart';
+
+const _gpsChannel = MethodChannel('melnitsa/shift_gps');
 
 class GpsRouteStore {
   static const storageKey = 'gazelle_real_gps_routes_v1';
 
-  static Future<Map<String, dynamic>> _root() async {
-    final prefs = await TestPreferences.getInstance();
-    final raw = prefs.getString(storageKey);
-    if (raw == null || raw.trim().isEmpty) return <String, dynamic>{};
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is Map<String, dynamic>) return decoded;
-      if (decoded is Map) return Map<String, dynamic>.from(decoded);
-    } catch (_) {}
-    return <String, dynamic>{};
-  }
-
-  static Future<void> _saveRoot(Map<String, dynamic> data) async {
-    final prefs = await TestPreferences.getInstance();
-    await prefs.setString(storageKey, jsonEncode(data));
-  }
-
   static Future<Map<String, dynamic>> loadShift(String shiftId) async {
-    final root = await _root();
-    final route = root[shiftId];
-    if (route is Map<String, dynamic>) return route;
-    if (route is Map) return Map<String, dynamic>.from(route);
-    return {'distanceKm': 0.0, 'points': <Map<String, dynamic>>[]};
+    final scope = AccountScope.capture();
+    final prefs = await TestPreferences.getInstance();
+    scope.check();
+    final raw = prefs.getString(storageKey);
+    Map<String, dynamic> legacy = {};
+    if (raw != null && raw.isNotEmpty) {
+      final root = jsonDecode(raw) as Map;
+      if (root[shiftId] is Map)
+        legacy = Map<String, dynamic>.from(root[shiftId]);
+    }
+    Map<String, dynamic> native = {};
+    if (Platform.isAndroid) {
+      final result = await _gpsChannel.invokeMapMethod<String, dynamic>(
+        'route',
+        {'account': scope.id, 'shift': shiftId},
+      );
+      scope.check();
+      native = result ?? {};
+    }
+    final oldPoints = legacy['points'] as List? ?? const [];
+    final newPoints = native['points'] as List? ?? const [];
+    return {
+      ...legacy,
+      ...native,
+      'distanceKm':
+          ((legacy['distanceKm'] as num?)?.toDouble() ?? 0) +
+          ((native['distanceKm'] as num?)?.toDouble() ?? 0),
+      'points': [...oldPoints, ...newPoints],
+    };
   }
 
   static Future<List<Map<String, dynamic>>> points(String shiftId) async {
     final route = await loadShift(shiftId);
-    final raw = route['points'] as List? ?? const [];
-    return [for (final row in raw) Map<String, dynamic>.from(row as Map)];
-  }
-
-  static double _pointDistanceMeters(
-    Map<String, dynamic> a,
-    Map<String, dynamic> b,
-  ) {
-    return Geolocator.distanceBetween(
-      (a['lat'] as num).toDouble(),
-      (a['lng'] as num).toDouble(),
-      (b['lat'] as num).toDouble(),
-      (b['lng'] as num).toDouble(),
-    );
-  }
-
-  static Future<double> appendPoint({
-    required String shiftId,
-    required double lat,
-    required double lng,
-    required DateTime time,
-    required double accuracy,
-    double? speed,
-  }) async {
-    final account = AccountScope.capture();
-    final root = await _root();
-    account.check();
-    final current = root[shiftId];
-    final route = current is Map<String, dynamic>
-        ? Map<String, dynamic>.from(current)
-        : current is Map
-        ? Map<String, dynamic>.from(current)
-        : <String, dynamic>{};
-
-    final rawPoints = route['points'] as List? ?? const [];
-    final pts = [
-      for (final row in rawPoints) Map<String, dynamic>.from(row as Map),
+    return [
+      for (final row in route['points'] as List? ?? const [])
+        Map<String, dynamic>.from(row as Map),
     ];
-
-    final point = <String, dynamic>{
-      'lat': lat,
-      'lng': lng,
-      'time': time.toIso8601String(),
-      'accuracy': accuracy,
-      'speed': speed ?? 0.0,
-    };
-
-    double addedKm = 0.0;
-    bool shouldStore = pts.isEmpty;
-
-    if (pts.isNotEmpty) {
-      final last = pts.last;
-      final meters = _pointDistanceMeters(last, point);
-      final prevTime =
-          DateTime.tryParse(last['time']?.toString() ?? '') ?? time;
-      final seconds = time.difference(prevTime).inSeconds.abs();
-
-      // Filter GPS jitter but still keep the route alive in time.
-      shouldStore = meters >= 8 || seconds >= 20;
-      if (meters >= 8 && meters <= 3000) {
-        addedKm = meters / 1000.0;
-      }
-    }
-
-    if (shouldStore) {
-      pts.add(point);
-    } else if (pts.isNotEmpty) {
-      pts[pts.length - 1] = point;
-    }
-
-    route['points'] = pts;
-    route['distanceKm'] =
-        ((route['distanceKm'] as num?)?.toDouble() ?? 0.0) + addedKm;
-    route['updatedAt'] = DateTime.now().toIso8601String();
-    root[shiftId] = route;
-    await account.bind(() => _saveRoot(root));
-    return addedKm;
   }
 }
 
-class GpsTrackerController {
+/// Android owns recording. Flutter only imports durable cumulative counters.
+/// Disposing an Activity must NOT end a shift or stop background recording.
+class GpsTrackerController with WidgetsBindingObserver {
   GpsTrackerController._();
+  static final instance = GpsTrackerController._();
+  final ValueNotifier<String?> issue = ValueNotifier(null);
+  Timer? _timer;
+  bool _attached = false;
+  bool _busy = false;
+  bool _again = false;
+  bool _stopping = false;
+  bool _askedPermission = false;
+  bool _askedNotification = false;
+  int _epoch = 0;
+  Future<void> _pending = Future.value();
 
-  static final GpsTrackerController instance = GpsTrackerController._();
+  bool get _visible =>
+      WidgetsBinding.instance.lifecycleState == null ||
+      WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
 
-  StreamSubscription<Position>? _sub;
-  Future<void> _locationQueue = Future<void>.value();
-  String? _shiftId;
-  bool _syncing = false;
-  bool _syncAgain = false;
-  int _lifecycle = 0;
+  void _attach() {
+    if (_attached) return;
+    _attached = true;
+    _stopping = false;
+    WidgetsBinding.instance.addObserver(this);
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (_visible && !_stopping) syncWithJournal();
+    });
+  }
 
-  Future<void> syncWithJournal() async {
-    if (!AccountScope.signedIn ||
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_stopping) syncWithJournal();
+  }
+
+  Future<void> syncWithJournal() {
+    if (!Platform.isAndroid ||
+        !AccountScope.signedIn ||
+        _stopping ||
         AccountScope.capture().role.storageValue == 'loader')
-      return;
-    if (_syncing) {
-      _syncAgain = true;
-      return;
+      return Future.value();
+    _attach();
+    if (_busy) {
+      _again = true;
+      return _pending;
     }
-    final account = AccountScope.capture();
-    final lifecycle = _lifecycle;
-    _syncing = true;
-    try {
-      final state = await TestStore.load();
-      if (!account.valid || lifecycle != _lifecycle) return;
-      final active = state.active;
-      if (active == null) {
-        await stop();
-        return;
-      }
-
-      final shiftId = active['id']?.toString();
-      final paused = active['gpsStatus'] == 'paused';
-      if (shiftId == null || paused) {
-        await stop();
-        return;
-      }
-
-      final ok = await _ensureReady();
-      if (!account.valid || lifecycle != _lifecycle) return;
-      if (!ok) {
-        await stop();
-        return;
-      }
-
-      if (_sub != null && _shiftId == shiftId) return;
-
-      await stop();
-      if (!account.valid) return;
-      final running = _lifecycle;
-      _shiftId = shiftId;
-
+    _busy = true;
+    final scope = AccountScope.capture();
+    final epoch = _epoch;
+    _pending = scope.bind(() async {
       try {
-        final first = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.best,
-          ),
-        ).timeout(const Duration(seconds: 8));
-        if (!account.valid || running != _lifecycle) return;
-        await account.bind(() => _handlePosition(shiftId, first));
-      } catch (_) {}
-
-      if (!account.valid || running != _lifecycle) return;
-      _sub =
-          Geolocator.getPositionStream(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.best,
-              distanceFilter: 10,
-            ),
-          ).listen(
-            (position) {
-              _locationQueue = _locationQueue
-                  .then(
-                    (_) =>
-                        account.bind(() => _handlePosition(shiftId, position)),
-                  )
-                  .catchError((Object error) {
-                    // Ошибка записи точки не прерывает дальнейшие обновления.
-                  });
-            },
-            onError: (Object error) {
-              // При потере сигнала не записываем вымышленные координаты.
-            },
+        // Import before checking active: includes the last points of a closed shift.
+        final snapshots = await _gpsChannel.invokeListMethod<dynamic>(
+          'snapshot',
+          {'account': scope.id},
+        );
+        if (!scope.valid || epoch != _epoch) return;
+        await TestStore.importGpsSnapshots(snapshots ?? const []);
+        if (!scope.valid || epoch != _epoch) return;
+        final state = await TestStore.load();
+        if (!scope.valid || epoch != _epoch) return;
+        final active = state.active;
+        if (active == null || active['gpsStatus'] == 'paused') {
+          final finalRows = await _gpsChannel.invokeListMethod<dynamic>(
+            'stop',
+            {'account': scope.id},
           );
-    } finally {
-      _syncing = false;
-      if (_syncAgain) {
-        _syncAgain = false;
-        scheduleMicrotask(() {
-          syncWithJournal().catchError((Object _) {});
+          if (scope.valid && epoch == _epoch)
+            await TestStore.importGpsSnapshots(finalRows ?? const []);
+          issue.value = null;
+          return;
+        }
+        if (!_visible)
+          return; // Existing service keeps working without Flutter.
+        if (!await Geolocator.isLocationServiceEnabled()) {
+          issue.value = 'GPS выключен. Включите местоположение на телефоне.';
+          return;
+        }
+        var permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied && !_askedPermission) {
+          _askedPermission = true;
+          permission = await Geolocator.requestPermission();
+        }
+        if (!scope.valid || epoch != _epoch || !_visible) return;
+        if (permission != LocationPermission.always &&
+            permission != LocationPermission.whileInUse) {
+          issue.value = 'Пробег не записывается: разрешите точное местоположение в настройках приложения.';
+          return;
+        }
+        // Re-read after the system permission dialog: the shift may have closed.
+        final latest = (await TestStore.load()).active;
+        if (!scope.valid ||
+            epoch != _epoch ||
+            latest == null ||
+            latest['id'] != active['id'] ||
+            latest['gpsStatus'] == 'paused')
+          return;
+        await _gpsChannel.invokeMethod<void>('start', {
+          'account': scope.id,
+          'shift': active['id'],
         });
+        if (!scope.valid || epoch != _epoch) return;
+        issue.value = null;
+        if (!_askedNotification && _visible) {
+          _askedNotification = true;
+          await _gpsChannel.invokeMethod<void>('notifications', {
+            'account': scope.id,
+          });
+        }
+      } catch (error) {
+        if (scope.valid && epoch == _epoch) {
+          issue.value =
+              'Не удалось запустить или сохранить GPS: ${error is PlatformException ? error.message ?? error.code : error}';
+        }
+      } finally {
+        _busy = false;
+        if (_again && !_stopping) {
+          _again = false;
+          Zone.root.run(() => scheduleMicrotask(syncWithJournal));
+        }
       }
-    }
+    });
+    return _pending;
   }
 
-  Future<bool> _ensureReady() async {
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return false;
-
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-
-    return permission == LocationPermission.always ||
-        permission == LocationPermission.whileInUse;
-  }
-
-  Future<void> _handlePosition(String shiftId, Position p) async {
-    if (_shiftId != shiftId) return;
-    if (p.accuracy.isFinite && p.accuracy > 45) return;
-
-    final addedKm = await GpsRouteStore.appendPoint(
-      shiftId: shiftId,
-      lat: p.latitude,
-      lng: p.longitude,
-      time: p.timestamp ?? DateTime.now(),
-      accuracy: p.accuracy,
-      speed: p.speed,
-    );
-
-    if (addedKm > 0) {
-      try {
-        await TestStore.gps(shiftId, addKm: addedKm);
-      } catch (_) {}
-    }
-  }
-
+  /// Explicit logout only. Native service is stopped before the final snapshot.
   Future<void> stop() async {
-    _lifecycle++;
-    await _sub?.cancel();
-    _sub = null;
-    _shiftId = null;
+    _stopping = true;
+    _epoch++;
+    _again = false;
+    await _pending;
+    if (Platform.isAndroid && AccountScope.signedIn) {
+      final scope = AccountScope.capture();
+      final rows = await _gpsChannel.invokeListMethod<dynamic>('stop', {
+        'account': scope.id,
+      });
+      scope.check();
+      await scope.bind(() => TestStore.importGpsSnapshots(rows ?? const []));
+    }
+    await dispose();
   }
 
-  Future<void> dispose() async => stop();
+  Future<bool> openSettings() => Geolocator.openAppSettings();
+
+  Future<void> dispose() async {
+    _epoch++;
+    _timer?.cancel();
+    _timer = null;
+    if (_attached) WidgetsBinding.instance.removeObserver(this);
+    _attached = false;
+    // Android service and saved route intentionally stay alive while shift is open.
+    _stopping = false;
+  }
 }
