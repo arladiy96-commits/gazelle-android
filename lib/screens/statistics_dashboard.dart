@@ -31,8 +31,56 @@ class _StatsDay {
   };
 }
 
-class _MillStatisticsState extends State<_MillStatistics> {
+class _MillStatisticsState extends State<_MillStatistics>
+    with WidgetsBindingObserver {
   DateTime month = DateTime(DateTime.now().year, DateTime.now().month);
+  DateTime? comparisonMonth;
+  Timer? _dayTimer;
+  DateTime _today = DateUtils.dateOnly(DateTime.now());
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _scheduleDayRefresh();
+  }
+
+  void _scheduleDayRefresh() {
+    _dayTimer?.cancel();
+    final now = DateTime.now();
+    _dayTimer = Timer(
+      DateTime(now.year, now.month, now.day + 1).difference(now),
+      _refreshDay,
+    );
+  }
+
+  void _refreshDay() {
+    if (!mounted) return;
+    final today = DateUtils.dateOnly(DateTime.now());
+    if (today != _today) {
+      setState(() {
+        if (month.year == _today.year && month.month == _today.month) {
+          month = DateTime(today.year, today.month);
+          if (comparisonMonth == month) comparisonMonth = null;
+        }
+        _today = today;
+      });
+    }
+    _scheduleDayRefresh();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshDay();
+  }
+
+  @override
+  void dispose() {
+    _dayTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
   int period = 0, metric = 0;
   bool onlyActive = false;
   DateTimeRange? custom;
@@ -106,8 +154,60 @@ class _MillStatisticsState extends State<_MillStatistics> {
     return rows.fold<double>(0, (s, d) => s + d.value(i));
   }
 
-  Future<void> pickMonth() async {
-    var year = month.year;
+  // Presence comes from journal entries, not non-zero totals: a recorded
+  // zero is valid, while an absent history must not become a fake -100%.
+  bool hasEntries(TestState b, DateTimeRange range) => b.shifts.any((shift) {
+    final day = DateUtils.dateOnly(DateTime.parse(shift['start'] as String));
+    return !day.isBefore(range.start) && !day.isAfter(range.end);
+  });
+
+  double comparisonValue(List<_StatsDay> rows, int index) => index < 2
+      ? rows.fold<double>(
+          0,
+          (sum, day) => sum + (index == 0 ? day.city : day.region),
+        )
+      : total(rows, index - 2);
+
+  Widget comparisonLine(
+    String label,
+    String unit,
+    double current,
+    double previous,
+  ) {
+    final delta = current - previous;
+    final percent = previous == 0
+        ? (current == 0 ? '0%' : 'нет базы для %')
+        : '${delta >= 0 ? '+' : ''}${_fmt1(delta / previous.abs() * 100)}%';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white, fontSize: 12),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            '${_fmt1(current)} $unit / ${_fmt1(previous)} $unit',
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+          Text(
+            '${delta >= 0 ? '+' : ''}${_fmt1(delta)} $unit · $percent',
+            style: TextStyle(
+              color: delta >= 0
+                  ? const Color(0xFF7CCF91)
+                  : const Color(0xFF57ADD2),
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> pickMonth({bool comparison = false}) async {
+    var year = (comparison ? comparisonMonth : month)?.year ?? month.year;
     final selected = await showModalBottomSheet<DateTime>(
       context: context,
       backgroundColor: const Color(0xFF111A20),
@@ -141,8 +241,15 @@ class _MillStatisticsState extends State<_MillStatistics> {
                     children: [
                       for (var m = 1; m <= 12; m++)
                         TextButton(
-                          onPressed: () =>
-                              Navigator.pop(sheet, DateTime(year, m)),
+                          onPressed:
+                              DateTime(year, m).isAfter(
+                                    DateTime(_today.year, _today.month),
+                                  ) ||
+                                  (comparison &&
+                                      year == month.year &&
+                                      m == month.month)
+                              ? null
+                              : () => Navigator.pop(sheet, DateTime(year, m)),
                           child: Text(
                             _garageMonths[m - 1],
                             style: const TextStyle(color: gold),
@@ -159,8 +266,13 @@ class _MillStatisticsState extends State<_MillStatistics> {
     );
     if (selected != null && mounted)
       setState(() {
-        month = selected;
-        if (period == 2) period = 0;
+        if (comparison) {
+          comparisonMonth = selected;
+        } else {
+          month = selected;
+          if (comparisonMonth == month) comparisonMonth = null;
+          if (period == 2) period = 0;
+        }
       });
   }
 
@@ -238,7 +350,21 @@ class _MillStatisticsState extends State<_MillStatistics> {
         builder: (b) {
           final rows = data(b, range);
           final shown = rows.where((d) => !onlyActive || d.active).toList();
-          final previous = period == 2
+          final monthly = StatisticsMonthComparison(
+            month: month,
+            comparisonMonth:
+                comparisonMonth ?? DateTime(month.year, month.month - 1),
+            today: _today,
+          );
+          final comparisonRows = period == 0
+              ? rows.where((day) => !day.date.isAfter(monthly.end)).toList()
+              : rows;
+          final previous = period == 0
+              ? DateTimeRange(
+                  start: monthly.previousStart,
+                  end: monthly.previousEnd,
+                )
+              : period == 2
               ? DateTimeRange(
                   start: DateTime(
                     range.start.year,
@@ -259,7 +385,13 @@ class _MillStatisticsState extends State<_MillStatistics> {
                   end: DateTime(range.start.year, range.start.month, 0),
                 );
           final before = data(b, previous);
-          final hasBefore = before.any((d) => d.active);
+          final hasBefore = hasEntries(b, previous);
+          final hasCurrent = hasEntries(
+            b,
+            period == 0
+                ? DateTimeRange(start: monthly.start, end: monthly.end)
+                : range,
+          );
           return ListView(
             padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
             children: [
@@ -281,7 +413,7 @@ class _MillStatisticsState extends State<_MillStatistics> {
                     ),
                   ),
                   TextButton(
-                    onPressed: pickMonth,
+                    onPressed: () => pickMonth(),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -415,61 +547,76 @@ class _MillStatisticsState extends State<_MillStatistics> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Сравнение с предыдущим периодом',
+                      'Сравнение периодов',
                       style: TextStyle(color: Colors.white, fontSize: 13),
                     ),
-                    const SizedBox(height: 10),
-                    if (!hasBefore)
-                      const Text(
-                        'За предыдущий период данных нет',
-                        style: TextStyle(color: Colors.grey, fontSize: 11),
-                      )
-                    else
-                      Row(
-                        children: [
-                          for (var i = 0; i < 3; i++)
-                            Expanded(
-                              child: Builder(
-                                builder: (context) {
-                                  final prev = total(before, i),
-                                      now = total(rows, i);
-                                  final delta = now - prev;
-                                  return Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        names[i],
-                                        style: const TextStyle(
-                                          color: Colors.grey,
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                      Text(
-                                        prev == 0
-                                            ? '—'
-                                            : '${delta >= 0 ? '+' : ''}${_fmt1(delta / prev * 100)}%',
-                                        style: TextStyle(
-                                          color: delta >= 0
-                                              ? const Color(0xFF7CCF91)
-                                              : const Color(0xFF57ADD2),
-                                          fontSize: 19,
-                                        ),
-                                      ),
-                                      Text(
-                                        '${delta >= 0 ? '+' : ''}${_fmt1(delta)} ${units[i]}',
-                                        style: const TextStyle(
-                                          color: Colors.grey,
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
-                            ),
-                        ],
+                    if (period == 0) ...[
+                      TextButton.icon(
+                        onPressed: () => pickMonth(comparison: true),
+                        icon: const Icon(
+                          Icons.calendar_month_outlined,
+                          color: gold,
+                          size: 17,
+                        ),
+                        label: Text(
+                          '${_garageMonths[previous.start.month - 1]} ${previous.start.year} · Изменить',
+                          style: const TextStyle(color: gold, fontSize: 12),
+                        ),
                       ),
+                      Text(
+                        '${date(monthly.start)}.${monthly.start.year}–${date(monthly.end)}.${monthly.end.year}'
+                        ' / ${date(previous.start)}.${previous.start.year}–${date(previous.end)}.${previous.end.year}',
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const Text(
+                        'С начала месяца по сегодняшнее число включительно. '
+                        'Для короткого месяца — по последнюю общую дату.',
+                        style: TextStyle(color: Colors.grey, fontSize: 10),
+                      ),
+                    ] else
+                      Text(
+                        '${date(range.start)}.${range.start.year}–${date(range.end)}.${range.end.year}'
+                        ' / ${date(previous.start)}.${previous.start.year}–${date(previous.end)}.${previous.end.year}',
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 11,
+                        ),
+                      ),
+                    const SizedBox(height: 10),
+                    if (!hasBefore || !hasCurrent)
+                      Text(
+                        !hasBefore
+                            ? 'За выбранный период сравнения записей нет'
+                            : 'За основной период записей нет',
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 11,
+                        ),
+                      )
+                    else ...[
+                      const Text(
+                        'Основной период / период сравнения',
+                        style: TextStyle(color: Colors.grey, fontSize: 10),
+                      ),
+                      for (var i = 0; i < 7; i++)
+                        comparisonLine(
+                          const [
+                            'Город',
+                            'Район',
+                            'Общий тоннаж',
+                            'Рейсы',
+                            'Пробег',
+                            'Зарплата',
+                            'Эффективность',
+                          ][i],
+                          i < 2 ? 'кг' : units[i - 2],
+                          comparisonValue(comparisonRows, i),
+                          comparisonValue(before, i),
+                        ),
+                    ],
                   ],
                 ),
                 light: true,
