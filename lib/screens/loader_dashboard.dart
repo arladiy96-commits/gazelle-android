@@ -66,6 +66,21 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
   void initState() {
     super.initState();
     _load();
+    _loadHandwriting();
+  }
+
+  static Future<void>? _handwritingReady;
+  Future<void> _loadHandwriting() async {
+    try {
+      await (_handwritingReady ??=
+          (FontLoader('LoaderHandwriting')..addFont(
+                rootBundle.load('assets/images/scenes/loader_handwriting.ttf'),
+              ))
+              .load());
+      if (mounted) setState(() {});
+    } catch (_) {
+      _handwritingReady = null;
+    }
   }
 
   @override
@@ -435,13 +450,25 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
     );
     final headerEnd = insets.top + 110 * sy;
     final history = _tab == 1;
+    // Use the same mapping as the background below the continuous header.
+    final bodyScale = (height - headerEnd) / (1536 - 110);
+    double paperY(double y) =>
+        y < 110 ? insets.top + y * sy : headerEnd + (y - 110) * bodyScale;
+    double tilt(double x, double y) {
+      if (y >= 120 && y <= 238) return -0.070;
+      if (!history && y >= 630 && y <= 1060) return -0.025;
+      if (!history && y >= 1100 && y <= 1160) return -0.045;
+      if (history && y >= 480 && y <= 538) return -0.028;
+      return 0;
+    }
+
     Widget at(double x, double y, double w, double h, Widget child) =>
         Positioned(
           left: x * sx,
-          top: insets.top + y * sy,
+          top: paperY(y),
           width: w * sx,
-          height: h * sy,
-          child: child,
+          height: h * (y < 110 ? sy : bodyScale),
+          child: Transform.rotate(angle: tilt(x, y), child: child),
         );
     Widget label(
       String value,
@@ -458,17 +485,21 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
     );
     Widget icon(IconData data, double size, {Color color = _ink}) =>
         Icon(data, size: size * sx, color: color);
-    Widget heading(String value) => Text(
-      value,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        color: _ink,
-        fontSize: 39 * sx,
-        fontWeight: FontWeight.w800,
-        fontStyle: FontStyle.italic,
+    Widget handwriting(String value, double size) => FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text(
+        value,
+        maxLines: 1,
+        style: TextStyle(
+          fontFamily: 'LoaderHandwriting',
+          color: _ink,
+          fontSize: size * sx,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
+    Widget heading(String value) => handwriting(value, 49);
     Widget line() => const ColoredBox(color: Color(0x554D3C28));
     final worked = _visible.fold<int>(0, (sum, s) => sum + s.minutes);
     final digits =
@@ -486,7 +517,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
               itemBuilder: (_, i) {
                 final s = _visible[i], d = DateTime.parse(s.day);
                 return SizedBox(
-                  height: (history ? 61 : 65) * sy,
+                  height: (history ? 61 : 65) * bodyScale,
                   child: _tap(
                     Container(
                       decoration: const BoxDecoration(
@@ -627,9 +658,9 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
           202,
           381,
           36,
-          label(
+          handwriting(
             history ? 'Все смены за месяц' : 'Склад · Погрузка · Разгрузка',
-            25,
+            31,
           ),
         ),
         if (!history) ...[
@@ -657,9 +688,9 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
           at(526, 551, 174, 37, label(_loaderMoney(_payable), 32, bold: true)),
           at(
             158,
-            638,
+            635,
             345,
-            50,
+            58,
             heading(_editing == null ? 'Добавить смену' : 'Изменить смену'),
           ),
           at(
@@ -700,16 +731,28 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
             74,
             79,
             _tap(
-              icon(Icons.remove, 42, color: const Color(0xFFDBD4C7)),
+              label(
+                '−',
+                57,
+                bold: true,
+                color: const Color(0xFFBDB5A8),
+                center: true,
+              ),
               () => _stepTime(-60),
             ),
           ),
-          at(692, 757, 70, 79, _tap(icon(Icons.add, 48), () => _stepTime(60))),
+          at(
+            692,
+            757,
+            70,
+            79,
+            _tap(label('+', 62, bold: true, center: true), () => _stepTime(60)),
+          ),
           // Four live digits sit on the photographed mechanical drums.
           for (var i = 0; i < 4; i++)
             at(
               [289.0, 365.0, 486.0, 560.0][i],
-              765,
+              [772.0, 770.0, 767.0, 765.0][i],
               59,
               93,
               _tap(
@@ -720,7 +763,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
                       digits[i],
                       key: ValueKey('$i-${digits[i]}'),
                       style: TextStyle(
-                        color: const Color(0xFFE6E1D7),
+                        color: const Color(0xFFBEB9AF),
                         fontSize: 60 * sx,
                         fontWeight: FontWeight.w800,
                       ),
@@ -736,17 +779,23 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
             34,
             36,
             _tap(
-              label('ч', 25, bold: true, color: Colors.white, center: true),
+              label(
+                'ч',
+                25,
+                bold: true,
+                color: const Color(0xFFBEB9AF),
+                center: true,
+              ),
               _enterHours,
             ),
           ),
           at(
             562,
-            849,
+            834,
             62,
             23,
             _tap(
-              label('мин', 18, color: Colors.white, center: true),
+              label('мин', 18, color: const Color(0xFFBEB9AF), center: true),
               _enterHours,
             ),
           ),
@@ -776,7 +825,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
             ),
           at(
             189,
-            974,
+            978,
             553,
             68,
             _tap(
@@ -797,7 +846,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
               _loading || _settings == null ? null : _save,
             ),
           ),
-          at(137, 1110, 475, 50, heading('Последние смены')),
+          at(137, 1106, 475, 59, heading('Последние смены')),
           at(
             699,
             1106,
@@ -824,9 +873,9 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
         for (var i = 0; i < 2; i++)
           at(
             108 + i * 350,
-            1399,
+            1397,
             290,
-            91,
+            109,
             _tap(
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -835,7 +884,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
                     i == 0
                         ? Icons.work_history_outlined
                         : Icons.receipt_long_outlined,
-                    34,
+                    48,
                     color: _tab == i
                         ? const Color(0xFFF0AD45)
                         : const Color(0xFFCAC6BD),
@@ -843,7 +892,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
                   SizedBox(height: 5 * sy),
                   label(
                     i == 0 ? 'Смена' : 'История',
-                    26,
+                    31,
                     bold: _tab == i,
                     color: _tab == i
                         ? const Color(0xFFF0AD45)
