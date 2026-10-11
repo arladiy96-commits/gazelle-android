@@ -286,7 +286,9 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
     final minutes = TextEditingController(text: _minutes.text);
     final result = await showDialog<List<String>>(
       context: context,
-      builder: (c) => AlertDialog(
+      builder: (c) => _KeyboardAlertDialog(
+        alignment: Alignment.topCenter,
+        scrollable: true,
         backgroundColor: const Color(0xFF0B1820),
         title: const Text('Отработанное время'),
         content: SingleChildScrollView(

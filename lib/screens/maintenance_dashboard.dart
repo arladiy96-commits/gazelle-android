@@ -158,10 +158,8 @@ class _MaintenancePageState extends State<_MaintenancePage> {
 
   Future<void> _record(MaintenanceItem item, {MaintenanceEntry? entry}) async {
     if (_book == null) return;
-    await showModalBottomSheet<MaintenanceBook>(
+    await _showKeyboardForm<MaintenanceBook>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => _MaintenanceEntryForm(
         item: item,
         book: _book!,
@@ -178,6 +176,7 @@ class _MaintenancePageState extends State<_MaintenancePage> {
       isScrollControlled: true,
       backgroundColor: const Color(0xFF11191D),
       builder: (context) => SafeArea(
+        maintainBottomViewPadding: true,
         child: SizedBox(
           height: MediaQuery.sizeOf(context).height * .65,
           child: Column(
@@ -452,6 +451,7 @@ class _MaintenancePageState extends State<_MaintenancePage> {
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         backgroundColor: const Color(0xFF080E12),
         body: LayoutBuilder(
           builder: (context, box) {
@@ -762,7 +762,7 @@ class _MaintenancePageState extends State<_MaintenancePage> {
                       child: Image.asset(
                         _sceneAsset,
                         fit: BoxFit.cover,
-                        alignment: Alignment.topCenter,
+        alignment: Alignment.topCenter,
                       ),
                     ),
                     slice(0, 150),
@@ -1506,13 +1506,9 @@ class _MaintenanceEntryFormState extends State<_MaintenanceEntryForm> {
   Widget build(BuildContext context) => PopScope(
     canPop: !_saving,
     child: SafeArea(
+      maintainBottomViewPadding: true,
       child: Container(
-        padding: EdgeInsets.fromLTRB(
-          22,
-          24,
-          22,
-          22 + MediaQuery.viewInsetsOf(context).bottom,
-        ),
+        padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
         decoration: BoxDecoration(
           color: const Color(0xFF09151D),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
@@ -1527,9 +1523,16 @@ class _MaintenanceEntryFormState extends State<_MaintenanceEntryForm> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    widget.item.title,
-                    style: const TextStyle(color: _amber, fontSize: 24),
+                  Row(
+                    children: [
+                      Expanded(child: Text(widget.item.title,
+                        style: const TextStyle(color: _amber, fontSize: 24))),
+                      IconButton(
+                        tooltip: 'Закрыть',
+                        onPressed: _saving ? null : () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, color: _paper),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   const Text(
@@ -1637,21 +1640,22 @@ class _ServiceNoteDialogState extends State<_ServiceNoteDialog> {
 
   @override
   Widget build(BuildContext context) => Dialog(
+      alignment: Alignment.topCenter,
+    insetAnimationDuration: Duration.zero,
     backgroundColor: Colors.transparent,
     surfaceTintColor: Colors.transparent,
     elevation: 0,
     insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
     child: ClipRRect(
       borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+      child: RepaintBoundary(
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xCE18313C), Color(0xE008141C)],
+              colors: [Color(0xFF18313C), Color(0xFF08141C)],
             ),
             border: Border.all(color: _amber.withValues(alpha: .65)),
             boxShadow: [
@@ -1833,6 +1837,7 @@ class _VehicleDocumentsPageState extends State<_VehicleDocumentsPage> {
       context: context,
       backgroundColor: const Color(0xFF11191D),
       builder: (context) => SafeArea(
+      maintainBottomViewPadding: true,
         child: Padding(
           padding: const EdgeInsets.all(22),
           child: Column(
@@ -1903,6 +1908,7 @@ class _VehicleDocumentsPageState extends State<_VehicleDocumentsPage> {
       systemNavigationBarIconBrightness: Brightness.light,
     ),
     child: Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: const Color(0xFF080E12),
       body: LayoutBuilder(
         builder: (context, box) {
@@ -2677,12 +2683,14 @@ class _MaintenanceBlankPreviewState extends State<_MaintenanceBlankPreview> {
   Widget build(BuildContext context) => PopScope(
     canPop: !_saving,
     child: Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: const Color(0xFF111619),
       appBar: AppBar(
         title: const Text('Бланк обслуживания'),
         automaticallyImplyLeading: !_saving,
       ),
       body: SafeArea(
+      maintainBottomViewPadding: true,
         child: Column(
           children: [
             Expanded(

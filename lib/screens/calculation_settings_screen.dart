@@ -132,7 +132,9 @@ class _CalculationSettingsScreenState
       context: context,
       barrierColor: Colors.black.withValues(alpha: .72),
       builder: (dialog) => StatefulBuilder(
-        builder: (c, update) => AlertDialog(
+        builder: (c, update) => _KeyboardAlertDialog(
+          alignment: Alignment.topCenter,
+          scrollable: true,
           backgroundColor: const Color(0xFF0C1216),
           surfaceTintColor: Colors.transparent,
           insetPadding: const EdgeInsets.symmetric(horizontal: 24),
@@ -708,6 +710,7 @@ class _CalculationSettingsScreenState
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         backgroundColor: const Color(0xFF080E12),
         body: Stack(
           children: [

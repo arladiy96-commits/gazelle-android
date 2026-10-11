@@ -129,7 +129,9 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
     );
     final value = await showDialog<double>(
       context: context,
-      builder: (d) => AlertDialog(
+      builder: (d) => _KeyboardAlertDialog(
+        alignment: Alignment.topCenter,
+        scrollable: true,
         backgroundColor: const Color(0xFF11191D),
         title: const Text('Вес в накладной, кг'),
         content: TextField(
@@ -445,6 +447,7 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         backgroundColor: const Color(0xFF0B1115),
         body: Stack(
           children: [
@@ -912,9 +915,10 @@ class _LoadingItemDialogState extends State<_LoadingItemDialog> {
         ),
       );
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    backgroundColor: const Color(0xFF11191D),
+  Widget build(BuildContext context) => _KeyboardAlertDialog(
+    alignment: Alignment.topCenter,
     scrollable: true,
+    backgroundColor: const Color(0xFF11191D),
     title: Text(widget.item == null ? 'Добавить позицию' : 'Проверить позицию'),
     content: SizedBox(
       width: 320,

@@ -8,6 +8,7 @@ Future<void> _openAccountMenu(BuildContext context, AppSession supplied) async {
     backgroundColor: const Color(0xFF101920),
     showDragHandle: true,
     builder: (c) => SafeArea(
+        maintainBottomViewPadding: true,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
         child: Column(
@@ -295,6 +296,7 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
   Widget build(BuildContext context) {
     if (!AccountScope.isAdmin)
       return const Scaffold(
+        resizeToAvoidBottomInset: false,
         body: Center(child: Text('Доступно только администратору')),
       );
     final rows = (_accounts ?? []).where((a) => a.role == _role).toList()
@@ -306,6 +308,7 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
         systemNavigationBarColor: Colors.transparent,
       ),
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         backgroundColor: const Color(0xFF071219),
         body: Stack(
           fit: StackFit.expand,
@@ -330,6 +333,7 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
               ),
             ),
             SafeArea(
+        maintainBottomViewPadding: true,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
                 child: Column(
@@ -668,7 +672,10 @@ class _EmployeeEditorState extends State<_EmployeeEditor> {
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,
-    child: AlertDialog(
+    child: _KeyboardAlertDialog(
+      alignment: Alignment.topCenter,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      scrollable: true,
       backgroundColor: const Color(0xFF101A21),
       title: Text(
         widget.account == null ? 'Новый сотрудник' : 'Учётная запись',

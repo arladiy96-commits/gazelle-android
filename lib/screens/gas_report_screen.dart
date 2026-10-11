@@ -130,7 +130,10 @@ class _GasReportScreenState extends State<_GasReportScreen> {
     final result = await showDialog<Object>(
       context: context,
       builder: (dialog) => StatefulBuilder(
-        builder: (dialog, update) => AlertDialog(
+        builder: (dialog, update) => _KeyboardAlertDialog(
+          alignment: Alignment.topCenter,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          scrollable: true,
           backgroundColor: const Color(0xFF11181C),
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
@@ -1125,6 +1128,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         backgroundColor: const Color(0xFF080E12),
         body: Stack(
           children: [
@@ -1135,6 +1139,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
               ),
             ),
             SafeArea(
+        maintainBottomViewPadding: true,
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final scale = constraints.maxWidth / 864;
@@ -1689,6 +1694,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         backgroundColor: const Color(0xFF080E12),
         body: Stack(
           children: [
@@ -1699,6 +1705,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
               ),
             ),
             SafeArea(
+        maintainBottomViewPadding: true,
               child: Column(
                 children: [
                   Row(
@@ -2025,6 +2032,7 @@ class _GasFormPreviewState extends State<_GasFormPreview> {
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,
     child: Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: const Color(0xFF111619),
       appBar: AppBar(
         backgroundColor: const Color(0xFF111619),
@@ -2033,6 +2041,7 @@ class _GasFormPreviewState extends State<_GasFormPreview> {
         title: const Text('Карточка водителя'),
       ),
       body: SafeArea(
+      maintainBottomViewPadding: true,
         child: Column(
           children: [
             if (_error != null)

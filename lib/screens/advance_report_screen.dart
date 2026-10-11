@@ -132,7 +132,10 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
     final result = await showDialog<Object>(
       context: context,
       builder: (dialog) => StatefulBuilder(
-        builder: (c, update) => AlertDialog(
+        builder: (c, update) => _KeyboardAlertDialog(
+          alignment: Alignment.topCenter,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          scrollable: true,
           backgroundColor: const Color(0xFF11181C),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(17),
@@ -234,11 +237,8 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
       );
       return;
     }
-    final result = await showModalBottomSheet<AdvanceRow>(
+    final result = await _showKeyboardForm<AdvanceRow>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      useSafeArea: true,
       builder: (_) => _AdvanceExpenseEditor(row: row),
     );
     if (mounted && result != null)
@@ -283,6 +283,7 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
       context: context,
       backgroundColor: const Color(0xFF11181C),
       builder: (c) => SafeArea(
+          maintainBottomViewPadding: true,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -669,6 +670,7 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         backgroundColor: const Color(0xFF080E12),
         body: LayoutBuilder(
           builder: (context, box) {
@@ -1209,11 +1211,13 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
               systemNavigationBarIconBrightness: Brightness.light,
             ),
             child: Scaffold(
+              resizeToAvoidBottomInset: false,
               backgroundColor: const Color(0xFF101517),
               body: Stack(
                 children: [
                   _CinematicMore.backdrop(),
                   SafeArea(
+              maintainBottomViewPadding: true,
                     child: Column(
                       children: [
                         Padding(
@@ -1380,12 +1384,7 @@ class _AdvanceExpenseEditorState extends State<_AdvanceExpenseEditor> {
       ),
     );
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        10,
-        0,
-        10,
-        MediaQuery.viewInsetsOf(context).bottom + 8,
-      ),
+      padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
       child: SingleChildScrollView(
         child: _AdvanceMoreSurface(
           padding: const EdgeInsets.all(20),
@@ -1638,6 +1637,7 @@ class _AdvanceImagePreviewState extends State<_AdvanceImagePreview> {
   Widget build(BuildContext context) => PopScope(
     canPop: !_saving,
     child: Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: const Color(0xFF111619),
       appBar: AppBar(
         backgroundColor: const Color(0xFF111619),
@@ -1646,6 +1646,7 @@ class _AdvanceImagePreviewState extends State<_AdvanceImagePreview> {
         automaticallyImplyLeading: !_saving,
       ),
       body: SafeArea(
+      maintainBottomViewPadding: true,
         child: Column(
           children: [
             Expanded(

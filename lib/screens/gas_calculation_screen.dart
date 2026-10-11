@@ -196,7 +196,9 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
         context: context,
         barrierDismissible: false,
         builder: (dialog) => StatefulBuilder(
-          builder: (dialog, update) => AlertDialog(
+          builder: (dialog, update) => _KeyboardAlertDialog(
+            alignment: Alignment.topCenter,
+            scrollable: true,
             backgroundColor: const Color(0xFF10171B),
             surfaceTintColor: Colors.transparent,
             shape: RoundedRectangleBorder(
@@ -582,7 +584,7 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
                       child: Image.asset(
                         'assets/images/scenes/gas_calculation_reference.png',
                         fit: BoxFit.cover,
-                        alignment: Alignment.topCenter,
+            alignment: Alignment.topCenter,
                       ),
                     ),
                     backgroundSlice(0, 180),

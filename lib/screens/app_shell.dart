@@ -46,6 +46,7 @@ part 'loader_dashboard.dart';
 part 'test_mode.dart';
 part 'cinematic.dart';
 part 'statistics_dashboard.dart';
+part 'keyboard_forms.dart';
 part 'gas_report_screen.dart';
 part 'money_screen.dart';
 part 'loading_invoice_screen.dart';
@@ -290,6 +291,7 @@ class _AppShellState extends State<AppShell> {
         if (!didPop) _selectTab(0);
       },
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         extendBody: extendDock,
         body: Stack(
           children: [
@@ -3728,14 +3730,16 @@ class _QuickEntryShell extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    final mq = MediaQuery.of(context);
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    final size = MediaQuery.sizeOf(context);
+    final top = MediaQuery.paddingOf(context).top;
     return Padding(
-      padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
+      padding: EdgeInsets.only(bottom: keyboard),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxHeight: math.max(
             140,
-            mq.size.height - mq.viewInsets.bottom - mq.padding.top - 24,
+            size.height - keyboard - top - 24,
           ),
         ),
         child: SingleChildScrollView(

@@ -156,6 +156,7 @@ class _DirectionsScreenState extends State<_DirectionsScreen> {
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         backgroundColor: const Color(0xFF081017),
         body: LayoutBuilder(
           builder: (context, box) {
@@ -521,7 +522,10 @@ class _DirectionNameDialogState extends State<_DirectionNameDialog> {
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_saving,
-    child: AlertDialog(
+    child: _KeyboardAlertDialog(
+      alignment: Alignment.topCenter,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      scrollable: true,
       backgroundColor: const Color(0xFF101A20),
       title: Text(
         widget.row == null ? 'Добавить направление' : 'Изменить направление',
