@@ -18,6 +18,8 @@ import io.flutter.plugin.common.MethodChannel
 class MoneyShareFileProvider : FileProvider()
 
 class MainActivity : FlutterActivity() {
+    private var gpsChannel: MethodChannel? = null
+    private val gpsBridge by lazy { GpsBridge(this) }
     private var updateChannel: MethodChannel? = null
     private val appUpdate by lazy { AppUpdateBridge(this) }
     private var advanceChannel: MethodChannel? = null
@@ -32,6 +34,10 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        gpsChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "melnitsa/shift_gps")
+        gpsChannel?.setMethodCallHandler { call, result ->
+            gpsBridge.handle(call.method, call.arguments as? Map<*, *> ?: emptyMap<Any, Any>(), result)
+        }
         updateChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "melnitsa/app_update")
         updateChannel?.setMethodCallHandler { call, result ->
             appUpdate.handle(call.method, call.arguments as? Map<*, *> ?: emptyMap<Any, Any>(), result)
@@ -190,12 +196,21 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        gpsBridge.resumed = true
+    }
+
     override fun onPause() {
+        gpsBridge.resumed = false
         hoodPool?.autoPause()
         super.onPause()
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        gpsChannel?.setMethodCallHandler(null)
+        gpsChannel = null
+        gpsBridge.dispose()
         updateChannel?.setMethodCallHandler(null)
         updateChannel = null
         advanceChannel?.setMethodCallHandler(null)
