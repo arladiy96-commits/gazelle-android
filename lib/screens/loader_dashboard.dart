@@ -346,22 +346,6 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
       });
   }
 
-  Future<void> _payInfo() => showDialog<void>(
-    context: context,
-    builder: (c) => AlertDialog(
-      backgroundColor: const Color(0xFF0B1820),
-      title: Text(_monthLabel),
-      content: Text(
-        'Начислено: ${_loaderMoney(_accrued)}\nУдержание: ${_loaderMoney(_deduction)}\nК получению: ${_loaderMoney(_payable)}\n\nСтавку и удержание назначает администратор. Ставка сохранённых смен не меняется.',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(c),
-          child: const Text('Понятно'),
-        ),
-      ],
-    ),
-  );
   Widget _text(
     String text,
     double size, {
@@ -395,7 +379,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
     ),
   );
 
-  static const _art = 'assets/images/scenes/loader_premium.png';
+  static const _art = 'assets/images/scenes/loader_refined.png';
   final _recentScroll = ScrollController();
   void _setTime(int total) {
     if (_busy) return;
@@ -438,7 +422,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
     Widget child, {
     bool active = false,
     bool bronze = false,
-    double radius = 7,
+    double radius = 28,
   }) => Container(
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(radius),
@@ -446,7 +430,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: bronze
-            ? const [Color(0xFF936E39), Color(0xFF4D321A), Color(0xFF8E6835)]
+            ? const [Color(0xFF44371F), Color(0xFF25231D), Color(0xFF3B301E)]
             : active
             ? const [Color(0xFF3E2A13), Color(0xFF11171A), Color(0xFF493219)]
             : const [Color(0xF8102533), Color(0xF5040E16), Color(0xF40A1B28)],
@@ -454,7 +438,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
       border: Border.all(
         color: active || bronze
             ? const Color(0xFFD1AC67)
-            : const Color(0xFF81735B),
+            : const Color(0xFF55707D),
         width: 0.8,
       ),
       boxShadow: const [
@@ -531,40 +515,13 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
     Widget icon(IconData data, double size, {Color color = _loaderGold}) =>
         Icon(data, size: size * sx, color: color);
     final worked = _visible.fold<int>(0, (a, s) => a + s.minutes);
-    final remaining = math.max(0, _deduction - _accrued);
-    final progress = _deduction <= 0
-        ? 0.0
-        : (_accrued / _deduction).clamp(0.0, 1.0);
-    Widget ledger(String label, String value, {bool info = false}) => _tap(
-      _recess(
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 13 * sx),
-          child: Row(
-            children: [
-              Expanded(
-                child: _text(label, 21 * sx, color: const Color(0xFFCFD7DC)),
-              ),
-              if (info)
-                Padding(
-                  padding: EdgeInsets.only(right: 12 * sx),
-                  child: icon(Icons.info_outline, 20, color: _loaderMuted),
-                ),
-              Flexible(
-                child: _fit(value, 23 * sx, alignment: Alignment.centerRight),
-              ),
-            ],
-          ),
-        ),
-      ),
-      _payInfo,
-    );
     return Stack(
       children: [
-        at(0, 0, 709, 300, _artSlice(0, .247)),
-        at(0, 300, 709, 360, _artSlice(.247, .49)),
-        at(0, 660, 709, 410, _artSlice(.49, .75)),
-        at(0, 1070, 709, 355, _artSlice(.75, .92)),
-        at(0, 1425, 709, 111, _artSlice(.92, 1)),
+        at(0, 0, 709, 166, _artSlice(0, .240)),
+        at(0, 166, 709, 260, _artSlice(.240, .405)),
+        at(0, 426, 709, 415, _artSlice(.405, .698)),
+        at(0, 841, 709, 584, _artSlice(.698, .910)),
+        at(0, 1425, 709, 111, _artSlice(.910, 1)),
         at(40, 12, 280, 69, _profile(sx)),
         at(
           494,
@@ -583,188 +540,97 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
         ),
         at(
           42,
-          211,
-          552,
-          68,
+          90,
+          610,
+          64,
           _fit('Моя работа', 57 * sx, weight: FontWeight.w700),
         ),
-        // Summary: three recessed instruments and two information rows.
+        at(46, 193, 336, 29, _text('Начислено за месяц', 25 * sx)),
         at(
-          63,
-          333,
-          268,
-          95,
-          _recess(
-            Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: 12 * sx,
-                vertical: 8 * sy,
-              ),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: _fit(
-                      _loaderMoney(_accrued),
-                      45 * sx,
-                      color: const Color(0xFFE2BC76),
-                      weight: FontWeight.w700,
-                    ),
-                  ),
-                  _text(
-                    'Начислено за месяц',
-                    17 * sx,
-                    color: const Color(0xFFD2DCE1),
-                  ),
-                ],
-              ),
-            ),
+          46,
+          230,
+          335,
+          65,
+          _fit(
+            _loaderMoney(_accrued),
+            49 * sx,
+            color: const Color(0xFFE2BC76),
+            weight: FontWeight.w700,
           ),
         ),
         at(
-          341,
-          333,
-          111,
-          95,
-          _recess(
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _fit(
-                  worked % 60 == 0
-                      ? '${worked ~/ 60} ч'
-                      : '${(worked / 60).toStringAsFixed(1).replaceAll('.', ',')} ч',
-                  29 * sx,
-                ),
-                SizedBox(height: 4 * sy),
-                _text('Отработано', 16 * sx, color: _loaderMuted),
-              ],
-            ),
+          399,
+          209,
+          140,
+          44,
+          _fit(
+            worked % 60 == 0
+                ? '${worked ~/ 60} ч'
+                : '${(worked / 60).toStringAsFixed(1).replaceAll('.', ',')} ч',
+            33 * sx,
+            alignment: Alignment.center,
           ),
         ),
         at(
-          461,
-          333,
-          95,
-          95,
-          _recess(
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _text('${_visible.length}', 29 * sx, weight: FontWeight.w600),
-                SizedBox(height: 4 * sy),
-                _text('Смены', 16 * sx, color: _loaderMuted),
-              ],
-            ),
+          399,
+          257,
+          140,
+          29,
+          _text(
+            'Отработано',
+            18 * sx,
+            color: _loaderMuted,
+            align: TextAlign.center,
           ),
         ),
         at(
-          63,
-          445,
-          493,
-          43,
-          ledger('Удержание', _loaderMoney(_deduction), info: true),
-        ),
-        at(63, 495, 493, 43, ledger('К получению', _loaderMoney(_payable))),
-        at(
-          64,
-          557,
-          435,
-          30,
-          _recess(
-            Padding(
-              padding: EdgeInsets.all(4 * sx),
-              child: Row(
-                children: [
-                  for (var i = 0; i < 10; i++)
-                    Expanded(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 1 * sx),
-                        child: LayoutBuilder(
-                          builder: (_, box) => Stack(
-                            children: [
-                              Positioned.fill(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF1B2A35),
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
-                                ),
-                              ),
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: FractionallySizedBox(
-                                  widthFactor: (progress * 10 - i).clamp(
-                                    0.0,
-                                    1.0,
-                                  ),
-                                  heightFactor: 1,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(2),
-                                      gradient: const LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          Color(0xFFECC073),
-                                          Color(0xFF9D6325),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
+          553,
+          209,
+          109,
+          44,
+          _fit('${_visible.length}', 33 * sx, alignment: Alignment.center),
         ),
         at(
-          508,
-          554,
+          553,
+          257,
+          109,
+          29,
+          _text('Смены', 18 * sx, color: _loaderMuted, align: TextAlign.center),
+        ),
+        at(44, 310, 618, 1, const ColoredBox(color: Color(0x665D7885))),
+        at(
+          46,
+          329,
+          305,
           51,
-          34,
-          _fit(
-            _deduction == 0 ? '—' : '${(progress * 100).floor()}%',
-            20 * sx,
-            color: _loaderGold,
-          ),
-        ),
-        at(
-          67,
-          596,
-          488,
-          25,
-          _fit(
-            _deduction == 0
-                ? 'Удержаний за этот месяц нет'
-                : remaining > 0
-                ? 'До покрытия удержания — ${_loaderMoney(remaining)}'
-                : 'Удержание покрыто начислениями',
-            17 * sx,
-            color: const Color(0xFFCBD3D9),
-          ),
-        ),
-        at(
-          200,
-          623,
-          356,
-          23,
           _fit(
             'Ставка ${_loaderMoney(_settings?.hourlyRateMinor ?? 0)} / час',
-            16 * sx,
-            color: _loaderMuted,
+            22 * sx,
+          ),
+        ),
+        at(
+          373,
+          329,
+          155,
+          51,
+          _text('К получению', 20 * sx, color: _loaderMuted),
+        ),
+        at(
+          528,
+          327,
+          133,
+          55,
+          _fit(
+            _loaderMoney(_payable),
+            28 * sx,
+            color: const Color(0xFFB5D5DF),
             alignment: Alignment.centerRight,
           ),
         ),
         // Shift form with live hour presets and an exact hours/minutes editor.
         at(
           65,
-          686,
+          446,
           340,
           45,
           _fit(
@@ -775,7 +641,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
         ),
         at(
           425,
-          687,
+          447,
           222,
           45,
           _tap(
@@ -795,7 +661,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
         ),
         at(
           74,
-          747,
+          507,
           481,
           30,
           _text('Отработано часов', 21 * sx, color: const Color(0xFFB6C3CC)),
@@ -817,7 +683,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
           ),
         at(
           73,
-          782,
+          542,
           67,
           59,
           _tap(
@@ -827,7 +693,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
         ),
         at(
           151,
-          782,
+          542,
           401,
           59,
           _tap(
@@ -847,7 +713,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
         ),
         at(
           563,
-          782,
+          542,
           73,
           59,
           _tap(
@@ -891,7 +757,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
           ),
         at(
           73,
-          919,
+          679,
           563,
           46,
           _recess(
@@ -914,7 +780,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
         ),
         at(
           73,
-          981,
+          741,
           563,
           59,
           _tap(
@@ -940,14 +806,14 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
         // Increased list height, all monthly records available through inner scroll.
         at(
           65,
-          1093,
+          866,
           463,
           45,
           _fit('Последние смены', 30 * sx, weight: FontWeight.w700),
         ),
         at(
           573,
-          1091,
+          864,
           72,
           47,
           _tap(
@@ -957,9 +823,9 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
         ),
         at(
           64,
-          1150,
+          931,
           584,
-          240,
+          462,
           _visible.isEmpty
               ? Center(
                   child: _text(
@@ -1027,8 +893,8 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
                   ),
                 ),
         ),
-        at(104, 1451, 232, 58, _navButton(0, sx)),
-        at(370, 1451, 232, 58, _navButton(1, sx)),
+        at(26, 1442, 318, 73, _navButton(0, sx)),
+        at(365, 1442, 318, 73, _navButton(1, sx)),
         if (_loading)
           const Positioned.fill(
             child: ColoredBox(
@@ -1041,7 +907,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
         if (_settings == null && !_loading)
           at(
             65,
-            155,
+            92,
             580,
             49,
             _tap(
@@ -1089,11 +955,11 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
     return Column(
       children: [
         SizedBox(
-          height: 140,
+          height: 100,
           child: Stack(
             fit: StackFit.expand,
             children: [
-              _artSlice(0, .247),
+              _artSlice(0, .240),
               Positioned(
                 left: 16,
                 top: 8,
@@ -1167,7 +1033,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              _artSlice(.75, .92),
+              _artSlice(.698, .910),
               Padding(
                 padding: const EdgeInsets.fromLTRB(32, 24, 32, 24),
                 child: Column(
@@ -1275,7 +1141,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              _artSlice(.92, 1),
+              _artSlice(.910, 1),
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 42,
