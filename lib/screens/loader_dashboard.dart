@@ -379,7 +379,10 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
     ),
   );
 
-  static const _art = 'assets/images/scenes/loader_refined.png';
+  static const _paperShift = 'assets/images/scenes/loader_notebook_shift.png';
+  static const _paperHistory =
+      'assets/images/scenes/loader_notebook_history.png';
+  static const _ink = Color(0xFF17140F);
   final _recentScroll = ScrollController();
   void _setTime(int total) {
     if (_busy) return;
@@ -392,118 +395,10 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
   }
 
   void _stepTime(int delta) => _setTime(_enteredMinutes + delta);
-  // Crop the same cached texture at runtime. The bands let the header be shorter
-  // and the recent-shifts frame taller without stretching the entire screen.
-  Widget _artSlice(double top, double bottom) => RepaintBoundary(
-    child: LayoutBuilder(
-      builder: (_, box) {
-        final fullHeight = box.maxHeight / (bottom - top);
-        return ClipRect(
-          child: Stack(
-            children: [
-              Positioned(
-                left: 0,
-                top: -top * fullHeight,
-                width: box.maxWidth,
-                height: fullHeight,
-                child: Image.asset(
-                  _art,
-                  fit: BoxFit.fill,
-                  filterQuality: FilterQuality.medium,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    ),
-  );
-  Widget _recess(
-    Widget child, {
-    bool active = false,
-    bool bronze = false,
-    double radius = 28,
-  }) => Container(
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(radius),
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: bronze
-            ? const [Color(0xFF44371F), Color(0xFF25231D), Color(0xFF3B301E)]
-            : active
-            ? const [Color(0xFF3E2A13), Color(0xFF11171A), Color(0xFF493219)]
-            : const [Color(0xF8102533), Color(0xF5040E16), Color(0xF40A1B28)],
-      ),
-      border: Border.all(
-        color: active || bronze
-            ? const Color(0xFFD1AC67)
-            : const Color(0xFF55707D),
-        width: 0.8,
-      ),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x99000000),
-          offset: Offset(0, 2),
-          blurRadius: 2,
-        ),
-      ],
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(1.5),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(radius - 1),
-          border: Border.all(color: const Color(0x55365B73), width: 0.7),
-        ),
-        child: child,
-      ),
-    ),
-  );
-  Widget _profile(double scale) => _tap(
-    Row(
-      children: [
-        Container(
-          width: 54 * scale,
-          height: 54 * scale,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              colors: [Color(0xFF39434A), Color(0xFF07121B)],
-            ),
-            border: Border.all(color: _loaderGold, width: 1.4),
-          ),
-          child: Center(
-            child: _text(
-              widget.session.displayName.characters.first.toUpperCase(),
-              29 * scale,
-              color: const Color(0xFFE8D5AD),
-              weight: FontWeight.w600,
-            ),
-          ),
-        ),
-        SizedBox(width: 13 * scale),
-        Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _text(
-                widget.session.displayName,
-                23 * scale,
-                weight: FontWeight.w700,
-              ),
-              _text('Грузчик ⌄', 18 * scale, color: _loaderMuted),
-            ],
-          ),
-        ),
-      ],
-    ),
-    () => _openAccountMenu(context, widget.session),
-  );
 
-  Widget _referenceScreen(double width, double height) {
-    final sx = width / 709, sy = height / 1536;
+  Widget _paperScreen(double width, double height) {
+    final sx = width / 864, sy = height / 1536;
+    final history = _tab == 1;
     Widget at(double x, double y, double w, double h, Widget child) =>
         Positioned(
           left: x * sx,
@@ -512,393 +407,421 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
           height: h * sy,
           child: child,
         );
-    Widget icon(IconData data, double size, {Color color = _loaderGold}) =>
+    Widget label(
+      String value,
+      double size, {
+      bool bold = false,
+      Color color = _ink,
+      bool center = false,
+    }) => _fit(
+      value,
+      size * sx,
+      color: color,
+      weight: bold ? FontWeight.w800 : FontWeight.w400,
+      alignment: center ? Alignment.center : Alignment.centerLeft,
+    );
+    Widget icon(IconData data, double size, {Color color = _ink}) =>
         Icon(data, size: size * sx, color: color);
-    final worked = _visible.fold<int>(0, (a, s) => a + s.minutes);
+    Widget heading(String value) => Text(
+      value,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: _ink,
+        fontSize: 39 * sx,
+        fontWeight: FontWeight.w800,
+        fontStyle: FontStyle.italic,
+      ),
+    );
+    Widget line() => const ColoredBox(color: Color(0x554D3C28));
+    final worked = _visible.fold<int>(0, (sum, s) => sum + s.minutes);
+    final digits =
+        '${(_enteredMinutes ~/ 60).toString().padLeft(2, '0')}${(_enteredMinutes % 60).toString().padLeft(2, '0')}';
+    // Row values and their hit areas share one layout, so scrolling stays aligned.
+    Widget journal() => _visible.isEmpty
+        ? Center(child: label('За этот месяц смен пока нет', 23))
+        : Scrollbar(
+            controller: _recentScroll,
+            child: ListView.builder(
+              key: ValueKey('journal-$_tab-${LoaderService.monthKey(_month)}'),
+              controller: _recentScroll,
+              padding: EdgeInsets.zero,
+              itemCount: _visible.length,
+              itemBuilder: (_, i) {
+                final s = _visible[i], d = DateTime.parse(s.day);
+                return SizedBox(
+                  height: (history ? 61 : 65) * sy,
+                  child: _tap(
+                    Container(
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: Color(0x554D3C28)),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          icon(Icons.calendar_month_outlined, 31),
+                          SizedBox(width: 18 * sx),
+                          Expanded(
+                            flex: 3,
+                            child: label(
+                              '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}',
+                              25,
+                            ),
+                          ),
+                          Expanded(
+                            flex: 5,
+                            child: label(_loaderHours(s.minutes), 24),
+                          ),
+                          Expanded(
+                            flex: 4,
+                            child: label(
+                              _loaderMoney(s.amountMinor),
+                              29,
+                              bold: true,
+                            ),
+                          ),
+                          icon(Icons.chevron_right, 28),
+                        ],
+                      ),
+                    ),
+                    () => _shiftActions(s),
+                  ),
+                );
+              },
+            ),
+          );
     return Stack(
       children: [
-        at(0, 0, 709, 166, _artSlice(0, .240)),
-        at(0, 166, 709, 260, _artSlice(.240, .405)),
-        at(0, 426, 709, 415, _artSlice(.405, .698)),
-        at(0, 841, 709, 584, _artSlice(.698, .910)),
-        at(0, 1425, 709, 111, _artSlice(.910, 1)),
-        at(40, 12, 280, 69, _profile(sx)),
+        Positioned.fill(
+          child: RepaintBoundary(
+            child: Image.asset(
+              history ? _paperHistory : _paperShift,
+              fit: BoxFit.fill,
+            ),
+          ),
+        ),
         at(
-          494,
-          19,
-          181,
-          47,
+          104,
+          22,
+          320,
+          77,
           _tap(
-            _recess(
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10 * sx),
-                child: _fit('$_monthLabel ⌄', 19 * sx),
+            Row(
+              children: [
+                Container(
+                  width: 73 * sx,
+                  height: 73 * sx,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF12100C),
+                    border: Border.all(color: _loaderGold, width: 2),
+                  ),
+                  child: Center(
+                    child: label(
+                      widget.session.displayName.characters.first.toUpperCase(),
+                      40,
+                      color: Colors.white,
+                      center: true,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 20 * sx),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      label(
+                        widget.session.displayName,
+                        31,
+                        bold: true,
+                        color: Colors.white,
+                      ),
+                      label('Грузчик ⌄', 23, color: const Color(0xFFCAC6BD)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            () => _openAccountMenu(context, widget.session),
+          ),
+        ),
+        at(
+          492,
+          32,
+          270,
+          60,
+          _tap(
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 12 * sx),
+              decoration: BoxDecoration(
+                color: const Color(0xDA16130F),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _loaderGold),
+              ),
+              child: Row(
+                children: [
+                  icon(Icons.calendar_month_outlined, 27, color: Colors.white),
+                  SizedBox(width: 12 * sx),
+                  Expanded(
+                    child: label(
+                      '$_monthLabel ⌄',
+                      25,
+                      bold: true,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ),
             _pickMonth,
           ),
         ),
         at(
-          42,
-          90,
-          610,
-          64,
-          _fit('Моя работа', 57 * sx, weight: FontWeight.w700),
+          130,
+          126,
+          393,
+          75,
+          label(history ? 'История' : 'Моя работа', 63, bold: true),
         ),
-        at(46, 193, 336, 29, _text('Начислено за месяц', 25 * sx)),
         at(
-          46,
-          230,
-          335,
-          65,
-          _fit(
-            _loaderMoney(_accrued),
-            49 * sx,
-            color: const Color(0xFFE2BC76),
-            weight: FontWeight.w700,
+          137,
+          202,
+          381,
+          36,
+          label(
+            history ? 'Все смены за месяц' : 'Склад · Погрузка · Разгрузка',
+            25,
           ),
         ),
-        at(
-          399,
-          209,
-          140,
-          44,
-          _fit(
-            worked % 60 == 0
-                ? '${worked ~/ 60} ч'
-                : '${(worked / 60).toStringAsFixed(1).replaceAll('.', ',')} ч',
-            33 * sx,
-            alignment: Alignment.center,
-          ),
-        ),
-        at(
-          399,
-          257,
-          140,
-          29,
-          _text(
-            'Отработано',
-            18 * sx,
-            color: _loaderMuted,
-            align: TextAlign.center,
-          ),
-        ),
-        at(
-          553,
-          209,
-          109,
-          44,
-          _fit('${_visible.length}', 33 * sx, alignment: Alignment.center),
-        ),
-        at(
-          553,
-          257,
-          109,
-          29,
-          _text('Смены', 18 * sx, color: _loaderMuted, align: TextAlign.center),
-        ),
-        at(44, 310, 618, 1, const ColoredBox(color: Color(0x665D7885))),
-        at(
-          46,
-          329,
-          305,
-          51,
-          _fit(
-            'Ставка ${_loaderMoney(_settings?.hourlyRateMinor ?? 0)} / час',
-            22 * sx,
-          ),
-        ),
-        at(
-          373,
-          329,
-          155,
-          51,
-          _text('К получению', 20 * sx, color: _loaderMuted),
-        ),
-        at(
-          528,
-          327,
-          133,
-          55,
-          _fit(
-            _loaderMoney(_payable),
-            28 * sx,
-            color: const Color(0xFFB5D5DF),
-            alignment: Alignment.centerRight,
-          ),
-        ),
-        // Shift form with live hour presets and an exact hours/minutes editor.
-        at(
-          65,
-          446,
-          340,
-          45,
-          _fit(
-            _editing == null ? 'Добавить смену' : 'Изменить смену',
-            33 * sx,
-            weight: FontWeight.w700,
-          ),
-        ),
-        at(
-          425,
-          447,
-          222,
-          45,
-          _tap(
-            _recess(
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12 * sx),
-                child: Row(
-                  children: [
-                    Expanded(child: _fit(_loaderDate(_date), 23 * sx)),
-                    icon(Icons.calendar_month_outlined, 25),
-                  ],
-                ),
-              ),
-            ),
-            _pickDate,
-          ),
-        ),
-        at(
-          74,
-          507,
-          481,
-          30,
-          _text('Отработано часов', 21 * sx, color: const Color(0xFFB6C3CC)),
-        ),
-        if (_editing != null)
+        if (!history) ...[
+          at(181, 272, 494, 38, label('Заработано за месяц', 30, bold: true)),
+          at(184, 312, 500, 83, label(_loaderMoney(_accrued), 71, bold: true)),
+          at(181, 423, 49, 55, icon(Icons.schedule, 49)),
+          at(254, 411, 166, 43, label(_loaderHours(worked), 34, bold: true)),
+          at(254, 458, 171, 29, label('Отработано', 23)),
+          at(477, 423, 49, 55, icon(Icons.calendar_month_outlined, 49)),
+          at(545, 411, 137, 43, label('${_visible.length}', 36, bold: true)),
+          at(545, 458, 145, 29, label('Смены', 23)),
+          at(184, 517, 245, 29, label('Ставка', 23)),
           at(
-            591,
-            741,
-            57,
-            35,
-            _tap(
-              Center(child: icon(Icons.close, 25)),
-              () => setState(() {
-                _editing = null;
-                _hours.clear();
-                _minutes.text = '0';
-              }),
+            184,
+            551,
+            245,
+            37,
+            label(
+              '${_loaderMoney(_settings?.hourlyRateMinor ?? 0)} / час',
+              28,
+              bold: true,
             ),
           ),
-        at(
-          73,
-          542,
-          67,
-          59,
-          _tap(
-            _recess(Center(child: icon(Icons.remove, 34))),
-            () => _stepTime(-60),
-          ),
-        ),
-        at(
-          151,
-          542,
-          401,
-          59,
-          _tap(
-            _recess(
-              Center(
-                child: _fit(
-                  _hours.text.isEmpty
-                      ? 'Выберите часы'
-                      : '${_enteredMinutes ~/ 60} ч ${(_enteredMinutes % 60).toString().padLeft(2, '0')} мин',
-                  32 * sx,
-                  color: const Color(0xFFF1DCB3),
-                ),
-              ),
-            ),
-            _enterHours,
-          ),
-        ),
-        at(
-          563,
-          542,
-          73,
-          59,
-          _tap(
-            _recess(Center(child: icon(Icons.add, 34))),
-            () => _stepTime(60),
-          ),
-        ),
-        for (var i = 0; i < 3; i++)
+          at(526, 517, 174, 29, label('К получению', 23)),
+          at(526, 551, 174, 37, label(_loaderMoney(_payable), 32, bold: true)),
           at(
-            73 + i * 192,
-            854,
-            179,
-            52,
-            _tap(
-              _recess(
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (_enteredMinutes == [480, 600, 720][i]) ...[
-                      Container(
-                        width: 8 * sx,
-                        height: 8 * sx,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFE8BB68),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      SizedBox(width: 12 * sx),
-                    ],
-                    _text(
-                      '${[8, 10, 12][i]} ч',
-                      25 * sx,
-                      color: const Color(0xFFECE5D5),
-                    ),
-                  ],
-                ),
-                active: _enteredMinutes == [480, 600, 720][i],
-              ),
-              () => _setTime([480, 600, 720][i]),
-            ),
+            158,
+            638,
+            345,
+            50,
+            heading(_editing == null ? 'Добавить смену' : 'Изменить смену'),
           ),
-        at(
-          73,
-          679,
-          563,
-          46,
-          _recess(
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 13 * sx),
-              child: Row(
+          at(
+            554,
+            646,
+            207,
+            40,
+            _tap(
+              Row(
                 children: [
-                  Expanded(child: _text('За смену', 21 * sx)),
-                  Flexible(
-                    child: _fit(
-                      _loaderMoney((_enteredMinutes * _rate / 60).round()),
-                      25 * sx,
-                      alignment: Alignment.centerRight,
-                    ),
-                  ),
+                  icon(Icons.calendar_month_outlined, 28),
+                  SizedBox(width: 10 * sx),
+                  Expanded(child: label(_loaderDate(_date), 25, bold: true)),
                 ],
               ),
+              _pickDate,
             ),
           ),
-        ),
-        at(
-          73,
-          741,
-          563,
-          59,
-          _tap(
-            _recess(
+          at(159, 707, 450, 32, label('Отработано часов', 23)),
+          if (_editing != null)
+            at(
+              696,
+              701,
+              72,
+              39,
+              _tap(
+                icon(Icons.close, 28),
+                () => setState(() {
+                  _editing = null;
+                  _hours.clear();
+                  _minutes.text = '0';
+                }),
+              ),
+            ),
+          at(
+            168,
+            773,
+            74,
+            79,
+            _tap(
+              icon(Icons.remove, 42, color: const Color(0xFFDBD4C7)),
+              () => _stepTime(-60),
+            ),
+          ),
+          at(692, 757, 70, 79, _tap(icon(Icons.add, 48), () => _stepTime(60))),
+          // Four live digits sit on the photographed mechanical drums.
+          for (var i = 0; i < 4; i++)
+            at(
+              [289.0, 365.0, 486.0, 560.0][i],
+              765,
+              59,
+              93,
+              _tap(
+                Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 120),
+                    child: Text(
+                      digits[i],
+                      key: ValueKey('$i-${digits[i]}'),
+                      style: TextStyle(
+                        color: const Color(0xFFE6E1D7),
+                        fontSize: 60 * sx,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+                _enterHours,
+              ),
+            ),
+          at(
+            425,
+            791,
+            34,
+            36,
+            _tap(
+              label('ч', 25, bold: true, color: Colors.white, center: true),
+              _enterHours,
+            ),
+          ),
+          at(
+            562,
+            849,
+            62,
+            23,
+            _tap(
+              label('мин', 18, color: Colors.white, center: true),
+              _enterHours,
+            ),
+          ),
+          for (var i = 0; i < 4; i++)
+            at(
+              [166.0, 322.0, 476.0, 636.0][i],
+              899,
+              128,
+              49,
+              _tap(
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(5),
+                    border: _enteredMinutes == [480, 600, 720, -1][i]
+                        ? Border.all(color: const Color(0xFFAD6416), width: 2)
+                        : null,
+                  ),
+                  child: label(
+                    ['8 ч', '10 ч', '12 ч', '+1 ч'][i],
+                    28,
+                    bold: true,
+                    center: true,
+                  ),
+                ),
+                () => i == 3 ? _stepTime(60) : _setTime([480, 600, 720][i]),
+              ),
+            ),
+          at(
+            189,
+            974,
+            553,
+            68,
+            _tap(
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  icon(Icons.save_outlined, 29, color: const Color(0xFFF5E4C4)),
-                  SizedBox(width: 12 * sx),
-                  _text(
-                    _busy ? 'Сохранение…' : 'Сохранить смену',
-                    26 * sx,
-                    weight: FontWeight.w600,
-                    color: const Color(0xFFF5E4C4),
+                  icon(Icons.check_circle, 42),
+                  SizedBox(width: 18 * sx),
+                  Flexible(
+                    child: label(
+                      _busy ? 'Сохранение…' : 'Сохранить смену',
+                      36,
+                      bold: true,
+                    ),
                   ),
                 ],
               ),
-              bronze: true,
+              _loading || _settings == null ? null : _save,
             ),
-            _loading || _settings == null ? null : _save,
           ),
-        ),
-        // Increased list height, all monthly records available through inner scroll.
-        at(
-          65,
-          866,
-          463,
-          45,
-          _fit('Последние смены', 30 * sx, weight: FontWeight.w700),
-        ),
-        at(
-          573,
-          864,
-          72,
-          47,
-          _tap(
-            Center(child: _text('Все ›', 22 * sx, color: _loaderMuted)),
-            () => setState(() => _tab = 1),
+          at(137, 1110, 475, 50, heading('Последние смены')),
+          at(
+            699,
+            1106,
+            64,
+            43,
+            _tap(label('Все ›', 23), () => setState(() => _tab = 1)),
           ),
-        ),
-        at(
-          64,
-          931,
-          584,
-          462,
-          _visible.isEmpty
-              ? Center(
-                  child: _text(
-                    'За этот месяц смен пока нет',
-                    21 * sx,
-                    color: _loaderMuted,
+          at(153, 1171, 608, 174, journal()),
+        ] else ...[
+          at(155, 292, 532, 41, label('Итоги за месяц', 30, bold: true)),
+          at(145, 341, 600, 1, line()),
+          at(146, 355, 51, 57, icon(Icons.schedule, 49)),
+          at(214, 352, 138, 40, label(_loaderHours(worked), 33, bold: true)),
+          at(214, 398, 143, 27, label('Отработано', 20)),
+          at(371, 355, 49, 57, icon(Icons.calendar_month_outlined, 46)),
+          at(433, 352, 80, 40, label('${_visible.length}', 34, bold: true)),
+          at(433, 398, 87, 27, label('Смены', 20)),
+          at(539, 352, 203, 43, label(_loaderMoney(_accrued), 34, bold: true)),
+          at(539, 398, 203, 27, label('Заработано', 21)),
+          at(145, 484, 599, 52, heading('Все смены за месяц')),
+          at(147, 538, 585, 2, line()),
+          at(146, 550, 585, 772, journal()),
+        ],
+        for (var i = 0; i < 2; i++)
+          at(
+            108 + i * 350,
+            1399,
+            290,
+            91,
+            _tap(
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  icon(
+                    i == 0
+                        ? Icons.work_history_outlined
+                        : Icons.receipt_long_outlined,
+                    34,
+                    color: _tab == i
+                        ? const Color(0xFFF0AD45)
+                        : const Color(0xFFCAC6BD),
                   ),
-                )
-              : Scrollbar(
-                  controller: _recentScroll,
-                  child: ListView.builder(
-                    controller: _recentScroll,
-                    padding: EdgeInsets.zero,
-                    itemCount: _visible.length,
-                    itemBuilder: (_, i) {
-                      final s = _visible[i], d = DateTime.parse(s.day);
-                      return Padding(
-                        padding: EdgeInsets.only(bottom: 8 * sy),
-                        child: SizedBox(
-                          height: 52 * sy,
-                          child: _tap(
-                            _recess(
-                              Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 13 * sx,
-                                ),
-                                child: Row(
-                                  children: [
-                                    icon(
-                                      Icons.calendar_month_outlined,
-                                      23,
-                                      color: _loaderMuted,
-                                    ),
-                                    SizedBox(width: 13 * sx),
-                                    Expanded(
-                                      flex: 5,
-                                      child: _fit(
-                                        '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')} · ${_loaderHours(s.minutes)}',
-                                        21 * sx,
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 4,
-                                      child: _fit(
-                                        _loaderMoney(s.amountMinor),
-                                        22 * sx,
-                                        alignment: Alignment.centerRight,
-                                      ),
-                                    ),
-                                    SizedBox(width: 10 * sx),
-                                    icon(
-                                      Icons.chevron_right,
-                                      24,
-                                      color: _loaderMuted,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            () => _shiftActions(s),
-                          ),
-                        ),
-                      );
-                    },
+                  SizedBox(height: 5 * sy),
+                  label(
+                    i == 0 ? 'Смена' : 'История',
+                    26,
+                    bold: _tab == i,
+                    color: _tab == i
+                        ? const Color(0xFFF0AD45)
+                        : const Color(0xFFCAC6BD),
+                    center: true,
                   ),
-                ),
-        ),
-        at(26, 1442, 318, 73, _navButton(0, sx)),
-        at(365, 1442, 318, 73, _navButton(1, sx)),
+                ],
+              ),
+              () => setState(() => _tab = i),
+            ),
+          ),
         if (_loading)
           const Positioned.fill(
             child: ColoredBox(
-              color: Color(0x77061018),
+              color: Color(0x55000000),
               child: Center(
                 child: CircularProgressIndicator(color: _loaderGold),
               ),
@@ -906,258 +829,23 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
           ),
         if (_settings == null && !_loading)
           at(
-            65,
-            92,
-            580,
-            49,
+            142,
+            274,
+            576,
+            63,
             _tap(
-              _recess(
-                Center(
-                  child: _text(
-                    'Ошибка загрузки · Повторить',
-                    22 * sx,
-                    color: _loaderGold,
-                  ),
+              Container(
+                color: const Color(0xFFF0D6B3),
+                child: label(
+                  'Ошибка загрузки · Повторить',
+                  26,
+                  bold: true,
+                  center: true,
                 ),
               ),
               _load,
             ),
           ),
-      ],
-    );
-  }
-
-  Widget _navButton(int index, double scale) => _tap(
-    _recess(
-      Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            index == 0 ? Icons.schedule : Icons.receipt_long_outlined,
-            color: _tab == index ? _loaderGold : _loaderMuted,
-            size: 25 * scale,
-          ),
-          SizedBox(width: 12 * scale),
-          _text(
-            index == 0 ? 'Смена' : 'История',
-            23 * scale,
-            color: _tab == index ? const Color(0xFFE6CA97) : _loaderMuted,
-          ),
-        ],
-      ),
-      active: _tab == index,
-    ),
-    () => setState(() => _tab = index),
-  );
-
-  Widget _historyScreen(double width) {
-    const days = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
-    return Column(
-      children: [
-        SizedBox(
-          height: 100,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _artSlice(0, .240),
-              Positioned(
-                left: 16,
-                top: 8,
-                width: width * .5,
-                height: 44,
-                child: _profile(.65),
-              ),
-              Positioned(
-                left: 24,
-                bottom: 10,
-                right: 16,
-                child: _fit('История смен', 29, weight: FontWeight.w700),
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(18, 6, 18, 12),
-          child: _recess(
-            Row(
-              children: [
-                IconButton(
-                  onPressed: () => setState(
-                    () => _month = DateTime(_month.year, _month.month - 1),
-                  ),
-                  icon: const Icon(Icons.chevron_left, color: _loaderGold),
-                ),
-                Expanded(
-                  child: TextButton(
-                    onPressed: _pickMonth,
-                    child: _text(
-                      _monthLabel,
-                      18,
-                      weight: FontWeight.w600,
-                      align: TextAlign.center,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => setState(
-                    () => _month = DateTime(_month.year, _month.month + 1),
-                  ),
-                  icon: const Icon(Icons.chevron_right, color: _loaderGold),
-                ),
-              ],
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: _fit(
-                  '${_visible.length} смен · ${_loaderHours(_visible.fold<int>(0, (a, s) => a + s.minutes))}',
-                  14,
-                  color: _loaderMuted,
-                ),
-              ),
-              const SizedBox(width: 8),
-              _text(
-                _loaderMoney(_accrued),
-                17,
-                color: _loaderGold,
-                weight: FontWeight.w600,
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _artSlice(.698, .910),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(32, 24, 32, 24),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 4,
-                          child: _text('Дата', 12, color: _loaderMuted),
-                        ),
-                        Expanded(
-                          flex: 3,
-                          child: _text('Часы', 12, color: _loaderMuted),
-                        ),
-                        Expanded(
-                          flex: 4,
-                          child: _text('Заработок', 12, color: _loaderMuted),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: _visible.isEmpty
-                          ? Center(
-                              child: _text(
-                                'Смен пока нет',
-                                16,
-                                color: _loaderMuted,
-                              ),
-                            )
-                          : ListView.builder(
-                              padding: EdgeInsets.zero,
-                              itemCount: _visible.length,
-                              itemBuilder: (_, i) {
-                                final s = _visible[i],
-                                    d = DateTime.parse(s.day);
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 9),
-                                  child: _tap(
-                                    _recess(
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 15,
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              flex: 4,
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  _text(
-                                                    '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}',
-                                                    19,
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  _text(
-                                                    days[d.weekday - 1],
-                                                    12,
-                                                    color: _loaderMuted,
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            Expanded(
-                                              flex: 3,
-                                              child: _fit(
-                                                _loaderHours(s.minutes),
-                                                16,
-                                              ),
-                                            ),
-                                            Expanded(
-                                              flex: 4,
-                                              child: _fit(
-                                                _loaderMoney(s.amountMinor),
-                                                17,
-                                                color: const Color(0xFFE1C28E),
-                                              ),
-                                            ),
-                                            const Icon(
-                                              Icons.more_vert,
-                                              color: _loaderMuted,
-                                              size: 17,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    () => _shiftActions(s),
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: 78,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _artSlice(.910, 1),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 42,
-                  vertical: 16,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(child: _navButton(0, .65)),
-                    const SizedBox(width: 18),
-                    Expanded(child: _navButton(1, .65)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -1214,21 +902,17 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
         body: Stack(
           fit: StackFit.expand,
           children: [
-            const RepaintBoundary(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: AssetImage(_art),
-                    fit: BoxFit.cover,
-                  ),
+            Positioned.fill(
+              child: RepaintBoundary(
+                child: Image.asset(
+                  _tab == 1 ? _paperHistory : _paperShift,
+                  fit: BoxFit.cover,
                 ),
               ),
             ),
             SafeArea(
               child: LayoutBuilder(
-                builder: (_, box) => _tab == 1
-                    ? _historyScreen(box.maxWidth)
-                    : _referenceScreen(box.maxWidth, box.maxHeight),
+                builder: (_, box) => _paperScreen(box.maxWidth, box.maxHeight),
               ),
             ),
           ],
