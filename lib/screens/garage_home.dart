@@ -427,12 +427,17 @@ class _ReferenceHomeDashboard extends StatelessWidget {
                                 child: _MillPress(
                                   label: 'Зарплата за выбранный месяц',
                                   onTap: () => details('Зарплата'),
-                                  child: _MillValue(
-                                    value: data.salary,
-                                    unit: ' ₸',
-                                    size: 62 * scale,
-                                    color: _millGold,
-                                  ),
+                                  child: !AccountScope.canRead('salary')
+                                      ? const Text(
+                                          '—',
+                                          textAlign: TextAlign.center,
+                                        )
+                                      : _MillValue(
+                                          value: data.salary,
+                                          unit: ' ₸',
+                                          size: 62 * scale,
+                                          color: _millGold,
+                                        ),
                                 ),
                               ),
                               Expanded(

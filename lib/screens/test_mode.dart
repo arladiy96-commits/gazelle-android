@@ -1543,7 +1543,9 @@ class _TestHubState extends State<_TestHub> {
             ),
             _detailRow(
               'Начислено за месяц',
-              '${_fmtInt(b.statistics(DateTime.parse(s['start'] as String))['salary']!)} ₸',
+              AccountScope.canRead('salary')
+                  ? '${_fmtInt(b.statistics(DateTime.parse(s['start'] as String))['salary']!)} ₸'
+                  : 'Нет доступа',
             ),
           ],
         ),

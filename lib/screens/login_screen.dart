@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/session_service.dart';
+import '../services/employee_sync.dart';
 import 'app_shell.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -71,6 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
               login: _login.text,
               password: _password.text,
             );
+      await EmployeeSync.instance.restore();
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute<void>(

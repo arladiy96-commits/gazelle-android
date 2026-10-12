@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:image_picker/image_picker.dart';
 
@@ -28,6 +29,10 @@ import '../models/app_role.dart';
 import '../services/session_service.dart';
 import '../services/loader_service.dart';
 import '../services/account_scope.dart';
+import '../services/employee_sync.dart';
+import '../services/employee_data_service.dart';
+import '../services/employee_server_api.dart';
+import '../models/employee_access.dart';
 import '../services/maintenance_service.dart';
 import '../services/activity_service.dart';
 import '../theme/app_theme.dart';
@@ -42,6 +47,7 @@ part 'metric_details.dart';
 part 'garage_sections.dart';
 part 'directions_screen.dart';
 part 'employees_screen.dart';
+part 'employee_details.dart';
 part 'loader_dashboard.dart';
 part 'test_mode.dart';
 part 'cinematic.dart';
@@ -109,6 +115,7 @@ class _AppShellState extends State<AppShell> {
   AppSession get _session => SessionService.current ?? widget.session;
 
   void _syncGpsTracker() {
+    if (!_loggingOut && AccountScope.signedIn) EmployeeSync.instance.tick();
     if (!_loggingOut &&
         _session.role != AppRole.loader &&
         AccountScope.signedIn) {
@@ -122,6 +129,8 @@ class _AppShellState extends State<AppShell> {
     GpsTrackerController.instance.issue.addListener(_gpsIssueChanged);
     TestStore.revision.addListener(_syncGpsTracker);
     SessionService.revision.addListener(_accountChanged);
+    AccountScope.access.addListener(_accountChanged);
+    EmployeeSync.instance.start();
     scheduleMicrotask(_syncGpsTracker);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _showApplicationUpdate(context, automatic: true);
@@ -135,6 +144,8 @@ class _AppShellState extends State<AppShell> {
   @override
   void dispose() {
     SessionService.revision.removeListener(_accountChanged);
+    AccountScope.access.removeListener(_accountChanged);
+    EmployeeSync.instance.stop();
     GpsTrackerController.instance.issue.removeListener(_gpsIssueChanged);
     TestStore.revision.removeListener(_syncGpsTracker);
     GpsTrackerController.instance.dispose();
@@ -218,10 +229,16 @@ class _AppShellState extends State<AppShell> {
         onNavigate: _selectTab,
         showNavigation: false,
       ),
-    ];
+    ].map(_guardEmployeeSection).toList();
   }
 
   void _selectTab(int index) {
+    if ((index == 1 && !AccountScope.canRead('work')) ||
+        (index == 3 && !AccountScope.canRead('statistics'))) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Нет доступа к разделу')));
+      return;
+    }
     if (index == 2) {
       _openQuickAdd();
       return;
@@ -231,6 +248,14 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _openQuickAdd() {
+    if (!AccountScope.canWrite('work')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Добавление записей запрещено владельцем'),
+        ),
+      );
+      return;
+    }
     HapticFeedback.mediumImpact();
     _showQuickAddMenu(context, _session);
   }
@@ -272,7 +297,7 @@ class _AppShellState extends State<AppShell> {
         body: Center(child: CircularProgressIndicator()),
       );
     if (_session.role == AppRole.loader)
-      return _LoaderDashboard(session: _session);
+      return _guardEmployeeSection(_LoaderDashboard(session: _session));
     final items = _items;
     final pages = _pages;
     final extendDock =
@@ -691,10 +716,12 @@ class _HomeMonthData {
       tonnage: journal.total('tonnage'),
       trips: journal.total('trips').round(),
       mileage: stats['mileage']!,
-      salary: stats['salary']!,
+      salary: AccountScope.canRead('salary') ? stats['salary']! : 0,
       city: journal.total('city_tonnage'),
       region: journal.total('region_tonnage'),
-      todaySalary: b.statistics(now, day: now)['salary']!,
+      todaySalary: AccountScope.canRead('salary')
+          ? b.statistics(now, day: now)['salary']!
+          : 0,
     );
   }
 
@@ -3737,10 +3764,7 @@ class _QuickEntryShell extends StatelessWidget {
       padding: EdgeInsets.only(bottom: keyboard),
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxHeight: math.max(
-            140,
-            size.height - keyboard - top - 24,
-          ),
+          maxHeight: math.max(140, size.height - keyboard - top - 24),
         ),
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),

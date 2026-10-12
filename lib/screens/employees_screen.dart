@@ -8,7 +8,7 @@ Future<void> _openAccountMenu(BuildContext context, AppSession supplied) async {
     backgroundColor: const Color(0xFF101920),
     showDragHandle: true,
     builder: (c) => SafeArea(
-        maintainBottomViewPadding: true,
+      maintainBottomViewPadding: true,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
         child: Column(
@@ -28,6 +28,29 @@ Future<void> _openAccountMenu(BuildContext context, AppSession supplied) async {
               '${session.role.title} · ${session.login}',
               style: const TextStyle(color: Color(0xFFB4BDC3)),
             ),
+            const SizedBox(height: 12),
+            Text(
+              'Доступ: ${AccountScope.isOwner ? 'Владелец' : AccountScope.access.value.label}',
+            ),
+            if (EmployeeServerApi.enabled) ...[
+              ValueListenableBuilder<String?>(
+                valueListenable: EmployeeSync.instance.message,
+                builder: (_, text, __) => Text(
+                  text ?? 'Ожидание синхронизации',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+              TextButton(
+                onPressed: () => EmployeeSync.instance.tick(),
+                child: const Text('Проверить связь и доступ'),
+              ),
+              Text(
+                AccountScope.access.value.shareLocation
+                    ? 'Маршрут смены передаётся владельцу'
+                    : 'Передача маршрута выключена',
+                style: const TextStyle(fontSize: 12, color: Colors.white60),
+              ),
+            ],
             const SizedBox(height: 24),
             OutlinedButton.icon(
               onPressed: () => Navigator.pop(c, 'update'),
@@ -158,7 +181,15 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
             Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: () => _edit(account),
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    _SceneRoute<void>(
+                      builder: (_) => _EmployeeDetails(employee: account),
+                    ),
+                  );
+                  if (mounted) _load();
+                },
                 borderRadius: BorderRadius.circular(18),
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(20 * scale, 7, 12, 7),
@@ -257,7 +288,9 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
                               ),
                             ),
                             child: Text(
-                              account.active ? 'Активен' : 'Отключён',
+                              account.isOwner
+                                  ? 'Владелец'
+                                  : account.access.label,
                               style: TextStyle(
                                 fontSize: 10,
                                 color: account.active
@@ -333,7 +366,7 @@ class _EmployeesScreenState extends State<_EmployeesScreen> {
               ),
             ),
             SafeArea(
-        maintainBottomViewPadding: true,
+              maintainBottomViewPadding: true,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
                 child: Column(
@@ -674,7 +707,7 @@ class _EmployeeEditorState extends State<_EmployeeEditor> {
     canPop: !_busy,
     child: _KeyboardAlertDialog(
       alignment: Alignment.topCenter,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       scrollable: true,
       backgroundColor: const Color(0xFF101A21),
       title: Text(
@@ -692,7 +725,10 @@ class _EmployeeEditorState extends State<_EmployeeEditor> {
                 initialValue: _role,
                 decoration: const InputDecoration(labelText: 'Роль'),
                 items: [
-                  for (final role in AppRole.values)
+                  for (final role in AppRole.values.where(
+                    (r) =>
+                        r != AppRole.admin || widget.account?.isOwner == true,
+                  ))
                     DropdownMenuItem(value: role, child: Text(role.title)),
                 ],
                 onChanged: _busy || _self
@@ -744,14 +780,6 @@ class _EmployeeEditorState extends State<_EmployeeEditor> {
                   style: TextStyle(fontSize: 12, color: Color(0xFFAEBAC2)),
                 ),
               ],
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Доступ включён'),
-                value: _active,
-                onChanged: _busy || _self
-                    ? null
-                    : (v) => setState(() => _active = v),
-              ),
               if (widget.account != null)
                 const Text(
                   'Пустое поле пароля сохраняет прежний пароль. Отключение доступа сохраняет рабочие данные.',

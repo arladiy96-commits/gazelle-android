@@ -24,7 +24,7 @@ class _SceneRoute<T> extends PageRouteBuilder<T> {
         transitionDuration: const Duration(milliseconds: 220),
         reverseTransitionDuration: const Duration(milliseconds: 180),
         pageBuilder: (context, animation, secondary) =>
-            RepaintBoundary(child: builder(context)),
+            RepaintBoundary(child: _guardEmployeeSection(builder(context))),
         transitionsBuilder: (context, animation, secondary, child) {
           if (MediaQuery.disableAnimationsOf(context)) return child;
           return SlideTransition(
