@@ -10,12 +10,14 @@ import '../services/gps_tracker.dart';
 // Real geographic tiles and GPS samples share one Web Mercator projection.
 class ShiftRouteMap extends StatefulWidget {
   final String? shiftId;
+  final Future<List<Map<String, dynamic>>> Function(String)? routeLoader;
   final bool paused;
   final bool satellite;
   final double unit;
   const ShiftRouteMap({
     super.key,
     required this.shiftId,
+    this.routeLoader,
     this.paused = false,
     this.unit = 1,
     this.satellite = false,
@@ -63,7 +65,8 @@ class _ShiftRouteMapState extends State<ShiftRouteMap> {
     loading = true;
     final token = generation;
     try {
-      final rows = await GpsRouteStore.points(id);
+      final rows =
+          await (widget.routeLoader?.call(id) ?? GpsRouteStore.points(id));
       if (mounted && token == generation)
         setState(() {
           points = rows
