@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'account_scope.dart';
+import 'employee_server_api.dart';
 import 'test_store.dart';
 
 const _gpsChannel = MethodChannel('melnitsa/shift_gps');
@@ -33,6 +34,16 @@ class GpsRouteStore {
       );
       scope.check();
       native = result ?? {};
+    }
+    if ((legacy['points'] as List? ?? []).isEmpty &&
+        (native['points'] as List? ?? []).isEmpty &&
+        EmployeeServerApi.enabled) {
+      final remote = await EmployeeServerApi.request(
+        'GET',
+        '/me/routes/${Uri.encodeComponent(shiftId)}',
+      );
+      scope.check();
+      return remote;
     }
     final oldPoints = legacy['points'] as List? ?? const [];
     final newPoints = native['points'] as List? ?? const [];
@@ -96,6 +107,8 @@ class GpsTrackerController with WidgetsBindingObserver {
         _stopping ||
         AccountScope.capture().role.storageValue == 'loader')
       return Future.value();
+    if (AccountScope.restricted || !AccountScope.canWrite('work'))
+      return stopForAccess();
     _attach();
     if (_busy) {
       _again = true;
@@ -195,6 +208,25 @@ class GpsTrackerController with WidgetsBindingObserver {
       await scope.bind(() => TestStore.importGpsSnapshots(rows ?? const []));
     }
     await dispose();
+  }
+
+  Future<void> resumeForAccess() async {
+    if (AccountScope.restricted || !AccountScope.canWrite('work')) return;
+    _stopping = false;
+    await syncWithJournal();
+  }
+
+  /// Policy stop preserves native counters/routes for later recovery. Do not
+  /// import into the journal after permission to write has been withdrawn.
+  Future<void> stopForAccess() async {
+    _stopping = true;
+    _epoch++;
+    _again = false;
+    _timer?.cancel();
+    if (Platform.isAndroid && AccountScope.signedIn) {
+      final scope = AccountScope.capture();
+      await _gpsChannel.invokeMethod<void>('stop', {'account': scope.id});
+    }
   }
 
   Future<bool> openSettings() => Geolocator.openAppSettings();

@@ -6,7 +6,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// This build has no production adapter or sync queue. Never migrate this key.
+/// Account-owned journal, exported through EmployeeSync. Legacy unscoped data
+/// must never be silently assigned to a server user.
 class TestPreferences {
   static const storageKey = 'gazelle_miniapp_sandbox_v2';
   static final revision = ValueNotifier<int>(0);
@@ -95,6 +96,21 @@ class TestPreferences {
     _scope.check();
     final task = _queue.then((_) async {
       _scope.check();
+      AccountScope.requireActiveWrite();
+      final section = key == null
+          ? 'work'
+          : key.startsWith('gas_')
+          ? 'gas'
+          : key.startsWith('advance_report')
+          ? 'advance'
+          : key.startsWith('maintenance')
+          ? 'maintenance'
+          : key.startsWith('melnitsa_money')
+          ? 'money'
+          : key.contains('invoice')
+          ? 'invoices'
+          : null;
+      if (section != null) AccountScope.requireWrite(section);
       final next = reset
           ? <String, dynamic>{}
           : Map<String, dynamic>.from(_values);
@@ -692,7 +708,48 @@ class TestStore {
     final scope = AccountScope.capture();
     final task = _queue.then(
       (_) => scope.bind(() async {
-        final next = change(await load());
+        AccountScope.requireActiveWrite();
+        final previous = await load();
+        final before =
+            jsonDecode(jsonEncode(previous.toJson())) as Map<String, dynamic>;
+        final next = change(previous);
+        final after = next.toJson();
+        for (final key in after.keys) {
+          if (jsonEncode(before[key]) == jsonEncode(after[key])) continue;
+          AccountScope.requireWrite(
+            key == 'directions'
+                ? 'directions'
+                : key.toLowerCase().contains('setting') ||
+                      key.toLowerCase().contains('rate')
+                ? 'settings'
+                : 'work',
+          );
+        }
+        final oldShifts = (before['shifts'] as List)
+            .cast<Map<String, dynamic>>();
+        final oldRecords = (before['records'] as List)
+            .cast<Map<String, dynamic>>();
+        for (final shift in oldShifts.where((s) => s['end'] != null)) {
+          final now = next.shifts
+              .where((s) => s['id'] == shift['id'])
+              .firstOrNull;
+          final oldEntries = oldRecords
+              .where((e) => e['shiftId'] == shift['id'])
+              .toList();
+          final newEntries = next.records
+              .where((e) => e['shiftId'] == shift['id'])
+              .toList();
+          if (jsonEncode(shift) != jsonEncode(now) ||
+              jsonEncode(oldEntries) != jsonEncode(newEntries)) {
+            AccountScope.requireHistory();
+          }
+        }
+        for (final shift in next.shifts) {
+          if (shift['end'] != null &&
+              !oldShifts.any((s) => s['id'] == shift['id']))
+            AccountScope.requireHistory();
+        }
+        scope.check();
         await (await TestPreferences.getInstance()).setString(
           'journal',
           jsonEncode(next.toJson()),
@@ -818,7 +875,7 @@ class TestStore {
       );
   static Future<void> setCalculationSetting(String key, Object value) =>
       _change((b) {
-        AccountScope.requireAdmin();
+        AccountScope.requireWrite('settings');
         b.changeCalculationSetting(key, value, DateTime.now());
         return b;
       });

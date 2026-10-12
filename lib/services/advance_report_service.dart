@@ -55,6 +55,7 @@ class AdvanceReportRepository {
       _change((AdvanceLedger ledger) async => ledger.withCash(value));
   Future<void> submit(String expectedSignature) =>
       _change((AdvanceLedger ledger) async {
+        AccountScope.requireSubmit('advance');
         final book = await TestStore.load();
         return ledger.submit(
           _allowanceRecords(book),

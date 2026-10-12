@@ -208,7 +208,7 @@ class MaintenanceRepository {
               : saved.odometer)
         : (saved.odometer + journalKm(state) - baseline).round();
     // One-time migration anchors existing records without dropping history.
-    if (baseline == null) {
+    if (baseline == null && AccountScope.canWrite('maintenance')) {
       json['odometer'] = km;
       json['journalKm'] = journalKm(state);
       if (!await prefs.setString(key, jsonEncode(json)))

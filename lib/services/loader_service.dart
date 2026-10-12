@@ -75,6 +75,9 @@ class LoaderService {
     final token = _owner();
     return _serial(() async {
       token.check();
+      AccountScope.requireWrite('work');
+      if (originalDay != null || dayKey(date) != dayKey(DateTime.now()))
+        AccountScope.requireHistory();
       final day = dayKey(date);
       if (minutes < 1 || minutes > 1440)
         throw ArgumentError('Укажите от 1 минуты до 24 часов');
@@ -97,6 +100,7 @@ class LoaderService {
       rows.removeWhere((r) => r.day == originalDay);
       rows.add(LoaderShift(day: day, minutes: minutes, rateMinor: rate));
       token.check();
+      AccountScope.requireWrite('work');
       if (!await prefs.setString(
         _key(token),
         jsonEncode(rows.map((r) => r.toJson()).toList()),
@@ -111,8 +115,10 @@ class LoaderService {
       token.check();
       final prefs = await SharedPreferences.getInstance();
       token.check();
+      AccountScope.requireHistory();
       final rows = _decode(prefs.getString(_key(token)))
         ..removeWhere((r) => r.day == day);
+      AccountScope.requireWrite('work');
       if (!await prefs.setString(
         _key(token),
         jsonEncode(rows.map((r) => r.toJson()).toList()),

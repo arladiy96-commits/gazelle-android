@@ -273,6 +273,7 @@ class GasReportRepository {
     DateTime month, {
     required String expectedSignature,
   }) => _change((p, months) async {
+    AccountScope.requireSubmit('gas');
     final report = derive(await TestStore.load(), month, months);
     if (report.signature != expectedSignature) {
       throw StateError(
