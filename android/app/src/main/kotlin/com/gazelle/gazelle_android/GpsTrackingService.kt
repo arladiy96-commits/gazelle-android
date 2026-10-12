@@ -35,7 +35,7 @@ internal object GpsGate {
     }
     @Synchronized fun open(context: Context, account: String, shift: String): Boolean = try {
         val p = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-        if (!account(context, account)) false else {
+        if (!account(context, account) || !EmployeeLocationSync.permits(context, account)) false else {
             val raw = p.getString("flutter.gazelle_miniapp_sandbox_v2_account_$account", "{}") ?: "{}"
             if (cachedAccount == account && cachedShift == shift && cachedJournal == raw) cachedOpen else {
                 val rows = JSONObject(JSONObject(raw).optString("journal", "{}")).optJSONArray("shifts")
@@ -144,6 +144,8 @@ class GpsTrackingService : Service(), LocationListener {
                 }
                 if (lastReceived > 0 && SystemClock.elapsedRealtime() - lastReceived > 15000) setStatus("signal_lost")
             }
+            val a = account; val s = shift
+            if (a != null && s != null) EmployeeLocationSync.tick(this@GpsTrackingService, a, s, db)
             notifyProgress()
             GpsWorker.handler.postDelayed(this, 10000)
         }
@@ -239,7 +241,7 @@ class GpsTrackingService : Service(), LocationListener {
         val intent = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val b = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this,CHANNEL) else Notification.Builder(this)
         return b.setSmallIcon(android.R.drawable.ic_menu_mylocation).setContentTitle("Мельница · GPS смены")
-            .setContentText(message).setContentIntent(intent).setOngoing(true).setOnlyAlertOnce(true)
+            .setContentText(if (EmployeeLocationSync.sharing(this)) "$message · маршрут доступен владельцу" else message).setContentIntent(intent).setOngoing(true).setOnlyAlertOnce(true)
             .setCategory(Notification.CATEGORY_SERVICE).setShowWhen(false).build()
     }
     private fun notifyProgress() {
@@ -304,6 +306,28 @@ class GpsBridge(private val activity: Activity) {
             result.success(null); return
         }
         if (method == "start" && !resumed) { result.error("background", "Откройте приложение для запуска GPS", null); return }
+        if (method == "ownerRoute") {
+            val actor = args["actor"] as? String
+            val target = args["account"] as? String
+            fun allowed(): Boolean = try {
+                val prefs = activity.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                val root = JSONObject(prefs.getString("flutter.melnitsa_accounts_v1", "{}") ?: "{}")
+                val rows = root.optJSONArray("accounts")
+                val admins = (0 until (rows?.length() ?: 0)).map { rows!!.getJSONObject(it) }.filter { it.optString("role") == "admin" }
+                val owner = root.optString("ownerId").ifEmpty { if(admins.size == 1) admins[0].optString("id") else "" }
+                !actor.isNullOrBlank() && !target.isNullOrBlank() && GpsGate.account(activity, actor) && owner == actor &&
+                    admins.any { it.optString("id") == actor && it.optBoolean("active") }
+            } catch (_: Exception) { false }
+            if (!allowed()) { result.error("owner", "Доступно владельцу", null); return }
+            GpsWorker.handler.post {
+                try {
+                    check(allowed()) { "Нет доступа" }
+                    val route = db.route(target!!, args["shift"] as? String ?: error("Нет смены"))
+                    GpsWorker.main.post { result.success(route) }
+                } catch(e: Exception) { GpsWorker.main.post { result.error("owner", e.message, null) } }
+            }
+            return
+        }
         val account = args["account"] as? String
         if (account.isNullOrBlank() || !GpsGate.account(activity,account)) {
             result.error("account", "Учётная запись изменилась",null); return
@@ -313,6 +337,7 @@ class GpsBridge(private val activity: Activity) {
                 // Recheck after queueing: never disclose a previous account's tracks.
                 check(GpsGate.account(activity,account)) { "Учётная запись изменилась" }
                 val value: Any? = when(method) {
+                    "configureServer" -> { EmployeeLocationSync.configure(activity, account, args); null }
                     "start" -> {
                         val shift = args["shift"] as? String ?: error("Нет смены")
                         check(GpsGate.open(activity,account,shift)) { "Смена закрыта или GPS на паузе" }
