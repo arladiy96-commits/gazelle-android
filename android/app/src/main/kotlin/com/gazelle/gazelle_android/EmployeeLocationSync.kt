@@ -46,6 +46,13 @@ internal object EmployeeLocationSync {
             String(doFinal(decode(parts[1])), Charsets.UTF_8)
         }
     }
+    @Synchronized fun deviceId(c: Context): String {
+        val p = c.getSharedPreferences("melnitsa_gps_device", Context.MODE_PRIVATE)
+        p.getString("id", null)?.let { return it }
+        val value = java.util.UUID.randomUUID().toString()
+        check(p.edit().putString("id", value).commit())
+        return value
+    }
     private fun millis(value: String): Long {
         for (pattern in listOf("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", "yyyy-MM-dd'T'HH:mm:ssXXX")) {
             try { return SimpleDateFormat(pattern, Locale.US).apply { timeZone=TimeZone.getTimeZone("UTC"); isLenient=false }.parse(value)?.time ?: 0L } catch (_: Exception) {}
@@ -53,6 +60,12 @@ internal object EmployeeLocationSync {
         return 0L
     }
     fun configure(c: Context, account: String, args: Map<*, *>) {
+        if (args["paused"] == true) {
+            check(prefs(c).edit().clear().putString("account", account)
+                .putBoolean("allowed", false).putBoolean("revoked", true).commit())
+            GpsTrackingService.instance?.halt()
+            return
+        }
         val url = args["url"] as? String
         if (url.isNullOrEmpty()) { check(prefs(c).edit().clear().commit()); return }
         val parsed = URL(url)
@@ -78,6 +91,9 @@ internal object EmployeeLocationSync {
         return p.getString("account", null) == account && p.getBoolean("allowed", false) &&
             !p.getBoolean("revoked", false) && System.currentTimeMillis() < p.getLong("until", 0)
     }
+    fun closed(c: Context, account: String, shift: String): Boolean =
+        c.getSharedPreferences("melnitsa_closed_shifts", Context.MODE_PRIVATE)
+            .getStringSet(account, emptySet())?.contains(shift) == true
     fun sharing(c: Context): Boolean = prefs(c).contains("account") && prefs(c).getBoolean("share",false)
     private fun invalidate(c: Context, account: String) {
         if (prefs(c).getString("account", null) != account) return
@@ -127,6 +143,14 @@ internal object EmployeeLocationSync {
                 if (employee.getString("id") != account || access.getInt("sessionEpoch") != epoch || !employee.optBoolean("active")) throw SecurityException("revoked")
                 // Ignore an in-flight response for a replaced login/token.
                 if(p.getString("account",null) != account || p.getString("token",null) != encrypted) return@execute
+                val closedRows = employee.optJSONArray("closedShiftIds")
+                val closedSet = (0 until (closedRows?.length() ?: 0)).map { closedRows!!.getString(it) }.toSet()
+                check(c.getSharedPreferences("melnitsa_closed_shifts",Context.MODE_PRIVATE).edit()
+                    .putStringSet(account, closedSet).commit())
+                if (closedSet.contains(shift)) {
+                    GpsWorker.handler.post { if (GpsGate.account(c,account)) GpsTrackingService.instance?.halt() }
+                    return@execute
+                }
                 val permitted=allowed(access,employee.optBoolean("isOwner"))
                 check(p.edit().putLong("until",millis(access.getString("validUntil")))
                     .putBoolean("allowed",permitted).putBoolean("share",access.optBoolean("shareLocation")).commit())

@@ -35,7 +35,7 @@ internal object GpsGate {
     }
     @Synchronized fun open(context: Context, account: String, shift: String): Boolean = try {
         val p = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-        if (!account(context, account) || !EmployeeLocationSync.permits(context, account)) false else {
+        if (!account(context, account) || !EmployeeLocationSync.permits(context, account) || EmployeeLocationSync.closed(context, account, shift)) false else {
             val raw = p.getString("flutter.gazelle_miniapp_sandbox_v2_account_$account", "{}") ?: "{}"
             if (cachedAccount == account && cachedShift == shift && cachedJournal == raw) cachedOpen else {
                 val rows = JSONObject(JSONObject(raw).optString("journal", "{}")).optJSONArray("shifts")
@@ -54,13 +54,22 @@ internal object GpsGate {
 }
 
 /** Isolated from Flutter's cached SharedPreferences. Never rewrites the journal. */
-internal class GpsDatabase(context: Context) : SQLiteOpenHelper(context, "melnitsa_gps_v2.db", null, 1) {
+internal class GpsDatabase(private val context: Context) : SQLiteOpenHelper(context, "melnitsa_gps_v2.db", null, 1) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE tracks(account TEXT NOT NULL, shift TEXT NOT NULL, token TEXT NOT NULL, metres REAL NOT NULL DEFAULT 0, gaps INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'waiting', updated INTEGER NOT NULL, PRIMARY KEY(account,shift))")
         db.execSQL("CREATE TABLE points(seq INTEGER PRIMARY KEY AUTOINCREMENT, account TEXT NOT NULL, shift TEXT NOT NULL, lat REAL NOT NULL, lng REAL NOT NULL, accuracy REAL NOT NULL, speed REAL, wall INTEGER NOT NULL, broken INTEGER NOT NULL)")
         db.execSQL("CREATE INDEX route_points ON points(account,shift,seq)")
     }
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    fun resetAccount(account: String) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            db.delete("points", "account=?", arrayOf(account))
+            db.delete("tracks", "account=?", arrayOf(account))
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+    }
     fun ensure(account: String, shift: String) {
         writableDatabase.execSQL("INSERT OR IGNORE INTO tracks(account,shift,token,updated) VALUES(?,?,?,?)", arrayOf<Any>(account, shift, UUID.randomUUID().toString(), System.currentTimeMillis()))
     }
@@ -98,7 +107,7 @@ internal class GpsDatabase(context: Context) : SQLiteOpenHelper(context, "melnit
                 "speed" to c.getDouble(3), "time" to dates.format(Date(c.getLong(4))), "breakBefore" to (c.getInt(5) != 0)))
         } }
         val snapshot = snapshots(account).firstOrNull { it["shiftId"] == shift }
-        return mapOf("distanceKm" to ((snapshot?.get("metres") as? Double ?: 0.0)/1000), "points" to points,
+        return mapOf("deviceId" to EmployeeLocationSync.deviceId(context), "distanceKm" to ((snapshot?.get("metres") as? Double ?: 0.0)/1000), "points" to points,
             "gaps" to (snapshot?.get("gaps") ?: 0), "status" to (snapshot?.get("status") ?: "stopped"))
     }
 }
@@ -338,6 +347,13 @@ class GpsBridge(private val activity: Activity) {
                 check(GpsGate.account(activity,account)) { "Учётная запись изменилась" }
                 val value: Any? = when(method) {
                     "configureServer" -> { EmployeeLocationSync.configure(activity, account, args); null }
+                    "resetServerRoutes" -> {
+                        EmployeeLocationSync.configure(activity, account, mapOf("paused" to true))
+                        db.resetAccount(account)
+                        check(activity.getSharedPreferences("melnitsa_closed_shifts", Context.MODE_PRIVATE)
+                            .edit().remove(account).commit())
+                        null
+                    }
                     "start" -> {
                         val shift = args["shift"] as? String ?: error("Нет смены")
                         check(GpsGate.open(activity,account,shift)) { "Смена закрыта или GPS на паузе" }
