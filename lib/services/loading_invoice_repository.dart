@@ -8,6 +8,7 @@ import 'test_store.dart';
 import 'account_scope.dart';
 
 class LoadingInvoiceRepository {
+  String? _base;
   final _scope = AccountScope.capture();
   Future<TestPreferences> _preferences() =>
       _scope.bind(TestPreferences.getInstance);
@@ -19,6 +20,7 @@ class LoadingInvoiceRepository {
   static Future<void> flush() => _queue;
   Future<List<LoadingInvoice>> load() async {
     final raw = (await _preferences()).getString(key);
+    _base = raw;
     if (raw == null) return [];
     return [
       for (final j in jsonDecode(raw) as List)
@@ -29,13 +31,20 @@ class LoadingInvoiceRepository {
   Future<void> save(LoadingInvoice invoice) {
     final snapshot = invoice.copy();
     final task = _queue.then((_) async {
-      final all = await load();
+      final prefs = await _preferences();
+      final base = _base;
+      final all = [
+        for (final row in (base == null ? [] : jsonDecode(base) as List))
+          LoadingInvoice.fromJson(Map<String, dynamic>.from(row as Map)),
+      ];
       all.removeWhere((i) => i.invoiceId == snapshot.invoiceId);
       all.add(snapshot);
-      await (await _preferences()).setString(
+      await prefs.mergeString(
         key,
+        base,
         jsonEncode(all.map((i) => i.toJson()).toList()),
       );
+      _base = prefs.getString(key);
     });
     _queue = task.then<void>((_) {}, onError: (Object e, StackTrace s) {});
     return task;

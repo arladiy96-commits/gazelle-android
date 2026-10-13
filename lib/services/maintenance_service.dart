@@ -165,6 +165,7 @@ class MaintenanceBook {
 }
 
 class MaintenanceRepository {
+  String? _base;
   final _scope = AccountScope.capture();
   Future<TestPreferences> _preferences() =>
       _scope.bind(TestPreferences.getInstance);
@@ -195,6 +196,7 @@ class MaintenanceRepository {
   Future<MaintenanceBook> load() async {
     final prefs = await _preferences();
     final raw = prefs.getString(key);
+    _base = raw;
     final state = await TestStore.load();
     if (raw == null) return MaintenanceBook(odometer: initialOdometer(state));
     final json = jsonDecode(raw) as Map<String, dynamic>;
@@ -211,8 +213,9 @@ class MaintenanceRepository {
     if (baseline == null && AccountScope.canWrite('maintenance')) {
       json['odometer'] = km;
       json['journalKm'] = journalKm(state);
-      if (!await prefs.setString(key, jsonEncode(json)))
+      if (!await prefs.mergeString(key, raw, jsonEncode(json)))
         throw StateError('Не удалось обновить ТО');
+      _base = prefs.getString(key);
     }
     return MaintenanceBook(
       odometer: km < 0 ? 0 : km,
@@ -226,8 +229,9 @@ class MaintenanceRepository {
     final prefs = await _preferences();
     final json = book.toJson();
     json['journalKm'] = journalKm(await TestStore.load());
-    if (!await prefs.setString(key, jsonEncode(json)))
+    if (!await prefs.mergeString(key, _base, jsonEncode(json)))
       throw StateError('Не удалось сохранить ТО');
+    _base = prefs.getString(key);
   }
 
   Future<MaintenanceBook> record({

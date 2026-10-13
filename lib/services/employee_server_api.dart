@@ -19,18 +19,42 @@ class EmployeeServerApi {
   static const baseUrl = String.fromEnvironment('MELNITSA_API_URL');
   static bool get enabled => baseUrl.isNotEmpty;
   static String? _token;
+  static String? dataReadyAccount;
   static void authenticate(String token) {
     if (token.isEmpty) throw const FormatException('Пустой токен');
+    dataReadyAccount = null;
     _token = token;
   }
 
-  static void forget() => _token = null;
+  static void forget() {
+    _token = null;
+    dataReadyAccount = null;
+  }
+
+  static Future<void> pauseGps(String accountId) async {
+    if (!Platform.isAndroid || !enabled) return;
+    await const MethodChannel('melnitsa/shift_gps').invokeMethod<void>(
+      'configureServer',
+      {'account': accountId, 'paused': true},
+    );
+  }
+
+  static Future<void> resetLocalRoutes(String accountId) async {
+    if (!Platform.isAndroid) return;
+    await const MethodChannel('melnitsa/shift_gps')
+        .invokeMethod<void>('resetServerRoutes', {'account': accountId});
+  }
+
   static Future<void> configureGps(
     String accountId,
     EmployeeAccess access,
     bool owner,
   ) async {
     if (!Platform.isAndroid) return;
+    if (enabled && dataReadyAccount != accountId) {
+      await pauseGps(accountId);
+      return;
+    }
     await const MethodChannel('melnitsa/shift_gps')
         .invokeMethod<void>('configureServer', {
           'account': accountId,
@@ -102,6 +126,7 @@ class EmployeeServerApi {
           throw EmployeeApiError(
             response.statusCode,
             data['message'] as String? ??
+                data['error'] as String? ??
                 'Ошибка сервера ${response.statusCode}',
           );
         }

@@ -1,5 +1,7 @@
+import '../models/server_merge.dart';
 import '../models/calculation_settings.dart';
 import 'account_scope.dart';
+import 'employee_server_api.dart';
 
 import 'dart:convert';
 
@@ -92,11 +94,27 @@ class TestPreferences {
     return keys;
   }
 
-  Future<bool> _write(String? key, Object? value, {bool reset = false}) {
+  Future<bool> _write(
+    String? key,
+    Object? value, {
+    bool reset = false,
+    bool merge = false,
+    String? base,
+  }) {
     _scope.check();
     final task = _queue.then((_) async {
       _scope.check();
       AccountScope.requireActiveWrite();
+      if (merge && key != null) {
+        value = jsonEncode(
+          ServerMerge.merge(
+            base == null ? null : jsonDecode(base),
+            value == null ? null : jsonDecode(value as String),
+            _values[key] == null ? null : jsonDecode(_values[key] as String),
+            key,
+          ),
+        );
+      }
       final section = key == null
           ? 'work'
           : key.startsWith('gas_')
@@ -132,11 +150,31 @@ class TestPreferences {
   }
 
   Future<bool> setString(String k, String v) => _write(k, v);
+  Future<bool> mergeString(String k, String? base, String value) =>
+      _write(k, value, merge: true, base: base);
   Future<bool> setDouble(String k, double v) => _write(k, v);
   Future<bool> setInt(String k, int v) => _write(k, v);
   Future<bool> setBool(String k, bool v) => _write(k, v);
   Future<bool> remove(String k) => _write(k, null);
   Future<bool> clear() => _write(null, null, reset: true);
+  static Future<void> mergeServer(Map base, Map remote) async {
+    final p = await getInstance();
+    final task = p._queue.then((_) async {
+      p._scope.check();
+      final merged = ServerMerge.mergePreferences(base, p._values, remote);
+      if (ServerMerge.same(merged, p._values)) return;
+      if (!await p._disk.setString(p._storageKey, jsonEncode(merged))) {
+        throw StateError('Не удалось сохранить данные сервера');
+      }
+      p._values
+        ..clear()
+        ..addAll(merged);
+      revision.value++;
+    });
+    p._queue = task.then<void>((_) {}, onError: (Object e, StackTrace s) {});
+    await task;
+  }
+
   static Future<void> flushCurrent() async {
     final p = await getInstance();
     await p._queue;
@@ -690,6 +728,15 @@ class TestStore {
   static final revision = TestPreferences.revision;
   static Future<void> _queue = Future<void>.value();
   static Future<void> flush() => _queue;
+  static Future<void> mergeServerPreferences(Map base, Map remote) {
+    final scope = AccountScope.capture();
+    final task = _queue.then(
+      (_) => scope.bind(() => TestPreferences.mergeServer(base, remote)),
+    );
+    _queue = task.then<void>((_) {}, onError: (Object e, StackTrace s) {});
+    return task;
+  }
+
   static Future<TestState> load() async {
     final p = await TestPreferences.getInstance();
     final b = TestState.decode(p.getString('journal'));
@@ -716,6 +763,15 @@ class TestStore {
         final after = next.toJson();
         for (final key in after.keys) {
           if (jsonEncode(before[key]) == jsonEncode(after[key])) continue;
+          if (EmployeeServerApi.enabled &&
+              const [
+                'products',
+                'salaryRateHistory',
+                'calculationHistory',
+                'initialCalculationSettings',
+              ].contains(key)) {
+            AccountScope.requireAdmin();
+          }
           AccountScope.requireWrite(
             key == 'directions'
                 ? 'directions'
@@ -982,6 +1038,11 @@ class TestStore {
   static Future<void> saveRecord(Map<String, dynamic> value) => _change((b) {
     final e = Map<String, dynamic>.from(value);
     final kind = e['kind'];
+    if (EmployeeServerApi.enabled && (kind == 'invoice' || kind == 'other')) {
+      throw StateError(
+        'Этот старый вид записи не подключён к серверу. Накладные добавляйте через раздел загрузки товаров.',
+      );
+    }
     if (!['trip', 'fuel', 'invoice', 'other'].contains(kind))
       throw ArgumentError('Неизвестная запись');
     final id = e['id'];
@@ -1111,6 +1172,10 @@ class TestStore {
     return b;
   });
   static Future<void> deleteShift(String id) => _change((b) {
+    if (EmployeeServerApi.enabled)
+      throw StateError(
+        'Удаление серверной смены выполняется владельцем в миниаппе после проверки связанных отчётов.',
+      );
     b.records.removeWhere((e) => e['shiftId'] == id);
     b.shifts.removeWhere((e) => e['id'] == id);
     return b;

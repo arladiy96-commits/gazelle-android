@@ -238,9 +238,11 @@ class GasReportRepository {
     final task = _queue.then(
       (_) => scope.bind(() async {
         final p = await TestPreferences.getInstance(), months = _months(p);
+        final base = p.getString(storageKey);
         await action(p, months);
-        await p.setString(
+        await p.mergeString(
           storageKey,
+          base,
           jsonEncode({'version': 1, 'months': months}),
         );
       }),

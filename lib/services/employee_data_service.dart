@@ -18,10 +18,30 @@ class EmployeeDataService {
     final disk = await SharedPreferences.getInstance();
     scope.check();
     final raw = disk.getString('${TestPreferences.storageKey}_account_$id');
+    final values = raw == null
+        ? <String, dynamic>{}
+        : Map<String, dynamic>.from(jsonDecode(raw) as Map);
+    values.remove('gazelle_real_gps_routes_v1');
+    // A camera draft belongs to this device, not to the shared invoice journal.
+    values.removeWhere(
+      (key, _) =>
+          key.startsWith('loading_invoices_v1_') && key.endsWith('_pending'),
+    );
+    if (values['journal'] is String) {
+      final journal = Map<String, dynamic>.from(
+        jsonDecode(values['journal'] as String) as Map,
+      );
+      for (final shift in journal['shifts'] as List? ?? []) {
+        for (final key in ['gpsKm', 'gpsNativeCounters', 'gpsSignalGaps']) {
+          (shift as Map).remove(key);
+        }
+      }
+      values['journal'] = jsonEncode(journal);
+    }
     return {
       'accountId': id,
       'receivedAt': null,
-      'preferences': raw == null ? <String, dynamic>{} : jsonDecode(raw),
+      'preferences': values,
       'loaderShifts': jsonDecode(
         disk.getString('melnitsa_loader_shifts_v1_$id') ?? '[]',
       ),
@@ -69,8 +89,11 @@ class EmployeeDataService {
   ) async {
     final scope = AccountScope.capture();
     if (id != scope.id) AccountScope.requireAdmin();
-    final data = await localData(id);
-    final preferences = data['preferences'] as Map;
+    final disk = await SharedPreferences.getInstance();
+    scope.check();
+    final preferences = jsonDecode(
+      disk.getString('${TestPreferences.storageKey}_account_$id') ?? '{}',
+    ) as Map;
     final raw = preferences['gazelle_real_gps_routes_v1'];
     final legacy = raw is String ? jsonDecode(raw) as Map : {};
     final old = legacy[shiftId] as Map? ?? {};
@@ -83,6 +106,7 @@ class EmployeeDataService {
         : <String, dynamic>{};
     scope.check();
     return {
+      ...native,
       'points': [
         ...old['points'] as List? ?? [],
         ...native['points'] as List? ?? [],

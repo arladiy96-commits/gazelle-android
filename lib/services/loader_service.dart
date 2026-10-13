@@ -1,3 +1,5 @@
+import '../models/server_merge.dart';
+
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -5,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_role.dart';
 import 'account_scope.dart';
 import 'session_service.dart';
+import 'employee_server_api.dart';
 
 class LoaderShift {
   final String day;
@@ -30,6 +33,20 @@ class LoaderShift {
 /// Separate account-owned journal; driver storage is never read or modified.
 class LoaderService {
   static Future<void> _queue = Future<void>.value();
+  static Future<void> mergeServer(List base, List remote) {
+    final scope = AccountScope.capture();
+    return _serial(() async {
+      final prefs = await SharedPreferences.getInstance();
+      scope.check();
+      final key = 'melnitsa_loader_shifts_v1_${scope.id}';
+      final local = jsonDecode(prefs.getString(key) ?? '[]') as List;
+      final merged = ServerMerge.merge(base, local, remote);
+      if (!await prefs.setString(key, jsonEncode(merged))) {
+        throw StateError('Не удалось сохранить смены с сервера');
+      }
+    });
+  }
+
   static String monthKey(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}';
   static String dayKey(DateTime d) =>
@@ -110,6 +127,10 @@ class LoaderService {
   }
 
   static Future<void> delete(String day) {
+    if (EmployeeServerApi.enabled)
+      throw StateError(
+        'Удалите серверную смену в миниаппе. После синхронизации она исчезнет здесь.',
+      );
     final token = _owner();
     return _serial(() async {
       token.check();

@@ -141,6 +141,7 @@ class MoneyLedger {
 
 /// Separate from shifts and salary; scoped to the current login and role.
 class MoneyRepository {
+  String? _base;
   final _scope = AccountScope.capture();
   Future<TestPreferences> _preferences() =>
       _scope.bind(TestPreferences.getInstance);
@@ -152,6 +153,7 @@ class MoneyRepository {
   Future<MoneyLedger> load() async {
     await _queue;
     final raw = (await _preferences()).getString(_key);
+    _base = raw;
     if (raw == null) return MoneyLedger(MoneyCount.empty(), []);
     final j = jsonDecode(raw) as Map<String, dynamic>;
     if (j['version'] != 1)
@@ -172,8 +174,9 @@ class MoneyRepository {
     });
     final task = _queue.then((_) async {
       final disk = await _preferences();
-      if (!await disk.setString(_key, raw))
+      if (!await disk.mergeString(_key, _base, raw))
         throw StateError('Не удалось сохранить подсчёт');
+      _base = disk.getString(_key);
     });
     _queue = task.then<void>((_) {}, onError: (Object _, StackTrace __) {});
     return task;

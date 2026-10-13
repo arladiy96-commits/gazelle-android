@@ -40,8 +40,10 @@ class AdvanceReportRepository {
     Future<AdvanceLedger> Function(AdvanceLedger ledger) edit,
   ) {
     final task = _queue.then((_) async {
-      final next = await edit(await _ledger());
-      await (await _preferences()).setString(_key, jsonEncode(next.toJson()));
+      final prefs = await _preferences();
+      final base = prefs.getString(_key);
+      final next = await edit(AdvanceLedger.decode(base));
+      await prefs.mergeString(_key, base, jsonEncode(next.toJson()));
     });
     _queue = task.then<void>((_) {}, onError: (Object _, StackTrace __) {});
     return task;
