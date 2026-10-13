@@ -32,7 +32,8 @@ class EmployeeAccount {
   final bool isOwner;
   final EmployeeAccess access;
   final int hourlyRateMinor;
-  final Map<String, int> deductions;
+  final Map<String, int> deductions, openingMinutes;
+  final int defaultDeductionMinor;
   const EmployeeAccount({
     required this.id,
     required this.name,
@@ -43,6 +44,8 @@ class EmployeeAccount {
     this.access = const EmployeeAccess(),
     this.hourlyRateMinor = 0,
     this.deductions = const {},
+    this.defaultDeductionMinor = 0,
+    this.openingMinutes = const {},
   });
   factory EmployeeAccount.fromJson(Map<String, dynamic> row) => EmployeeAccount(
     id: row['id'] as String,
@@ -62,6 +65,11 @@ class EmployeeAccount {
           ),
     hourlyRateMinor: (row['hourlyRateMinor'] as num?)?.toInt() ?? 0,
     deductions: Map<String, int>.from(row['loaderDeductions'] as Map? ?? {}),
+    defaultDeductionMinor:
+        (row['loaderDefaultDeductionMinor'] as num?)?.toInt() ?? 0,
+    openingMinutes: Map<String, int>.from(
+      row['loaderOpeningMinutes'] as Map? ?? {},
+    ),
   );
   AppSession get session =>
       AppSession(accountId: id, displayName: name, login: login, role: role);
@@ -148,8 +156,12 @@ class SessionService {
       throw ArgumentError('Введите имя до 80 символов');
     if (!RegExp(r'^[a-zA-Zа-яА-ЯёЁ0-9_.@-]{3,64}$').hasMatch(login.trim()))
       throw ArgumentError('Логин: 3–64 символа, без пробелов');
-    if (password != null && (password.length < 4 || password.length > 128))
-      throw ArgumentError('Пароль: от 4 до 128 символов');
+    if (password != null &&
+        (password.length < (EmployeeServerApi.enabled ? 10 : 4) ||
+            password.length > 128))
+      throw ArgumentError(
+        'Пароль: от ${EmployeeServerApi.enabled ? 10 : 4} до 128 символов',
+      );
   }
 
   static Future<bool> needsSetup() async =>
@@ -275,6 +287,7 @@ class SessionService {
 
   static Future<void> saveEmployee({
     String? id,
+    String? telegramId,
     required String name,
     required String login,
     required AppRole role,
@@ -298,6 +311,7 @@ class SessionService {
           id == null ? 'POST' : 'PATCH',
           id == null ? '/employees' : '/employees/${Uri.encodeComponent(id)}',
           body: {
+            if (telegramId != null) 'telegramId': telegramId.trim(),
             'name': name.trim(),
             'login': login.trim(),
             'role': role.name,
@@ -442,10 +456,19 @@ class SessionService {
 
   static Future<EmployeeAccount> refreshCurrent() async {
     final scope = AccountScope.capture();
+    Future<Map<String, dynamic>> fetchCurrent() async {
+      try {
+        return await EmployeeServerApi.request('GET', '/me');
+      } on EmployeeApiError catch (e) {
+        if (scope.valid && (e.status == 401 || e.status == 403)) {
+          AccountScope.revoked.value = true;
+        }
+        rethrow;
+      }
+    }
+
     final row = EmployeeServerApi.enabled
-        ? Map<String, dynamic>.from(
-            (await EmployeeServerApi.request('GET', '/me'))['employee'] as Map,
-          )
+        ? Map<String, dynamic>.from((await fetchCurrent())['employee'] as Map)
         : (await _rows()).firstWhere((r) => r['id'] == scope.id);
     scope.check();
     final employee = EmployeeAccount.fromJson(row);
