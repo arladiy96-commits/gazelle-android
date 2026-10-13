@@ -29,6 +29,7 @@ class _EmployeeAccessGateState extends State<EmployeeAccessGate> {
     super.initState();
     AccountScope.access.addListener(refresh);
     AccountScope.revoked.addListener(refresh);
+    EmployeeSync.instance.conflict.addListener(refresh);
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (AccountScope.signedIn &&
           AccountScope.access.value.expiredAt(DateTime.now()))
@@ -41,6 +42,7 @@ class _EmployeeAccessGateState extends State<EmployeeAccessGate> {
     timer?.cancel();
     AccountScope.access.removeListener(refresh);
     AccountScope.revoked.removeListener(refresh);
+    EmployeeSync.instance.conflict.removeListener(refresh);
     super.dispose();
   }
 
@@ -52,6 +54,60 @@ class _EmployeeAccessGateState extends State<EmployeeAccessGate> {
       fit: StackFit.expand,
       children: [
         Offstage(offstage: restricted, child: widget.child),
+        if (!restricted && EmployeeSync.instance.conflict.value)
+          Positioned(
+            left: 12,
+            right: 12,
+            top: MediaQuery.paddingOf(context).top + 8,
+            child: Material(
+              color: const Color(0xFF17212B),
+              borderRadius: BorderRadius.circular(12),
+              child: ListTile(
+                leading: const Icon(
+                  Icons.sync_problem,
+                  color: Color(0xFFCEAD70),
+                ),
+                title: const Text('Есть конфликт данных'),
+                subtitle: const Text(
+                  'Местные изменения сохранены. Нажмите для проверки.',
+                ),
+                onTap: busy
+                    ? null
+                    : () async {
+                        final accept = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Загрузить данные сервера?'),
+                            content: Text(
+                              '${EmployeeSync.instance.message.value ?? "Запись изменена на другом устройстве."}\n\nБудет сохранена резервная копия местных данных. Текущие несинхронизированные изменения заменятся версией сервера. Серверные записи не изменятся.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Оставить пока'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Загрузить с сервера'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (accept != true || !mounted) return;
+                        setState(() => busy = true);
+                        try {
+                          await EmployeeSync.instance.useServerVersion();
+                        } catch (e) {
+                          if (mounted)
+                            ScaffoldMessenger.of(context)
+                                .showSnackBar(SnackBar(content: Text('$e')));
+                        } finally {
+                          if (mounted) setState(() => busy = false);
+                        }
+                      },
+              ),
+            ),
+          ),
         if (restricted)
           Material(
             color: const Color(0xFF0B141B),
