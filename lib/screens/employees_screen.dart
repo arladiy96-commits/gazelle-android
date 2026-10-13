@@ -575,6 +575,7 @@ class _EmployeeEditor extends StatefulWidget {
 class _EmployeeEditorState extends State<_EmployeeEditor> {
   late final _name = TextEditingController(text: widget.account?.name ?? ''),
       _login = TextEditingController(text: widget.account?.login ?? '');
+  final _telegramId = TextEditingController();
   final _password = TextEditingController(),
       _confirmation = TextEditingController();
   late AppRole _role = widget.account?.role ?? widget.initialRole;
@@ -599,6 +600,7 @@ class _EmployeeEditorState extends State<_EmployeeEditor> {
       _login,
       _password,
       _confirmation,
+      _telegramId,
       _rate,
       _deduction,
     ]) {
@@ -620,6 +622,7 @@ class _EmployeeEditorState extends State<_EmployeeEditor> {
     try {
       await SessionService.saveEmployee(
         id: widget.account?.id,
+        telegramId: EmployeeServerApi.enabled && widget.account == null ? _telegramId.text : null,
         name: _name.text,
         login: _login.text,
         role: _role,
@@ -719,6 +722,10 @@ class _EmployeeEditorState extends State<_EmployeeEditor> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (EmployeeServerApi.enabled && widget.account == null)
+                field(_telegramId, 'Telegram ID сотрудника'),
+              if (EmployeeServerApi.enabled && widget.account != null)
+                Text('Telegram ID: ${widget.account!.id}'),
               field(_name, 'Имя и фамилия'),
               field(_login, 'Логин'),
               DropdownButtonFormField<AppRole>(

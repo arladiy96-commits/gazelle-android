@@ -266,9 +266,15 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
           .showSnackBar(SnackBar(content: Text(_error!)));
   }
 
-  int get _accrued => _visible.fold<int>(0, (a, s) => a + s.amountMinor);
+  int get _openingMinutes =>
+      _settings?.openingMinutes[LoaderService.monthKey(_month)] ?? 0;
+  int get _accrued =>
+      _visible.fold<int>(0, (a, s) => a + s.amountMinor) +
+      (_openingMinutes * (_settings?.hourlyRateMinor ?? 0) / 60).round();
   int get _deduction =>
-      _settings?.deductions[LoaderService.monthKey(_month)] ?? 0;
+      _settings?.deductions[LoaderService.monthKey(_month)] ??
+      _settings?.defaultDeductionMinor ??
+      0;
   int get _payable => math.max(0, _accrued - _deduction);
   String get _monthLabel => '${_loaderMonths[_month.month - 1]} ${_month.year}';
   Future<void> _pickDate() async {
@@ -503,7 +509,8 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
     );
     Widget heading(String value) => handwriting(value, 49);
     Widget line() => const ColoredBox(color: Color(0x554D3C28));
-    final worked = _visible.fold<int>(0, (sum, s) => sum + s.minutes);
+    final worked =
+        _openingMinutes + _visible.fold<int>(0, (sum, s) => sum + s.minutes);
     final digits =
         '${(_enteredMinutes ~/ 60).toString().padLeft(2, '0')}${(_enteredMinutes % 60).toString().padLeft(2, '0')}';
     // Row values and their hit areas share one layout, so scrolling stays aligned.
