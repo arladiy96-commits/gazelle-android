@@ -26,6 +26,7 @@ class KeyboardInput extends StatefulWidget {
   final String? initialValue;
   final bool? enabled;
   final bool autofocus, obscureText, autocorrect, enableSuggestions;
+  final bool selectAllOnTap, enableInteractiveSelection;
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
   final TextCapitalization textCapitalization;
@@ -41,6 +42,8 @@ class KeyboardInput extends StatefulWidget {
     this.controller,
     this.initialValue,
     this.enabled,
+    this.selectAllOnTap = false,
+    this.enableInteractiveSelection = true,
     this.autofocus = false,
     this.obscureText = false,
     this.autocorrect = true,
@@ -115,6 +118,18 @@ class _KeyboardInputState extends State<KeyboardInput>
     cursorColor: widget.cursorColor,
     decoration: widget.decoration,
     validator: widget.validator,
+    enableInteractiveSelection: widget.enableInteractiveSelection,
+    onTap: widget.selectAllOnTap
+        ? () {
+            final controller = widget.controller;
+            if (controller != null) {
+              controller.selection = TextSelection(
+                baseOffset: 0,
+                extentOffset: controller.text.length,
+              );
+            }
+          }
+        : null,
     onChanged: widget.onChanged,
     onFieldSubmitted: widget.onSubmitted,
   );
@@ -282,7 +297,7 @@ class _InlineValueInputState extends State<InlineValueInput> {
 }
 
 /// One editable control with the original mechanical counter face.
-class DrumInput extends StatelessWidget {
+class DrumInput extends StatefulWidget {
   final TextEditingController controller;
   final bool enabled;
   final int places, maxDigits;
@@ -296,86 +311,126 @@ class DrumInput extends StatelessWidget {
     this.onChanged,
   });
   @override
-  Widget build(BuildContext context) => Stack(
-    fit: StackFit.expand,
-    children: [
-      KeyboardInput(
-        controller: controller,
-        enabled: enabled,
-        keyboardType: TextInputType.number,
-        textInputAction: TextInputAction.done,
-        inputFormatters: [
-          FilteringTextInputFormatter.digitsOnly,
-          LengthLimitingTextInputFormatter(maxDigits),
-        ],
-        style: const TextStyle(color: Colors.transparent, fontSize: 74),
-        cursorColor: Colors.transparent,
-        decoration: const InputDecoration(
-          filled: false,
-          isCollapsed: true,
-          contentPadding: EdgeInsets.zero,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          disabledBorder: InputBorder.none,
+  State<DrumInput> createState() => _DrumInputState();
+}
+
+class _DrumInputState extends State<DrumInput> {
+  bool _focused = false;
+  TextEditingController get controller => widget.controller;
+  bool get enabled => widget.enabled;
+  int get places => widget.places;
+  int get maxDigits => widget.maxDigits;
+  ValueChanged<String>? get onChanged => widget.onChanged;
+  @override
+  Widget build(BuildContext context) => Focus(
+    onFocusChange: (focused) => setState(() => _focused = focused),
+    child: Stack(
+      fit: StackFit.expand,
+      children: [
+        KeyboardInput(
+          controller: controller,
+          selectAllOnTap: true,
+          enableInteractiveSelection: false,
+          enabled: enabled,
+          keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.done,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(maxDigits),
+          ],
+          style: const TextStyle(color: Colors.transparent, fontSize: 74),
+          cursorColor: Colors.transparent,
+          decoration: const InputDecoration(
+            filled: false,
+            isCollapsed: true,
+            contentPadding: EdgeInsets.zero,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+          ),
+          onChanged: onChanged,
         ),
-        onChanged: onChanged,
-      ),
-      IgnorePointer(
-        child: ExcludeSemantics(
-          child: ValueListenableBuilder<TextEditingValue>(
-            valueListenable: controller,
-            builder: (_, value, __) {
-              final digits = value.text.isEmpty
-                  ? List.filled(places, '-').join()
-                  : value.text.padLeft(places, '0');
-              return Row(
-                children: [
-                  for (final char in digits.split(''))
-                    Expanded(
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(13),
-                          border: Border.all(
-                            color: const Color(0xFF37414A),
-                            width: 1.5,
-                          ),
-                          gradient: const LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Color(0xFF03080B),
-                              Color(0xFF38424A),
-                              Color(0xFF101316),
-                              Color(0xFF24211B),
-                              Color(0xFF020507),
-                            ],
-                            stops: [0, .2, .49, .72, 1],
+        IgnorePointer(
+          child: ExcludeSemantics(
+            child: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: controller,
+              builder: (_, value, __) {
+                final allSelected =
+                    _focused &&
+                    value.text.isNotEmpty &&
+                    value.selection.start == 0 &&
+                    value.selection.end == value.text.length;
+                final digits = _focused
+                    ? value.text.padRight(
+                        math.max(
+                          places,
+                          math.min(
+                            maxDigits,
+                            value.text.length + (allSelected ? 0 : 1),
                           ),
                         ),
-                        child: Center(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              char,
-                              style: const TextStyle(
-                                fontFamily: 'monospace',
-                                fontSize: 75,
-                                color: Color(0xFFE0B87B),
-                                fontWeight: FontWeight.w600,
+                        '·',
+                      )
+                    : value.text.isEmpty
+                    ? List.filled(places, '-').join()
+                    : value.text.padLeft(places, '0');
+                return Row(
+                  children: [
+                    for (var i = 0; i < digits.length; i++)
+                      Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(13),
+                            border: Border.all(
+                              color:
+                                  allSelected ||
+                                      (_focused && i == value.text.length)
+                                  ? const Color(0xFFE0B87B)
+                                  : const Color(0xFF37414A),
+                              width:
+                                  allSelected ||
+                                      (_focused && i == value.text.length)
+                                  ? 3
+                                  : 1.5,
+                            ),
+                            gradient: const LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Color(0xFF03080B),
+                                Color(0xFF38424A),
+                                Color(0xFF101316),
+                                Color(0xFF24211B),
+                                Color(0xFF020507),
+                              ],
+                              stops: [0, .2, .49, .72, 1],
+                            ),
+                          ),
+                          child: Center(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                digits[i],
+                                style: const TextStyle(
+                                  fontFamily: 'monospace',
+                                  fontSize: 75,
+                                  color: Color(0xFFE0B87B),
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                ],
-              );
-            },
+                  ],
+                );
+              },
+            ),
           ),
         ),
-      ),
-    ],
+      ],
+    ),
   );
 }
