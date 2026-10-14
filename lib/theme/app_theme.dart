@@ -1,3 +1,5 @@
+import '../widgets/app_motion.dart';
+
 import 'package:flutter/material.dart';
 
 class AppColors {
@@ -36,6 +38,16 @@ class AppTheme {
 
     return ThemeData(
       useMaterial3: true,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: AppPageTransitions(),
+          TargetPlatform.iOS: AppPageTransitions(),
+          TargetPlatform.linux: AppPageTransitions(),
+          TargetPlatform.macOS: AppPageTransitions(),
+          TargetPlatform.windows: AppPageTransitions(),
+          TargetPlatform.fuchsia: AppPageTransitions(),
+        },
+      ),
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.background,
       colorScheme: scheme.copyWith(
@@ -76,11 +88,7 @@ class AppTheme {
           fontSize: 16,
           fontWeight: FontWeight.w700,
         ),
-        bodyLarge: TextStyle(
-          color: AppColors.text,
-          fontSize: 16,
-          height: 1.35,
-        ),
+        bodyLarge: TextStyle(color: AppColors.text, fontSize: 16, height: 1.35),
         bodyMedium: TextStyle(
           color: AppColors.textSoft,
           fontSize: 14,
@@ -104,10 +112,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(
-            color: AppColors.orange,
-            width: 1.3,
-          ),
+          borderSide: const BorderSide(color: AppColors.orange, width: 1.3),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
@@ -115,10 +120,7 @@ class AppTheme {
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(
-            color: AppColors.red,
-            width: 1.3,
-          ),
+          borderSide: const BorderSide(color: AppColors.red, width: 1.3),
         ),
       ),
     );
