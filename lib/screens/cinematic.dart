@@ -2588,6 +2588,18 @@ class _OpenShiftDashboardState extends State<_OpenShiftDashboard> {
                       child: Stack(
                         children: [
                           Positioned(
+                            top: 0,
+                            left: 0,
+                            width: box.maxWidth,
+                            height: box.maxHeight,
+                            child: RepaintBoundary(
+                              child: _ExtendedArtwork(
+                                asset: 'assets/images/scenes/open_shift.png',
+                                topInset: safe,
+                              ),
+                            ),
+                          ),
+                          Positioned(
                             top: safe,
                             left: 0,
                             width: box.maxWidth,
@@ -3004,6 +3016,18 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
                       ),
                       child: Stack(
                         children: [
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            width: box.maxWidth,
+                            height: box.maxHeight,
+                            child: RepaintBoundary(
+                              child: _ExtendedArtwork(
+                                asset: 'assets/images/scenes/close_shift.png',
+                                topInset: safe,
+                              ),
+                            ),
+                          ),
                           Positioned(
                             top: safe,
                             left: 0,

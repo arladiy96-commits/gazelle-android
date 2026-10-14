@@ -604,6 +604,18 @@ class _TestRecordEditorState extends State<_TestRecordEditor> {
                         child: Stack(
                           children: [
                             Positioned(
+                              top: 0,
+                              left: 0,
+                              width: box.maxWidth,
+                              height: box.maxHeight,
+                              child: RepaintBoundary(
+                                child: _ExtendedArtwork(
+                                  asset: 'assets/images/scenes/trip_entry.png',
+                                  topInset: top,
+                                ),
+                              ),
+                            ),
+                            Positioned(
                               top: top,
                               left: 0,
                               width: box.maxWidth,
@@ -967,6 +979,18 @@ class _TestRecordEditorState extends State<_TestRecordEditor> {
                         height: math.max(box.maxHeight, 1536 * scale + top),
                         child: Stack(
                           children: [
+                            Positioned(
+                              top: 0,
+                              left: 0,
+                              width: box.maxWidth,
+                              height: box.maxHeight,
+                              child: RepaintBoundary(
+                                child: _ExtendedArtwork(
+                                  asset: 'assets/images/scenes/fuel_entry.png',
+                                  topInset: top,
+                                ),
+                              ),
+                            ),
                             Positioned(
                               top: top,
                               left: 0,
