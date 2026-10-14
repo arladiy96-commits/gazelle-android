@@ -11,11 +11,10 @@ Future<T?> _showKeyboardForm<T>({
   barrierDismissible: false,
   barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
   barrierColor: const Color(0x99000000),
-  transitionDuration: const Duration(milliseconds: 120),
+  transitionDuration: AppMotion.duration,
   pageBuilder: (routeContext, animation, secondaryAnimation) =>
       _KeyboardFormViewport(child: Builder(builder: builder)),
-  transitionBuilder: (context, animation, secondaryAnimation, child) =>
-      FadeTransition(opacity: animation, child: child),
+  transitionBuilder: AppMotion.transition,
 );
 
 class _KeyboardFormViewport extends StatelessWidget {

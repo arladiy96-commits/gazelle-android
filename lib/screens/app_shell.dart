@@ -1,4 +1,4 @@
-import '../widgets/dormant_tab.dart';
+import '../widgets/app_motion.dart';
 import '../widgets/keyboard_input.dart';
 
 import 'dart:io';
@@ -313,6 +313,44 @@ class _AppShellState extends State<AppShell> {
     }
   }
 
+  Widget _tabScene(int index, Widget page) {
+    final extendDock = index == 3 || index == 4;
+    final dockExtent = extendDock
+        ? 83.0 + MediaQuery.viewPaddingOf(context).bottom
+        : 0.0;
+    return Stack(
+      children: [
+        if (index == 0 || index == 3 || index == 4)
+          Positioned.fill(
+            child: _ExtendedArtwork(
+              asset: index == 0
+                  ? 'assets/images/scenes/mill_home.png'
+                  : index == 3
+                  ? 'assets/images/scenes/statistics_dashboard.png'
+                  : 'assets/images/scenes/more_dashboard.png',
+              topInset: index == 4 ? 0 : MediaQuery.paddingOf(context).top,
+              bottomInset: dockExtent,
+              fit: index == 0 ? BoxFit.fitWidth : BoxFit.cover,
+            ),
+          )
+        else
+          const Positioned.fill(child: ColoredBox(color: Color(0xFF071017))),
+        Padding(
+          padding: EdgeInsets.only(bottom: dockExtent),
+          child: MediaQuery.removePadding(
+            context: context,
+            removeBottom: extendDock,
+            child: SafeArea(
+              top: index != 1 && index != 4,
+              bottom: false,
+              child: page,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loggingOut)
@@ -324,11 +362,6 @@ class _AppShellState extends State<AppShell> {
       return _guardEmployeeSection(_LoaderDashboard(session: _session));
     final items = _items;
     final pages = _pages;
-    final extendDock =
-        _session.role != AppRole.loader && (_index == 3 || _index == 4);
-    final dockExtent = extendDock
-        ? 83.0 + MediaQuery.viewPaddingOf(context).bottom
-        : 0.0;
 
     if (_index >= pages.length) {
       _index = 0;
@@ -341,41 +374,15 @@ class _AppShellState extends State<AppShell> {
       },
       child: Scaffold(
         resizeToAvoidBottomInset: false,
-        extendBody: extendDock,
-        body: Stack(
+        extendBody: true,
+        body: _SceneTabStage(
+          index: _index,
           children: [
-            if (_session.role != AppRole.loader &&
-                (_index == 0 || _index == 3 || _index == 4))
-              Positioned.fill(
-                child: _ExtendedArtwork(
-                  asset: _index == 0
-                      ? 'assets/images/scenes/mill_home.png'
-                      : _index == 3
-                      ? 'assets/images/scenes/statistics_dashboard.png'
-                      : 'assets/images/scenes/more_dashboard.png',
-                  topInset: _index == 4 ? 0 : MediaQuery.paddingOf(context).top,
-                  bottomInset: dockExtent,
-                  fit: _index == 0 ? BoxFit.fitWidth : BoxFit.cover,
-                ),
-              )
-            else if (_session.role != AppRole.loader)
-              const Positioned.fill(child: ColoredBox(color: Color(0xFF071017)))
-            else
-              const _AppBackground(),
-            Padding(
-              padding: EdgeInsets.only(bottom: dockExtent),
-              child: MediaQuery.removePadding(
-                context: context,
-                removeBottom: extendDock,
-                child: SafeArea(
-                  top:
-                      !(_session.role != AppRole.loader &&
-                          (_index == 1 || _index == 4)),
-                  bottom: false,
-                  child: _SceneTabStage(index: _index, children: pages),
-                ),
-              ),
-            ),
+            for (var i = 0; i < pages.length; i++)
+              if (_visitedTabs.contains(i))
+                _tabScene(i, pages[i])
+              else
+                const SizedBox.shrink(),
           ],
         ),
         bottomNavigationBar: _session.role != AppRole.loader && _index <= 1
@@ -2483,7 +2490,7 @@ Future<void> _showHomeSheet(
     barrierDismissible: true,
     barrierLabel: 'Закрыть',
     barrierColor: Colors.transparent,
-    transitionDuration: const Duration(milliseconds: 180),
+    transitionDuration: AppMotion.duration,
     pageBuilder: (dialogContext, animation, secondaryAnimation) {
       final height = MediaQuery.sizeOf(dialogContext).height;
 
@@ -2595,24 +2602,7 @@ Future<void> _showHomeSheet(
         ),
       );
     },
-    transitionBuilder: (context, animation, secondaryAnimation, child) {
-      final curved = CurvedAnimation(
-        parent: animation,
-        curve: Curves.easeOutCubic,
-        reverseCurve: Curves.easeInCubic,
-      );
-
-      return FadeTransition(
-        opacity: curved,
-        child: SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 0.12),
-            end: Offset.zero,
-          ).animate(curved),
-          child: child,
-        ),
-      );
-    },
+    transitionBuilder: AppMotion.transition,
   );
 }
 
@@ -3099,8 +3089,8 @@ class _HomeSheetRow extends StatelessWidget {
 Future<void> _showQuickAddMenu(BuildContext context, AppSession session) async {
   var selected = false;
   final route = PageRouteBuilder<String>(
-    transitionDuration: const Duration(milliseconds: 180),
-    reverseTransitionDuration: const Duration(milliseconds: 140),
+    transitionDuration: AppMotion.duration,
+    reverseTransitionDuration: AppMotion.duration,
     pageBuilder: (c, animation, secondary) {
       void choose(String value) {
         if (selected) return;
@@ -3114,20 +3104,7 @@ Future<void> _showQuickAddMenu(BuildContext context, AppSession session) async {
         onInvoice: () => choose('invoice'),
       );
     },
-    transitionsBuilder: (c, animation, secondary, child) =>
-        MediaQuery.disableAnimationsOf(c)
-        ? child
-        : SlideTransition(
-            position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
-                .animate(
-                  CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                    reverseCurve: Curves.easeInCubic,
-                  ),
-                ),
-            child: child,
-          ),
+    transitionsBuilder: AppMotion.transition,
   );
   final choice = await Navigator.of(context).push<String>(route);
   await route.completed;

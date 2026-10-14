@@ -21,27 +21,11 @@ _Scene _sceneFor(String title) {
 class _SceneRoute<T> extends PageRouteBuilder<T> {
   _SceneRoute({required WidgetBuilder builder})
     : super(
-        transitionDuration: const Duration(milliseconds: 220),
-        reverseTransitionDuration: const Duration(milliseconds: 180),
+        transitionDuration: AppMotion.duration,
+        reverseTransitionDuration: AppMotion.duration,
         pageBuilder: (context, animation, secondary) =>
             RepaintBoundary(child: _guardEmployeeSection(builder(context))),
-        transitionsBuilder: (context, animation, secondary, child) {
-          if (MediaQuery.disableAnimationsOf(context)) return child;
-          return SlideTransition(
-            position:
-                Tween<Offset>(
-                  begin: const Offset(.08, 0),
-                  end: Offset.zero,
-                ).animate(
-                  CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                    reverseCurve: Curves.easeInCubic,
-                  ),
-                ),
-            child: child,
-          );
-        },
+        transitionsBuilder: AppMotion.transition,
       );
 }
 
@@ -1398,19 +1382,8 @@ class _SceneTabStage extends StatelessWidget {
   final List<Widget> children;
   const _SceneTabStage({required this.index, required this.children});
   @override
-  Widget build(BuildContext context) => Stack(
-    fit: StackFit.expand,
-    children: [
-      for (var i = 0; i < children.length; i++)
-        DormantTab(
-          active: i == index,
-          child: TickerMode(
-            enabled: i == index,
-            child: RepaintBoundary(child: children[i]),
-          ),
-        ),
-    ],
-  );
+  Widget build(BuildContext context) =>
+      AppTabStage(index: index, children: children);
 }
 
 class _CinematicMore extends StatelessWidget {
