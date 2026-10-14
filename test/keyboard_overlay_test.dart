@@ -155,6 +155,37 @@ void main() {
       ),
     );
     await tester.tap(find.byType(TextFormField));
+    await tester.pump();
+    expect(
+      controller.selection,
+      const TextSelection(baseOffset: 0, extentOffset: 6),
+    );
+    final editable = tester.widget<EditableText>(find.byType(EditableText));
+    expect(editable.enableInteractiveSelection, isFalse);
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: '7',
+        selection: TextSelection.collapsed(offset: 1),
+      ),
+    );
+    await tester.pump();
+    expect(controller.text, '7');
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: '78',
+        selection: TextSelection.collapsed(offset: 2),
+      ),
+    );
+    await tester.pump();
+    expect(controller.text, '78');
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: '7',
+        selection: TextSelection.collapsed(offset: 1),
+      ),
+    );
+    await tester.pump();
+    expect(controller.text, '7');
     await tester.enterText(find.byType(TextFormField), '253547');
     await tester.pump();
     expect(controller.text, '253547');
