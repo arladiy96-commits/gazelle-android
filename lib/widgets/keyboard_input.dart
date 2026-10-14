@@ -266,3 +266,102 @@ class _InlineValueInputState extends State<InlineValueInput> {
     ),
   );
 }
+
+/// One editable control with the original mechanical counter face.
+class DrumInput extends StatelessWidget {
+  final TextEditingController controller;
+  final bool enabled;
+  final int places, maxDigits;
+  final ValueChanged<String>? onChanged;
+  const DrumInput({
+    super.key,
+    required this.controller,
+    this.enabled = true,
+    this.places = 6,
+    this.maxDigits = 9,
+    this.onChanged,
+  });
+  @override
+  Widget build(BuildContext context) => Stack(
+    fit: StackFit.expand,
+    children: [
+      KeyboardInput(
+        controller: controller,
+        enabled: enabled,
+        keyboardType: TextInputType.number,
+        textInputAction: TextInputAction.done,
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(maxDigits),
+        ],
+        style: const TextStyle(color: Colors.transparent, fontSize: 74),
+        cursorColor: Colors.transparent,
+        decoration: const InputDecoration(
+          filled: false,
+          isCollapsed: true,
+          contentPadding: EdgeInsets.zero,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+        ),
+        onChanged: onChanged,
+      ),
+      IgnorePointer(
+        child: ExcludeSemantics(
+          child: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (_, value, __) {
+              final digits = value.text.isEmpty
+                  ? List.filled(places, '-').join()
+                  : value.text.padLeft(places, '0');
+              return Row(
+                children: [
+                  for (final char in digits.split(''))
+                    Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(13),
+                          border: Border.all(
+                            color: const Color(0xFF37414A),
+                            width: 1.5,
+                          ),
+                          gradient: const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Color(0xFF03080B),
+                              Color(0xFF38424A),
+                              Color(0xFF101316),
+                              Color(0xFF24211B),
+                              Color(0xFF020507),
+                            ],
+                            stops: [0, .2, .49, .72, 1],
+                          ),
+                        ),
+                        child: Center(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              char,
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 75,
+                                color: Color(0xFFE0B87B),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    ],
+  );
+}
