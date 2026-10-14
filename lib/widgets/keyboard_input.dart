@@ -79,7 +79,8 @@ class _KeyboardInputState extends State<KeyboardInput>
       if (mounted && _focus.hasFocus) {
         Scrollable.ensureVisible(
           context,
-          alignment: .15,
+          alignment: 1,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
           duration: Duration.zero,
         );
       }
@@ -170,14 +171,27 @@ class _KeyboardScrollAreaState extends State<KeyboardScrollArea>
     final height = containsFocus && metrics.viewInsets.bottom > 0
         ? math.max(0.0, metrics.size.height - metrics.viewInsets.bottom - top)
         : double.infinity;
-    return Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: height),
-        child: widget.child,
+    return ClipRect(
+      clipper: _FormSafeClip(math.max(0.0, metrics.viewPadding.top - top)),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: height),
+          child: widget.child,
+        ),
       ),
     );
   }
+}
+
+class _FormSafeClip extends CustomClipper<Rect> {
+  final double top;
+  const _FormSafeClip(this.top);
+  @override
+  Rect getClip(Size size) =>
+      Rect.fromLTRB(0, top.clamp(0.0, size.height), size.width, size.height);
+  @override
+  bool shouldReclip(_FormSafeClip oldClipper) => top != oldClipper.top;
 }
 
 /// A value edited and saved where it is displayed, without a dialog.
