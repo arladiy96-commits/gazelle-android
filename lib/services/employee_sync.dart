@@ -215,23 +215,13 @@ class EmployeeSync with WidgetsBindingObserver {
         final previous = saved == null
             ? null
             : Map<String, dynamic>.from(jsonDecode(saved) as Map);
-        if (previous != null &&
-            ServerMerge.same(
-              {
-                ...data,
-                'preferences': ServerMerge.decodePreferences(
-                  data['preferences'] as Map,
-                ),
-              },
-              {
-                ...previous,
-                'preferences': ServerMerge.decodePreferences(
-                  previous['preferences'] as Map,
-                ),
-              },
-            )) {
+        final unchanged =
+            previous != null &&
+            await compute(_sameSyncSnapshots, [data, previous]);
+        scope.check();
+        if (unchanged) {
           final remote = await EmployeeServerApi.request('GET', '/me/data');
-          await _receive(scope, disk, previous, remote);
+          await _receive(scope, disk, previous!, remote);
           await _sendHistoricalRoute(scope, disk);
           message.value = 'Данные актуальны';
           conflict.value = false;
@@ -348,3 +338,19 @@ class EmployeeSync with WidgetsBindingObserver {
     }
   }
 }
+
+bool _sameSyncSnapshots(List<Map<String, dynamic>> snapshots) =>
+    ServerMerge.same(
+      {
+        ...snapshots[0],
+        'preferences': ServerMerge.decodePreferences(
+          snapshots[0]['preferences'] as Map,
+        ),
+      },
+      {
+        ...snapshots[1],
+        'preferences': ServerMerge.decodePreferences(
+          snapshots[1]['preferences'] as Map,
+        ),
+      },
+    );

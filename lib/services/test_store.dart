@@ -161,9 +161,15 @@ class TestPreferences {
     final p = await getInstance();
     final task = p._queue.then((_) async {
       p._scope.check();
-      final merged = ServerMerge.mergePreferences(base, p._values, remote);
-      if (ServerMerge.same(merged, p._values)) return;
-      if (!await p._disk.setString(p._storageKey, jsonEncode(merged))) {
+      final result = await compute(_mergeSyncPreferences, [
+        base,
+        Map<String, dynamic>.from(p._values),
+        remote,
+      ]);
+      p._scope.check();
+      if (result == null) return;
+      final merged = result.$1;
+      if (!await p._disk.setString(p._storageKey, result.$2)) {
         throw StateError('Не удалось сохранить данные сервера');
       }
       p._values
@@ -1436,4 +1442,14 @@ class TestStore {
       ],
     );
   });
+}
+
+(Map<String, dynamic>, String)? _mergeSyncPreferences(List<Map> snapshots) {
+  final merged = ServerMerge.mergePreferences(
+    snapshots[0],
+    snapshots[1],
+    snapshots[2],
+  );
+  if (ServerMerge.same(merged, snapshots[1])) return null;
+  return (merged, jsonEncode(merged));
 }
