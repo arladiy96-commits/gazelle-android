@@ -684,7 +684,7 @@ class _EmployeeEditorState extends State<_EmployeeEditor> {
     bool secret = false,
   }) => Padding(
     padding: const EdgeInsets.only(bottom: 14),
-    child: TextField(
+    child: KeyboardInput(
       controller: controller,
       enabled: !_busy,
       obscureText: secret && _hide,

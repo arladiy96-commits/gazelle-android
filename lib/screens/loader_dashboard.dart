@@ -301,7 +301,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
           child: Row(
             children: [
               Expanded(
-                child: TextField(
+                child: KeyboardInput(
                   controller: hours,
                   autofocus: true,
                   keyboardType: TextInputType.number,
@@ -314,7 +314,7 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: TextField(
+                child: KeyboardInput(
                   controller: minutes,
                   keyboardType: TextInputType.number,
                   inputFormatters: [

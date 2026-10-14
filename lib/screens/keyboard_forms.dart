@@ -30,8 +30,12 @@ class _KeyboardFormViewport extends StatelessWidget {
       child: Padding(
         // Follow OS insets directly. AnimatedPadding here would trail every
         // keyboard frame and repeatedly restart an additional animation.
-        padding: EdgeInsets.fromLTRB(6, 12, 6,
-            math.max(keyboard, MediaQuery.viewPaddingOf(context).bottom) + 8),
+        padding: EdgeInsets.fromLTRB(
+          6,
+          12,
+          6,
+          math.max(keyboard, MediaQuery.viewPaddingOf(context).bottom) + 8,
+        ),
         child: Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
@@ -82,3 +86,17 @@ class _KeyboardAlertDialog extends AlertDialog {
     ),
   );
 }
+
+/// Compact editors stay at the top; no bottom-sheet translation follows the IME.
+Future<T?> _showStableInput<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+}) => _showKeyboardForm<T>(
+  context: context,
+  builder: (context) => Material(
+    color: const Color(0xFF111A20),
+    borderRadius: BorderRadius.circular(22),
+    clipBehavior: Clip.antiAlias,
+    child: SingleChildScrollView(child: builder(context)),
+  ),
+);

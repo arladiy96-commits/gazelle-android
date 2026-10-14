@@ -1724,7 +1724,7 @@ class _GarageOilDialogState extends State<_GarageOilDialog> {
   Widget build(BuildContext context) => AlertDialog(
     backgroundColor: const Color(0xFF0D171E),
     title: const Text('Замена масла'),
-    content: TextField(
+    content: KeyboardInput(
       controller: controller,
       autofocus: true,
       keyboardType: TextInputType.number,

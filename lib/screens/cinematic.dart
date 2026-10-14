@@ -195,12 +195,13 @@ class _SceneSpace extends StatelessWidget {
   const _SceneSpace({required this.scene, this.controlsHeight = 48});
   @override
   Widget build(BuildContext context) {
-    final mq = MediaQuery.of(context);
     final imageBottom =
-        mq.size.height * (scene == _Scene.instruments ? .56 : .53);
-    final space = (imageBottom - mq.padding.top - controlsHeight)
-        .clamp(90.0, 520.0)
-        .toDouble();
+        MediaQuery.sizeOf(context).height *
+        (scene == _Scene.instruments ? .56 : .53);
+    final space =
+        (imageBottom - MediaQuery.paddingOf(context).top - controlsHeight)
+            .clamp(90.0, 520.0)
+            .toDouble();
     return SizedBox(height: space);
   }
 }
@@ -2351,14 +2352,8 @@ class _OpenShiftDashboardState extends State<_OpenShiftDashboard> {
       extentOffset: draft.text.length,
     );
     String? validation;
-    final route = showModalBottomSheet<String>(
+    final route = _showStableInput<String>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF111A20),
-      sheetAnimationStyle: AnimationStyle.noAnimation,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
       builder: (sheet) => StatefulBuilder(
         builder: (sheet, update) {
           void accept() {
@@ -2387,7 +2382,7 @@ class _OpenShiftDashboardState extends State<_OpenShiftDashboard> {
                     style: TextStyle(color: white, fontSize: 20),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  KeyboardInput(
                     controller: draft,
                     autofocus: true,
                     keyboardType: TextInputType.number,
@@ -2821,14 +2816,8 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
       extentOffset: draft.text.length,
     );
     String? validation;
-    final route = showModalBottomSheet<String>(
+    final route = _showStableInput<String>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF111A20),
-      sheetAnimationStyle: AnimationStyle.noAnimation,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
       builder: (sheet) => StatefulBuilder(
         builder: (sheet, update) {
           void accept() {
@@ -2861,7 +2850,7 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
                     style: const TextStyle(color: white, fontSize: 20),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  KeyboardInput(
                     controller: draft,
                     autofocus: true,
                     keyboardType: TextInputType.number,
@@ -2935,14 +2924,8 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
           : '${workedMinutes! % 60}'.padLeft(2, '0'),
     );
     String? validation;
-    final result = await showModalBottomSheet<int>(
+    final result = await _showStableInput<int>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF111A20),
-      sheetAnimationStyle: AnimationStyle.noAnimation,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
       builder: (sheet) => StatefulBuilder(
         builder: (sheet, update) {
           void accept() {
@@ -2956,7 +2939,7 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
 
           Widget field(TextEditingController c, String label, bool focus) =>
               Expanded(
-                child: TextField(
+                child: KeyboardInput(
                   controller: c,
                   autofocus: focus,
                   keyboardType: TextInputType.number,

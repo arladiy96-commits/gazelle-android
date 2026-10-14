@@ -2849,7 +2849,7 @@ class _DayMetricEditorState extends State<_DayMetricEditor> {
                     ),
                   ),
                 ),
-              TextField(
+              KeyboardInput(
                 controller: fields[widget.shifts[i]['id']],
                 autofocus: i == 0,
                 enabled: !busy,

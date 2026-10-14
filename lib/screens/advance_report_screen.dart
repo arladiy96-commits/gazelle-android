@@ -156,7 +156,7 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
                 size: 12,
               ),
               const SizedBox(height: 12),
-              TextField(
+              KeyboardInput(
                 controller: controller,
                 autofocus: true,
                 keyboardType: const TextInputType.numberWithOptions(
@@ -1362,7 +1362,7 @@ class _AdvanceExpenseEditorState extends State<_AdvanceExpenseEditor> {
       String title, {
       bool numeric = false,
       int? maxLength,
-    }) => TextField(
+    }) => KeyboardInput(
       controller: controller,
       maxLength: maxLength,
       textCapitalization: numeric

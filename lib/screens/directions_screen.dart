@@ -539,7 +539,7 @@ class _DirectionNameDialogState extends State<_DirectionNameDialog> {
             style: const TextStyle(color: _DirectionsScreenState.gold),
           ),
           const SizedBox(height: 12),
-          TextField(
+          KeyboardInput(
             controller: _name,
             autofocus: true,
             enabled: !_saving,

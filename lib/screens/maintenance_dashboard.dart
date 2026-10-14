@@ -1482,7 +1482,7 @@ class _MaintenanceEntryFormState extends State<_MaintenanceEntryForm> {
     bool money = false,
   }) => Padding(
     padding: const EdgeInsets.only(bottom: 14),
-    child: TextFormField(
+    child: KeyboardInput(
       controller: c,
       keyboardType: TextInputType.numberWithOptions(decimal: money),
       inputFormatters: money
@@ -1577,7 +1577,7 @@ class _MaintenanceEntryFormState extends State<_MaintenanceEntryForm> {
                     optional: true,
                     money: true,
                   ),
-                  TextFormField(
+                  KeyboardInput(
                     controller: _note,
                     maxLines: 3,
                     validator: (v) =>
@@ -1694,7 +1694,7 @@ class _ServiceNoteDialogState extends State<_ServiceNoteDialog> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                KeyboardInput(
                   controller: _text,
                   minLines: 3,
                   maxLines: 6,

@@ -1,3 +1,4 @@
+import '../widgets/keyboard_input.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -128,7 +129,7 @@ class _SalesInvoiceScreenState extends State<SalesInvoiceScreen> {
     int max = 160,
   }) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
-    child: TextFormField(
+    child: KeyboardInput(
       initialValue: initial,
       maxLength: max,
       keyboardType: numeric
@@ -247,7 +248,7 @@ class _SalesInvoiceScreenState extends State<SalesInvoiceScreen> {
                     label: const Text('Добавить товар'),
                   ),
                   const SizedBox(height: 16),
-                  TextFormField(
+                  KeyboardInput(
                     initialValue: quantity(doc.vat),
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,

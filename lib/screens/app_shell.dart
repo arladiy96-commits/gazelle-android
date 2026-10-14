@@ -1,3 +1,4 @@
+import '../widgets/keyboard_input.dart';
 import 'dart:io';
 import 'dart:convert';
 
@@ -115,7 +116,6 @@ class _AppShellState extends State<AppShell> {
   AppSession get _session => SessionService.current ?? widget.session;
 
   void _syncGpsTracker() {
-    if (!_loggingOut && AccountScope.signedIn) EmployeeSync.instance.tick();
     if (!_loggingOut &&
         _session.role != AppRole.loader &&
         AccountScope.signedIn) {
@@ -137,7 +137,12 @@ class _AppShellState extends State<AppShell> {
     });
   }
 
+  String? _lastAccountView;
   void _accountChanged() {
+    final policy = AccountScope.access.value.toJson()..remove('validUntil');
+    final view = jsonEncode([policy, _session.displayName, _session.role.name]);
+    if (_lastAccountView == view) return;
+    _lastAccountView = view;
     if (mounted) setState(() {});
   }
 
@@ -3954,7 +3959,7 @@ class _QuickNumberField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return KeyboardInput(
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [
@@ -4932,7 +4937,7 @@ class _SearchPageState extends State<SearchPage> {
       subtitle: 'Данные и история',
       trailing: const _StatusPill(text: 'Быстрый', color: AppColors.blue),
       children: [
-        TextField(
+        KeyboardInput(
           controller: _controller,
           onChanged: (_) => setState(() {}),
           decoration: InputDecoration(

@@ -188,7 +188,7 @@ class _CalculationSettingsScreenState
                     ),
                   )
                 else
-                  TextField(
+                  KeyboardInput(
                     style: const TextStyle(
                       color: white,
                       fontSize: 18,

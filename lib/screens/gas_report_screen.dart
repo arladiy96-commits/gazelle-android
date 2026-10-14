@@ -153,7 +153,7 @@ class _GasReportScreenState extends State<_GasReportScreen> {
                 style: TextStyle(color: muted, fontSize: 14),
               ),
               const SizedBox(height: 16),
-              TextField(
+              KeyboardInput(
                 controller: controller,
                 autofocus: true,
                 keyboardType: const TextInputType.numberWithOptions(
@@ -2103,7 +2103,7 @@ class _GasFormPreviewState extends State<_GasFormPreview> {
                               ])
                                 Padding(
                                   padding: const EdgeInsets.only(bottom: 14),
-                                  child: TextField(
+                                  child: KeyboardInput(
                                     controller: field.$1,
                                     enabled: !_busy,
                                     maxLength: 120,

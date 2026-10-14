@@ -209,7 +209,7 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
               rate ? 'Расход, л / 100 км' : 'Газ в баке, л',
               style: const TextStyle(color: goldBright, fontSize: 18),
             ),
-            content: TextField(
+            content: KeyboardInput(
               controller: controller,
               autofocus: true,
               enabled: !saving,

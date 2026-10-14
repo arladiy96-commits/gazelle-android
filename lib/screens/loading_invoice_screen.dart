@@ -134,7 +134,7 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
         scrollable: true,
         backgroundColor: const Color(0xFF11191D),
         title: const Text('Вес в накладной, кг'),
-        content: TextField(
+        content: KeyboardInput(
           controller: c,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -899,7 +899,7 @@ class _LoadingItemDialogState extends State<_LoadingItemDialog> {
   Widget field(TextEditingController c, String label, {bool text = false}) =>
       Padding(
         padding: const EdgeInsets.only(bottom: 12),
-        child: TextField(
+        child: KeyboardInput(
           controller: c,
           keyboardType: text
               ? TextInputType.text

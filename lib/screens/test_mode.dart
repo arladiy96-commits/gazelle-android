@@ -187,86 +187,74 @@ class _TestRecordEditorState extends State<_TestRecordEditor> {
       draft.dispose();
       return;
     }
-    final value = await showModalBottomSheet<String>(
+    final value = await _showKeyboardForm<String>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF0D1920),
-      sheetAnimationStyle: weight
-          ? AnimationStyle.noAnimation
-          : const AnimationStyle(
-              duration: Duration(milliseconds: 220),
-              reverseDuration: Duration(milliseconds: 180),
-            ),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      builder: (c) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          20,
-          20,
-          MediaQuery.viewInsetsOf(c).bottom + 16,
-        ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  weight
-                      ? (widget.kind == 'fuel' ? 'Литры' : 'Вес, кг')
-                      : 'Выберите направление',
-                  style: const TextStyle(color: _paper, fontSize: 20),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: draft,
-                  autofocus: weight,
-                  keyboardType: weight
-                      ? const TextInputType.numberWithOptions(decimal: true)
-                      : TextInputType.text,
-                  textInputAction: TextInputAction.done,
-                  style: const TextStyle(color: _paper, fontSize: 20),
-                  decoration: InputDecoration(
-                    hintText: weight
-                        ? (widget.kind == 'fuel'
-                              ? 'Введите литры'
-                              : 'Введите вес')
-                        : 'Введите своё направление',
-                    border: const OutlineInputBorder(),
+      builder: (c) => Material(
+        color: const Color(0xFF0D1920),
+        borderRadius: BorderRadius.circular(22),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    weight
+                        ? (widget.kind == 'fuel' ? 'Литры' : 'Вес, кг')
+                        : 'Выберите направление',
+                    style: const TextStyle(color: _paper, fontSize: 20),
                   ),
-                  onSubmitted: (v) => Navigator.pop(c, v),
-                ),
-                if (!weight)
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.sizeOf(c).height * .3,
+                  const SizedBox(height: 14),
+                  KeyboardInput(
+                    controller: draft,
+                    autofocus: weight,
+                    keyboardType: weight
+                        ? const TextInputType.numberWithOptions(decimal: true)
+                        : TextInputType.text,
+                    textInputAction: TextInputAction.done,
+                    style: const TextStyle(color: _paper, fontSize: 20),
+                    decoration: InputDecoration(
+                      hintText: weight
+                          ? (widget.kind == 'fuel'
+                                ? 'Введите литры'
+                                : 'Введите вес')
+                          : 'Введите своё направление',
+                      border: const OutlineInputBorder(),
                     ),
-                    child: ListView(
-                      shrinkWrap: true,
-                      children: [
-                        for (final name in choices)
-                          ListTile(
-                            title: Text(name),
-                            leading: const Icon(
-                              Icons.location_on_outlined,
-                              color: _amber,
+                    onSubmitted: (v) => Navigator.pop(c, v),
+                  ),
+                  if (!weight)
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.sizeOf(c).height * .3,
+                      ),
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: [
+                          for (final name in choices)
+                            ListTile(
+                              title: Text(name),
+                              leading: const Icon(
+                                Icons.location_on_outlined,
+                                color: _amber,
+                              ),
+                              onTap: () => Navigator.pop(c, name),
                             ),
-                            onTap: () => Navigator.pop(c, name),
-                          ),
-                      ],
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(c, draft.text),
+                      child: const Text('Готово'),
                     ),
                   ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(c, draft.text),
-                    child: const Text('Готово'),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -1287,7 +1275,7 @@ Widget _testField(
   int lines = 1,
 }) => Padding(
   padding: const EdgeInsets.only(bottom: 12),
-  child: TextField(
+  child: KeyboardInput(
     controller: c,
     keyboardType: numeric
         ? TextInputType.numberWithOptions(decimal: !integer)

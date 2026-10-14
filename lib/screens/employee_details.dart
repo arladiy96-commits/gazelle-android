@@ -637,7 +637,7 @@ class _EmployeeAccessEditorState extends State<_EmployeeAccessEditor> {
             ],
             onChanged: (v) => setState(() => status = v!),
           ),
-          TextField(
+          KeyboardInput(
             controller: reason,
             maxLength: 240,
             decoration: InputDecoration(
