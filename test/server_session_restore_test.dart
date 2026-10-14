@@ -20,6 +20,8 @@ void main() {
     'isOwner': true,
     'access': {
       'status': 'active',
+      'readable': ['work', 'salary'],
+      'writable': ['work'],
       'validUntil': DateTime.now()
           .add(const Duration(hours: 1))
           .toIso8601String(),

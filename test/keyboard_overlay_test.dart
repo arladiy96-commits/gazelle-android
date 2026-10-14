@@ -1,135 +1,112 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gazelle_android/widgets/keyboard_input.dart';
+import 'package:gazelle_android/widgets/dormant_tab.dart';
 
 void main() {
-  Future<void> screen(WidgetTester tester, Widget field) async {
-    tester.view.physicalSize = const Size(400, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    addTearDown(tester.view.resetViewInsets);
-    await tester.pumpWidget(
-      MaterialApp(
-        builder: (context, child) => KeyboardScene(child: child!),
-        home: Scaffold(
-          appBar: AppBar(title: const Text('Неподвижная шапка')),
-          body: Column(
-            children: [
-              const SizedBox(height: 120),
-              field,
-              const Expanded(child: SizedBox()),
-              const SizedBox(
-                key: ValueKey('bottom-menu'),
-                height: 60,
-                child: Text('Меню'),
+  testWidgets(
+    'direct input keeps a single field and fixed header/menu while scrolling form',
+    (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetViewInsets);
+      final controller = TextEditingController();
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (_, child) => KeyboardScene(child: child!),
+          home: Scaffold(
+            resizeToAvoidBottomInset: false,
+            appBar: AppBar(title: const Text('Шапка')),
+            bottomNavigationBar: const SizedBox(
+              key: ValueKey('menu'),
+              height: 56,
+            ),
+            body: KeyboardScrollArea(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 490),
+                    KeyboardInput(
+                      controller: controller,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    ),
+                    const SizedBox(height: 200),
+                  ],
+                ),
               ),
-            ],
+            ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
-  }
-
-  Finder editor() => find.byType(TextField).last;
-  testWidgets(
-    'IME affects editor only; header, menu and source field stay fixed',
-    (tester) async {
-      final c = TextEditingController(text: '12');
-      addTearDown(c.dispose);
-      await screen(
-        tester,
-        KeyboardInput(
-          controller: c,
-          decoration: const InputDecoration(labelText: 'Вес'),
-        ),
       );
-      final header = tester.getRect(find.text('Неподвижная шапка'));
-      final menu = tester.getRect(find.byKey(const ValueKey('bottom-menu')));
-      final source = tester.getRect(find.byType(KeyboardInput));
-      await tester.tap(find.byType(KeyboardInput));
       await tester.pumpAndSettle();
-      final inputTop = tester.getTopLeft(editor()).dy;
-      for (final height in [80.0, 160.0, 300.0, 0.0]) {
+      final header = tester.getRect(find.text('Шапка'));
+      final menu = tester.getRect(find.byKey(const ValueKey('menu')));
+      await tester.tap(find.byType(TextFormField));
+      await tester.pump();
+      for (final height in [100.0, 220.0, 300.0]) {
         tester.view.viewInsets = FakeViewPadding(bottom: height);
         await tester.pump();
+        await tester.pump();
+        expect(find.byType(TextFormField), findsOneWidget);
+        expect(find.byType(Dialog), findsNothing);
+        expect(tester.getRect(find.text('Шапка')), header);
+        expect(tester.getRect(find.byKey(const ValueKey('menu'))), menu);
         expect(
-          tester.getRect(find.text('Неподвижная шапка', skipOffstage: false)),
-          header,
+          tester.getBottomRight(find.byType(TextFormField)).dy,
+          lessThanOrEqualTo(800 - height),
         );
-        expect(
-          tester.getRect(
-            find.byKey(const ValueKey('bottom-menu'), skipOffstage: false),
-          ),
-          menu,
-        );
-        expect(
-          tester.getRect(find.byType(KeyboardInput, skipOffstage: false)),
-          source,
-        );
-        expect(tester.getTopLeft(editor()).dy, inputTop);
         expect(tester.takeException(), isNull);
       }
-      await tester.enterText(editor(), '125');
-      await tester.tap(find.text('Готово'));
+      await tester.enterText(find.byType(TextFormField), '12x5');
+      expect(controller.text, '125');
+      tester.view.viewInsets = const FakeViewPadding();
       await tester.pumpAndSettle();
-      expect(c.text, '125');
+      expect(controller.text, '125');
       await tester.pumpWidget(const SizedBox());
+      controller.dispose();
     },
   );
-  testWidgets(
-    'validation keeps editor open and submission happens after closing',
-    (tester) async {
-      String? submitted;
-      await screen(
-        tester,
-        KeyboardInput(
-          initialValue: '',
-          validator: (s) => s == '7' ? null : 'Введите 7',
-          onSubmitted: (s) => submitted = s,
+
+  testWidgets('hidden tab retains state and is not laid out on tab switch', (
+    tester,
+  ) async {
+    var active = true;
+    var layouts = 0;
+    late StateSetter change;
+    final controller = TextEditingController(text: 'Черновик');
+    final child = LayoutBuilder(
+      builder: (_, constraints) {
+        layouts++;
+        return TextField(controller: controller);
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (_, setState) {
+            change = setState;
+            return Scaffold(
+              body: SizedBox.expand(
+                child: DormantTab(active: active, child: child),
+              ),
+            );
+          },
         ),
-      );
-      await tester.tap(find.byType(KeyboardInput));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Готово'));
-      await tester.pumpAndSettle();
-      expect(find.text('Введите 7'), findsOneWidget);
-      expect(submitted, isNull);
-      await tester.enterText(editor(), '7');
-      await tester.tap(find.text('Готово'));
-      await tester.pumpAndSettle();
-      expect(submitted, '7');
-      expect(find.text('Готово'), findsNothing);
-    },
-  );
-  testWidgets('closing keeps typed text and does not submit', (tester) async {
-    final c = TextEditingController();
-    addTearDown(c.dispose);
-    var submits = 0;
-    String? changed;
-    await screen(
-      tester,
-      KeyboardInput(
-        controller: c,
-        onChanged: (s) => changed = s,
-        onSubmitted: (_) => submits++,
       ),
     );
-    await tester.tap(find.byType(KeyboardInput));
-    await tester.pumpAndSettle();
-    await tester.enterText(editor(), 'Черновик');
-    await tester.tap(find.byTooltip('Закрыть'));
-    await tester.pumpAndSettle();
-    expect(c.text, 'Черновик');
-    expect(changed, 'Черновик');
-    expect(submits, 0);
+    final initialLayouts = layouts;
+    change(() => active = false);
+    await tester.pump();
+    expect(layouts, initialLayouts);
+    change(() => active = true);
+    await tester.pump();
+    expect(controller.text, 'Черновик');
+    expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
-  });
-  testWidgets('disabled input does not open keyboard editor', (tester) async {
-    await screen(tester, const KeyboardInput(enabled: false));
-    await tester.tap(find.byType(KeyboardInput), warnIfMissed: false);
-    await tester.pumpAndSettle();
-    expect(find.text('Готово'), findsNothing);
+    controller.dispose();
   });
 }
