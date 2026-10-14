@@ -1,3 +1,4 @@
+import 'package:gazelle_android/widgets/app_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -231,4 +232,63 @@ void main() {
     expect(tester.getRect(find.byType(TextFormField)), before);
     expect(tester.takeException(), isNull);
   });
+  testWidgets(
+    'rapid tab changes retain draft and only selected tab accepts taps',
+    (tester) async {
+      var index = 0;
+      var firstTaps = 0;
+      var secondTaps = 0;
+      late StateSetter change;
+      final draft = TextEditingController(text: 'Draft');
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StatefulBuilder(
+            builder: (_, update) {
+              change = update;
+              return Scaffold(
+                body: AppTabStage(
+                  index: index,
+                  children: [
+                    Column(
+                      children: [
+                        TextField(controller: draft),
+                        TextButton(
+                          onPressed: () => firstTaps++,
+                          child: const Text('First'),
+                        ),
+                      ],
+                    ),
+                    Center(
+                      child: TextButton(
+                        onPressed: () => secondTaps++,
+                        child: const Text('Second'),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      change(() => index = 1);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 90));
+      change(() => index = 0);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      change(() => index = 1);
+      await tester.pumpAndSettle();
+      expect(find.text('First').hitTestable(), findsNothing);
+      await tester.tap(find.text('Second'));
+      expect(secondTaps, 1);
+      expect(firstTaps, 0);
+      change(() => index = 0);
+      await tester.pumpAndSettle();
+      expect(draft.text, 'Draft');
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      draft.dispose();
+    },
+  );
 }
