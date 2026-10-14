@@ -25,7 +25,7 @@ class EmployeeSync with WidgetsBindingObserver {
   final message = ValueNotifier<String?>(null);
   final conflict = ValueNotifier<bool>(false);
   Timer? _timer;
-  bool _busy = false, _attached = false, _again = false;
+  bool _busy = false, _attached = false;
   Future<void> start() async {
     if (!_attached) {
       WidgetsBinding.instance.addObserver(this);
@@ -178,10 +178,12 @@ class EmployeeSync with WidgetsBindingObserver {
     if (EmployeeServerApi.enabled &&
         EmployeeServerApi.dataReadyAccount != AccountScope.capture().id)
       return;
-    if (_busy) {
-      _again = true;
+    if (_busy) return;
+    // Do not compete with IME layout and text input on the UI isolate.
+    if (WidgetsBinding.instance.platformDispatcher.views.any(
+      (view) => view.viewInsets.bottom > 0,
+    ))
       return;
-    }
     _busy = true;
     final scope = AccountScope.capture();
     try {
@@ -274,6 +276,7 @@ class EmployeeSync with WidgetsBindingObserver {
       if (!scope.valid) return;
       if (e.status == 401) {
         AccountScope.revoked.value = true;
+        await EmployeeServerApi.clearSavedSession();
         await GpsTrackerController.instance.stopForAccess();
       }
       message.value = e.status == 409
@@ -290,10 +293,6 @@ class EmployeeSync with WidgetsBindingObserver {
       }
     } finally {
       _busy = false;
-      if (_again && scope.valid) {
-        _again = false;
-        scheduleMicrotask(tick);
-      }
       if (scope.valid && AccountScope.restricted) {
         await GpsTrackerController.instance.stopForAccess();
       }

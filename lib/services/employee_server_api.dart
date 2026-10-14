@@ -31,6 +31,30 @@ class EmployeeServerApi {
     dataReadyAccount = null;
   }
 
+  static String get source => baseUrl.replaceFirst(RegExp(r'/+$'), '');
+  static const _sessionChannel = MethodChannel('melnitsa/shift_gps');
+  static Future<Map<String, dynamic>?> savedSession() async {
+    final raw = await _sessionChannel.invokeMethod<String>('readSession', {});
+    if (raw == null) return null;
+    final saved = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+    return saved['server'] == source ? saved : null;
+  }
+
+  static Future<void> saveSession(Map<String, dynamic> employee) async {
+    if (!enabled || _token == null) return;
+    await _sessionChannel.invokeMethod<void>('saveSession', {
+      'value': jsonEncode({
+        'server': source,
+        'token': _token,
+        'employee': employee,
+      }),
+    });
+  }
+
+  static Future<void> clearSavedSession() async {
+    if (enabled) await _sessionChannel.invokeMethod<void>('clearSession', {});
+  }
+
   static Future<void> pauseGps(String accountId) async {
     if (!Platform.isAndroid || !enabled) return;
     await const MethodChannel('melnitsa/shift_gps').invokeMethod<void>(

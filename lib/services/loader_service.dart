@@ -41,6 +41,7 @@ class LoaderService {
       final key = 'melnitsa_loader_shifts_v1_${scope.id}';
       final local = jsonDecode(prefs.getString(key) ?? '[]') as List;
       final merged = ServerMerge.merge(base, local, remote);
+      if (ServerMerge.same(merged, local)) return;
       if (!await prefs.setString(key, jsonEncode(merged))) {
         throw StateError('Не удалось сохранить смены с сервера');
       }

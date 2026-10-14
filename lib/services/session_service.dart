@@ -195,8 +195,30 @@ class SessionService {
   }
 
   static Future<AppSession?> read() => _serial(() async {
-    if (EmployeeServerApi.enabled)
-      return null; // Tokens stay in memory; login on cold start.
+    if (current != null && AccountScope.signedIn) return current;
+    if (EmployeeServerApi.enabled) {
+      try {
+        final saved = await EmployeeServerApi.savedSession();
+        if (saved == null) return null;
+        final row = Map<String, dynamic>.from(saved['employee'] as Map);
+        final account = EmployeeAccount.fromJson(row);
+        final disk = await SharedPreferences.getInstance();
+        // Only a completed server bootstrap permits an offline restore.
+        if (account.access.validUntil == null ||
+            disk.getString('employee_server_source_v1_${account.id}') !=
+                EmployeeServerApi.source ||
+            disk.getInt('employee_sync_version_${account.id}') == null)
+          return null;
+        EmployeeServerApi.authenticate(saved['token'] as String);
+        EmployeeServerApi.dataReadyAccount = account.id;
+        return await _enter(row);
+      } catch (_) {
+        EmployeeServerApi.forget();
+        current = null;
+        AccountScope.close();
+        return null;
+      }
+    }
     final disk = await SharedPreferences.getInstance();
     final id = disk.getString(sessionKey);
     final row = (await _rows())
@@ -253,7 +275,9 @@ class SessionService {
         throw const FormatException('Сервер не выдал срок доступа');
       EmployeeServerApi.authenticate(result['accessToken'] as String);
       try {
-        return await _enter(row);
+        final session = await _enter(row);
+        await EmployeeServerApi.saveSession(row);
+        return session;
       } catch (_) {
         EmployeeServerApi.forget();
         rethrow;
@@ -462,6 +486,7 @@ class SessionService {
       } on EmployeeApiError catch (e) {
         if (scope.valid && (e.status == 401 || e.status == 403)) {
           AccountScope.revoked.value = true;
+          await EmployeeServerApi.clearSavedSession();
         }
         rethrow;
       }
@@ -493,6 +518,14 @@ class SessionService {
     }
     if (!employee.active) AccountScope.revoked.value = true;
     current = employee.session;
+    if (EmployeeServerApi.enabled) {
+      scope.check();
+      if (AccountScope.revoked.value || employee.access.blocked) {
+        await EmployeeServerApi.clearSavedSession();
+      } else {
+        await EmployeeServerApi.saveSession(row);
+      }
+    }
     return employee;
   }
 
@@ -531,6 +564,7 @@ class SessionService {
 
   static Future<void> clear() => _serial(() async {
     final disk = await SharedPreferences.getInstance();
+    await EmployeeServerApi.clearSavedSession();
     if (current != null) await EmployeeServerApi.clearGps(current!.accountId);
     if (!await disk.remove(sessionKey))
       throw StateError('Не удалось выйти из учётной записи');
