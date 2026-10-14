@@ -20,7 +20,14 @@ class EmployeeAccessGate extends StatefulWidget {
 class _EmployeeAccessGateState extends State<EmployeeAccessGate> {
   Timer? timer;
   bool busy = false;
+  String? _lastView;
   void refresh() {
+    final policy = AccountScope.access.value;
+    final view =
+        '${AccountScope.restricted}|${AccountScope.revoked.value}|'
+        '${policy.blocked}|${policy.reason}|${EmployeeSync.instance.conflict.value}';
+    if (_lastView == view) return;
+    _lastView = view;
     if (mounted) setState(() {});
   }
 
