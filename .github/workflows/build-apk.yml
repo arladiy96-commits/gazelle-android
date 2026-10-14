@@ -63,7 +63,7 @@ jobs:
       - name: Test release metadata validation
         run: dart run test/app_update_manifest_test.dart
       - name: Build signed APK
-        run: flutter build apk --release --build-number="$UPDATE_CODE" --build-name="$UPDATE_VERSION" --dart-define="UPDATE_REPOSITORY=$GITHUB_REPOSITORY"
+        run: flutter build apk --release --build-number="$UPDATE_CODE" --build-name="$UPDATE_VERSION" --dart-define="UPDATE_REPOSITORY=$GITHUB_REPOSITORY" --dart-define="MELNITSA_API_URL=https://telegramge-9cb.d.onjrnm.link"
       - name: Publish release
         run: python3 scripts/publish_update.py
       - name: Remove temporary key
