@@ -309,6 +309,17 @@ class GpsBridge(private val activity: Activity) {
     @Volatile var resumed = false
     private val db = GpsDatabase(activity.applicationContext)
     fun handle(method: String, args: Map<*, *>, result: MethodChannel.Result) {
+        if (method in setOf("readSession", "saveSession", "clearSession")) {
+            GpsWorker.handler.post {
+                try {
+                    val value = EmployeeLocationSync.session(activity, method, args["value"] as? String)
+                    activity.runOnUiThread { result.success(value) }
+                } catch (_: Exception) {
+                    activity.runOnUiThread { result.error("session", "Не удалось сохранить вход", null) }
+                }
+            }
+            return
+        }
         if (method == "notifications") {
             if (resumed && Build.VERSION.SDK_INT >= 33 && activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
                 activity.requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 7312)

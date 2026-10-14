@@ -46,6 +46,24 @@ internal object EmployeeLocationSync {
             String(doFinal(decode(parts[1])), Charsets.UTF_8)
         }
     }
+    @Synchronized fun session(c: Context, method: String, value: String?): String? {
+        val p = c.getSharedPreferences("melnitsa_session_v1", Context.MODE_PRIVATE)
+        when (method) {
+            "saveSession" -> {
+                check(value != null && value.length <= 65536)
+                check(p.edit().putString("encrypted", encrypt(value)).commit())
+            }
+            "clearSession" -> check(p.edit().clear().commit())
+            "readSession" -> {
+                val stored = p.getString("encrypted", null) ?: return null
+                return try { decrypt(stored) } catch (_: Exception) {
+                    check(p.edit().clear().commit()); null
+                }
+            }
+            else -> error("Unknown session method")
+        }
+        return null
+    }
     @Synchronized fun deviceId(c: Context): String {
         val p = c.getSharedPreferences("melnitsa_gps_device", Context.MODE_PRIVATE)
         p.getString("id", null)?.let { return it }
