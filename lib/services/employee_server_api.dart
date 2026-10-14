@@ -111,7 +111,12 @@ class EmployeeServerApi {
             HttpHeaders.authorizationHeader,
             'Bearer $_token',
           );
-        if (body != null) request.add(utf8.encode(jsonEncode(body)));
+        if (body != null) {
+          final payload = utf8.encode(jsonEncode(body));
+          // The Python server reads Content-Length, not chunked request bodies.
+          request.contentLength = payload.length;
+          request.add(payload);
+        }
         final response = await request.close();
         final bytes = <int>[];
         await for (final chunk in response) {
