@@ -393,7 +393,7 @@ class _AppShellState extends State<AppShell> {
                     return;
                   }
                   HapticFeedback.selectionClick();
-                  setState(() => _index = value);
+                  _selectTab(value);
                 },
                 onLongPressLogo: _logout,
               ),

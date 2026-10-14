@@ -2350,20 +2350,9 @@ class _OpenShiftDashboardState extends State<_OpenShiftDashboard> {
     }
   }
 
-  Widget drum(String value) => KeyboardInput(
+  Widget drum(String value) => DrumInput(
     controller: widget.controller,
     enabled: !busy,
-    keyboardType: TextInputType.number,
-    textInputAction: TextInputAction.done,
-    inputFormatters: [
-      FilteringTextInputFormatter.digitsOnly,
-      LengthLimitingTextInputFormatter(9),
-    ],
-    style: const TextStyle(fontFamily: 'monospace', fontSize: 64, color: gold),
-    decoration: const InputDecoration(
-      hintText: '------',
-      border: InputBorder.none,
-    ),
     onChanged: (_) {
       if (error != null) setState(() => error = null);
     },
@@ -2754,48 +2743,37 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
         ),
     ],
   );
-  Widget drum(String value) => KeyboardInput(
-    controller: widget.controller,
-    enabled: !busy,
-    keyboardType: TextInputType.number,
-    textInputAction: TextInputAction.done,
-    inputFormatters: [
-      FilteringTextInputFormatter.digitsOnly,
-      LengthLimitingTextInputFormatter(9),
-    ],
-    style: const TextStyle(fontFamily: 'monospace', fontSize: 64, color: gold),
-    decoration: const InputDecoration(
-      hintText: '------',
-      border: InputBorder.none,
-    ),
-  );
+  Widget drum(String value) =>
+      DrumInput(controller: widget.controller, enabled: !busy);
   Widget hoursDrum() => Row(
     children: [
-      for (final item in [(_hourInput, 'Часы'), (_minuteInput, 'Минуты')])
-        Expanded(
-          child: KeyboardInput(
-            controller: item.$1,
-            enabled: !busy,
-            keyboardType: TextInputType.number,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(item.$2 == 'Часы' ? 3 : 2),
-            ],
-            textInputAction: TextInputAction.next,
-            onChanged: _hoursChanged,
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 52,
-              color: gold,
-            ),
-            decoration: InputDecoration(
-              labelText: item.$2,
-              border: InputBorder.none,
-            ),
-          ),
+      Expanded(
+        child: DrumInput(
+          controller: _hourInput,
+          enabled: !busy,
+          places: 2,
+          maxDigits: 3,
+          onChanged: _hoursChanged,
         ),
+      ),
+      const SizedBox(
+        width: 43,
+        child: Center(
+          child: Text(':', style: TextStyle(fontSize: 66, color: gold)),
+        ),
+      ),
+      Expanded(
+        child: DrumInput(
+          controller: _minuteInput,
+          enabled: !busy,
+          places: 2,
+          maxDigits: 2,
+          onChanged: _hoursChanged,
+        ),
+      ),
     ],
   );
+
   @override
   Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
     value: const SystemUiOverlayStyle(
