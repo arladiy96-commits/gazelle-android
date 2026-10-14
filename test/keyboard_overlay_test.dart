@@ -165,4 +165,39 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     controller.dispose();
   });
+  testWidgets('keyboard does not scroll a field that is already visible', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (_, child) => KeyboardScene(child: child!),
+        home: const Scaffold(
+          resizeToAvoidBottomInset: false,
+          body: KeyboardScrollArea(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  SizedBox(height: 180),
+                  KeyboardInput(),
+                  SizedBox(height: 800),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final before = tester.getRect(find.byType(TextFormField));
+    await tester.tap(find.byType(TextFormField));
+    await tester.pump();
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    await tester.pumpAndSettle();
+    expect(tester.getRect(find.byType(TextFormField)), before);
+    expect(tester.takeException(), isNull);
+  });
 }
