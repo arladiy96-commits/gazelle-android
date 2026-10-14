@@ -3,8 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// The navigator and its scenes never consume keyboard insets. Only the editor
-/// reads the real view metrics, so opening the IME cannot move a scene or dialog.
+/// Scene geometry stays fixed; focused scroll regions consume real IME insets.
 class KeyboardScene extends StatelessWidget {
   final Widget child;
   const KeyboardScene({super.key, required this.child});
@@ -21,9 +20,7 @@ class KeyboardScene extends StatelessWidget {
   }
 }
 
-/// Every app text entry goes through this editor, including Form validation.
-/// The original controller remains authoritative; dismissing the keyboard never
-/// submits a business operation or loses the text already typed.
+/// Direct input in the original form, without another route or duplicate field.
 class KeyboardInput extends StatefulWidget {
   final TextEditingController? controller;
   final String? initialValue;
@@ -66,90 +63,9 @@ class KeyboardInput extends StatefulWidget {
   State<KeyboardInput> createState() => _KeyboardInputState();
 }
 
-class _KeyboardInputState extends State<KeyboardInput> {
-  TextEditingController? _owned;
-  final _displayFocus = FocusNode(canRequestFocus: false);
-  bool _opening = false;
-  TextEditingController get _controller => widget.controller ?? _owned!;
-  @override
-  void initState() {
-    super.initState();
-    if (widget.controller == null)
-      _owned = TextEditingController(text: widget.initialValue);
-    if (widget.autofocus)
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && ModalRoute.of(context)?.isCurrent != false) _open();
-      });
-  }
-
-  @override
-  void didUpdateWidget(covariant KeyboardInput oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.controller == null && _owned == null) {
-      _owned = TextEditingController(
-        text: oldWidget.controller?.text ?? widget.initialValue,
-      );
-    }
-  }
-
-  Future<void> _open() async {
-    if (_opening || widget.enabled == false) return;
-    _opening = true;
-    try {
-      final submitted = await showGeneralDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        barrierLabel: 'Ввод',
-        barrierColor: const Color(0xB3000000),
-        transitionDuration: Duration.zero,
-        pageBuilder: (_, __, ___) =>
-            _KeyboardEditor(input: widget, controller: _controller),
-      );
-      if (mounted && submitted == true)
-        widget.onSubmitted?.call(_controller.text);
-    } finally {
-      _opening = false;
-    }
-  }
-
-  @override
-  void dispose() {
-    _displayFocus.dispose();
-    _owned?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => TextFormField(
-    controller: _controller,
-    focusNode: _displayFocus,
-    readOnly: true,
-    enableInteractiveSelection: false,
-    enabled: widget.enabled,
-    obscureText: widget.obscureText,
-    minLines: widget.minLines,
-    maxLines: widget.maxLines,
-    maxLength: widget.maxLength,
-    style: widget.style,
-    decoration: widget.decoration,
-    validator: widget.validator,
-    onTap: _open,
-  );
-}
-
-class _KeyboardEditor extends StatefulWidget {
-  final KeyboardInput input;
-  final TextEditingController controller;
-  const _KeyboardEditor({required this.input, required this.controller});
-  @override
-  State<_KeyboardEditor> createState() => _KeyboardEditorState();
-}
-
-class _KeyboardEditorState extends State<_KeyboardEditor>
+class _KeyboardInputState extends State<KeyboardInput>
     with WidgetsBindingObserver {
   final _focus = FocusNode();
-  late bool _hidden = widget.input.obscureText;
-  String? _error;
   @override
   void initState() {
     super.initState();
@@ -158,7 +74,16 @@ class _KeyboardEditorState extends State<_KeyboardEditor>
 
   @override
   void didChangeMetrics() {
-    if (mounted) setState(() {});
+    if (!_focus.hasFocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _focus.hasFocus) {
+        Scrollable.ensureVisible(
+          context,
+          alignment: .15,
+          duration: Duration.zero,
+        );
+      }
+    });
   }
 
   @override
@@ -168,122 +93,176 @@ class _KeyboardEditorState extends State<_KeyboardEditor>
     super.dispose();
   }
 
-  void _done() {
-    final error = widget.input.validator?.call(widget.controller.text);
-    if (error != null) {
-      setState(() => _error = error);
-      return;
-    }
-    _focus.unfocus();
-    Navigator.of(context).pop(true);
+  @override
+  Widget build(BuildContext context) => TextFormField(
+    controller: widget.controller,
+    initialValue: widget.initialValue,
+    focusNode: _focus,
+    autofocus: widget.autofocus,
+    enabled: widget.enabled,
+    obscureText: widget.obscureText,
+    autocorrect: widget.autocorrect,
+    enableSuggestions: widget.enableSuggestions,
+    keyboardType: widget.keyboardType,
+    textInputAction: widget.textInputAction,
+    textCapitalization: widget.textCapitalization,
+    inputFormatters: widget.inputFormatters,
+    minLines: widget.minLines,
+    maxLines: widget.maxLines,
+    maxLength: widget.maxLength,
+    style: widget.style,
+    cursorColor: widget.cursorColor,
+    decoration: widget.decoration,
+    validator: widget.validator,
+    onChanged: widget.onChanged,
+    onFieldSubmitted: widget.onSubmitted,
+  );
+}
+
+/// Only the scrollable containing the focused field gets a shorter viewport.
+/// Its origin is fixed; other scenes, the header and navigation keep their size.
+class KeyboardScrollArea extends StatefulWidget {
+  final Widget child;
+  const KeyboardScrollArea({super.key, required this.child});
+  @override
+  State<KeyboardScrollArea> createState() => _KeyboardScrollAreaState();
+}
+
+class _KeyboardScrollAreaState extends State<KeyboardScrollArea>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    FocusManager.instance.addListener(_changed);
+  }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void didChangeMetrics() => _changed();
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    FocusManager.instance.removeListener(_changed);
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final input = widget.input;
+    bool containsFocus = false;
+    FocusManager.instance.primaryFocus?.context?.visitAncestorElements((
+      element,
+    ) {
+      if (element == context) {
+        containsFocus = true;
+        return false;
+      }
+      return true;
+    });
     final metrics = MediaQueryData.fromView(View.of(context));
-    final top = metrics.viewPadding.top + 12;
-    final bottom =
-        math.max(metrics.viewInsets.bottom, metrics.viewPadding.bottom) + 8;
-    final available = math.max(0.0, metrics.size.height - top - bottom);
-    final decoration = input.decoration ?? const InputDecoration();
-    final multiline = input.maxLines == null || input.maxLines! > 1;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(10, top, 10, bottom),
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 560, maxHeight: available),
-          child: Material(
-            color: const Color(0xFF111A20),
-            borderRadius: BorderRadius.circular(18),
-            clipBehavior: Clip.antiAlias,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          decoration.labelText ?? decoration.hintText ?? 'Ввод',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            color: Color(0xFFE6E9E9),
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Закрыть',
-                        icon: const Icon(Icons.close),
-                        onPressed: () {
-                          _focus.unfocus();
-                          Navigator.of(context).pop(false);
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: widget.controller,
-                    focusNode: _focus,
-                    autofocus: true,
-                    obscureText: _hidden,
-                    autocorrect: input.autocorrect,
-                    enableSuggestions: input.enableSuggestions,
-                    keyboardType: input.keyboardType,
-                    textInputAction: multiline
-                        ? TextInputAction.newline
-                        : TextInputAction.done,
-                    textCapitalization: input.textCapitalization,
-                    inputFormatters: input.inputFormatters,
-                    minLines: input.minLines,
-                    maxLines: input.maxLines,
-                    maxLength: input.maxLength,
-                    style: input.style,
-                    cursorColor: input.cursorColor,
-                    decoration: InputDecoration(
-                      hintText: decoration.hintText,
-                      errorText: _error,
-                      border: const OutlineInputBorder(),
-                      suffixIcon: input.obscureText
-                          ? IconButton(
-                              tooltip: _hidden
-                                  ? 'Показать пароль'
-                                  : 'Скрыть пароль',
-                              onPressed: () =>
-                                  setState(() => _hidden = !_hidden),
-                              icon: Icon(
-                                _hidden
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                              ),
-                            )
-                          : null,
-                    ),
-                    onChanged: (value) {
-                      if (_error != null) setState(() => _error = null);
-                      input.onChanged?.call(value);
-                    },
-                    onSubmitted: (_) {
-                      if (!multiline) _done();
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: _done,
-                      child: const Text('Готово'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+    final box = context.findRenderObject();
+    final top = box is RenderBox && box.hasSize
+        ? box.localToGlobal(Offset.zero).dy
+        : metrics.viewPadding.top;
+    final height = containsFocus && metrics.viewInsets.bottom > 0
+        ? math.max(0.0, metrics.size.height - metrics.viewInsets.bottom - top)
+        : double.infinity;
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: height),
+        child: widget.child,
       ),
     );
   }
+}
+
+/// A value edited and saved where it is displayed, without a dialog.
+class InlineValueInput extends StatefulWidget {
+  final String value, label;
+  final double fontSize;
+  final bool enabled, multiline;
+  final Future<void> Function(String) save;
+  const InlineValueInput({
+    super.key,
+    required this.value,
+    required this.label,
+    required this.save,
+    this.enabled = true,
+    this.multiline = false,
+    this.fontSize = 18,
+  });
+  @override
+  State<InlineValueInput> createState() => _InlineValueInputState();
+}
+
+class _InlineValueInputState extends State<InlineValueInput> {
+  late final _text = TextEditingController(text: widget.value);
+  bool _saving = false, _dirty = false;
+  String? _error;
+  @override
+  void didUpdateWidget(covariant InlineValueInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_dirty && oldWidget.value != widget.value) _text.text = widget.value;
+  }
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_saving || !widget.enabled) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await widget.save(_text.text);
+      if (mounted) setState(() => _dirty = false);
+    } catch (e) {
+      if (mounted)
+        setState(
+          () => _error = e is ArgumentError
+              ? '${e.message}'
+              : 'Не удалось сохранить',
+        );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => KeyboardInput(
+    controller: _text,
+    style: TextStyle(fontSize: widget.fontSize),
+    enabled: widget.enabled && !_saving,
+    maxLines: widget.multiline ? 3 : 1,
+    keyboardType: widget.multiline
+        ? TextInputType.multiline
+        : const TextInputType.numberWithOptions(decimal: true),
+    textInputAction: TextInputAction.done,
+    onChanged: (_) => _dirty = true,
+    onSubmitted: (_) => _save(),
+    decoration: InputDecoration(
+      labelText: widget.label,
+      errorText: _error,
+      suffixIcon: IconButton(
+        tooltip: 'Сохранить',
+        onPressed: _saving ? null : _save,
+        icon: _saving
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.check),
+      ),
+    ),
+  );
 }
