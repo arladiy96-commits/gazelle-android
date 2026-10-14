@@ -20,6 +20,8 @@ class EmployeeAccessGate extends StatefulWidget {
 class _EmployeeAccessGateState extends State<EmployeeAccessGate> {
   Timer? timer;
   bool busy = false;
+  bool _detailsOpen = false, _confirmServer = false;
+  String? _resolutionError;
   String? _lastView;
   void refresh() {
     final policy = AccountScope.access.value;
@@ -53,6 +55,94 @@ class _EmployeeAccessGateState extends State<EmployeeAccessGate> {
     super.dispose();
   }
 
+  void _closeDetails() {
+    if (busy) return;
+    setState(() {
+      _detailsOpen = false;
+      _confirmServer = false;
+    });
+  }
+
+  Future<void> _loadServer() async {
+    if (busy) return;
+    setState(() {
+      busy = true;
+      _resolutionError = null;
+    });
+    try {
+      await EmployeeSync.instance.useServerVersion();
+      if (mounted) setState(() => _detailsOpen = false);
+    } catch (e) {
+      if (mounted) setState(() => _resolutionError = '$e');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  // This gate is above the root Navigator in MaterialApp.builder. Its context
+  // cannot push a dialog route; display details directly in the gate's overlay.
+  Widget _conflictDetails() => Stack(
+    fit: StackFit.expand,
+    children: [
+      ModalBarrier(
+        color: Colors.black54,
+        dismissible: !busy,
+        onDismiss: _closeDetails,
+      ),
+      SafeArea(
+        child: Center(
+          child: AlertDialog(
+            title: Text(
+              _confirmServer ? 'Заменить местные данные?' : 'Причина конфликта',
+            ),
+            content: SingleChildScrollView(
+              child: ValueListenableBuilder<String?>(
+                valueListenable: EmployeeSync.instance.message,
+                builder: (_, message, __) => Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SelectableText(
+                      message ?? 'Подробности ошибки пока недоступны.',
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _confirmServer
+                          ? 'Будет сохранена резервная копия местных данных. Текущие несинхронизированные изменения заменятся версией сервера. Серверные записи не изменятся.'
+                          : 'Просмотр этого окна не изменяет данные. Можно скопировать текст ошибки или сделать скриншот.',
+                    ),
+                    if (_resolutionError != null) ...[
+                      const SizedBox(height: 12),
+                      SelectableText(_resolutionError!),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: busy ? null : _closeDetails,
+                child: const Text('Закрыть'),
+              ),
+              if (_confirmServer)
+                TextButton(
+                  onPressed: busy ? null : _loadServer,
+                  child: Text(busy ? 'Загрузка…' : 'Подтвердить замену'),
+                )
+              else
+                TextButton(
+                  onPressed: busy
+                      ? null
+                      : () => setState(() => _confirmServer = true),
+                  child: const Text('Версия сервера…'),
+                ),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
+
   @override
   Widget build(BuildContext context) {
     final restricted = AccountScope.restricted;
@@ -78,43 +168,16 @@ class _EmployeeAccessGateState extends State<EmployeeAccessGate> {
                 subtitle: const Text(
                   'Местные изменения сохранены. Нажмите для проверки.',
                 ),
-                onTap: busy
-                    ? null
-                    : () async {
-                        final accept = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Загрузить данные сервера?'),
-                            content: Text(
-                              '${EmployeeSync.instance.message.value ?? "Запись изменена на другом устройстве."}\n\nБудет сохранена резервная копия местных данных. Текущие несинхронизированные изменения заменятся версией сервера. Серверные записи не изменятся.',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: const Text('Оставить пока'),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                child: const Text('Загрузить с сервера'),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (accept != true || !mounted) return;
-                        setState(() => busy = true);
-                        try {
-                          await EmployeeSync.instance.useServerVersion();
-                        } catch (e) {
-                          if (mounted)
-                            ScaffoldMessenger.of(context)
-                                .showSnackBar(SnackBar(content: Text('$e')));
-                        } finally {
-                          if (mounted) setState(() => busy = false);
-                        }
-                      },
+                onTap: () => setState(() {
+                  _detailsOpen = true;
+                  _confirmServer = false;
+                  _resolutionError = null;
+                }),
               ),
             ),
           ),
+        if (!restricted && _detailsOpen)
+          Positioned.fill(child: _conflictDetails()),
         if (restricted)
           Material(
             color: const Color(0xFF0B141B),
