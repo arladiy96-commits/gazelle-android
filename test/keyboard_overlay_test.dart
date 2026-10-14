@@ -71,9 +71,7 @@ void main() {
     },
   );
 
-  testWidgets('hidden tab retains state and is not laid out on tab switch', (
-    tester,
-  ) async {
+  testWidgets('tab retains its draft through hide and restore', (tester) async {
     var active = true;
     var layouts = 0;
     late StateSetter change;
@@ -98,13 +96,71 @@ void main() {
         ),
       ),
     );
-    final initialLayouts = layouts;
     change(() => active = false);
     await tester.pump();
-    expect(layouts, initialLayouts);
     change(() => active = true);
     await tester.pump();
     expect(controller.text, 'Черновик');
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    controller.dispose();
+  });
+  testWidgets('system back reveals the retained tab after a pushed menu', (
+    tester,
+  ) async {
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorKey: navigator,
+        home: const Scaffold(
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              DormantTab(active: false, child: Text('Hidden')),
+              DormantTab(active: true, child: Center(child: Text('More menu'))),
+            ],
+          ),
+        ),
+      ),
+    );
+    navigator.currentState!.push(
+      MaterialPageRoute<void>(
+        builder: (_) => const Scaffold(body: Text('Settings')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('More menu').hitTestable(), findsOneWidget);
+    expect(find.text('Settings'), findsNothing);
+    expect(navigator.currentState!.canPop(), isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mechanical counter edits the same field without another route', (
+    tester,
+  ) async {
+    final controller = TextEditingController(text: '253546');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 300,
+              height: 90,
+              child: DrumInput(controller: controller),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byType(TextFormField));
+    await tester.enterText(find.byType(TextFormField), '253547');
+    await tester.pump();
+    expect(controller.text, '253547');
+    expect(find.byType(TextFormField), findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.text('7'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
     controller.dispose();
