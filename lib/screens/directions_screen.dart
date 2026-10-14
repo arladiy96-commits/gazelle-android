@@ -524,7 +524,7 @@ class _DirectionNameDialogState extends State<_DirectionNameDialog> {
     canPop: !_saving,
     child: _KeyboardAlertDialog(
       alignment: Alignment.topCenter,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       scrollable: true,
       backgroundColor: const Color(0xFF101A20),
       title: Text(

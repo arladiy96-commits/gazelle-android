@@ -178,116 +178,29 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
     );
   }
 
-  Future<void> _editSetting(bool rate) async {
-    if (_editingSetting) return;
-    _editingSetting = true;
-    HapticFeedback.selectionClick();
-    final controller = TextEditingController(
-      text: _plain(rate ? _rate : _tank),
-    );
-    controller.selection = TextSelection(
-      baseOffset: 0,
-      extentOffset: controller.text.length,
-    );
-    String? error;
-    bool saving = false;
-    try {
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialog) => StatefulBuilder(
-          builder: (dialog, update) => _KeyboardAlertDialog(
-            alignment: Alignment.topCenter,
-            scrollable: true,
-            backgroundColor: const Color(0xFF10171B),
-            surfaceTintColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-              side: const BorderSide(color: Color(0xFF806844), width: .9),
-            ),
-            title: Text(
-              rate ? 'Расход, л / 100 км' : 'Газ в баке, л',
-              style: const TextStyle(color: goldBright, fontSize: 18),
-            ),
-            content: KeyboardInput(
-              controller: controller,
-              autofocus: true,
-              enabled: !saving,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              style: const TextStyle(color: white),
-              decoration: InputDecoration(
-                errorText: error,
-                helperText: 'Настройка только для калькулятора',
-                helperMaxLines: 2,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: saving ? null : () => Navigator.pop(dialog),
-                child: const Text('Отмена'),
-              ),
-              TextButton(
-                onPressed: saving
-                    ? null
-                    : () async {
-                        final value = GasCalculation.parse(
-                          controller.text.trim(),
-                        );
-                        if (value == null || (rate && value <= 0)) {
-                          update(
-                            () => error = rate
-                                ? 'Введите расход больше нуля'
-                                : 'Введите число от нуля',
-                          );
-                          return;
-                        }
-                        update(() {
-                          saving = true;
-                          error = null;
-                        });
-                        try {
-                          await TestStore.setCalculationSetting(
-                            rate ? 'gasCalculatorRate' : 'gasTank',
-                            value,
-                          );
-                          if (mounted) {
-                            setState(() {
-                              if (rate) {
-                                _rate = value;
-                              } else {
-                                _tank = value;
-                              }
-                            });
-                          }
-                          if (dialog.mounted) Navigator.pop(dialog);
-                        } catch (_) {
-                          if (dialog.mounted) {
-                            update(() {
-                              saving = false;
-                              error = 'Не удалось сохранить. Повторите.';
-                            });
-                          }
-                        }
-                      },
-                child: const Text('Сохранить'),
-              ),
-            ],
-          ),
-        ),
+  Widget _settingInput(bool rate) => InlineValueInput(
+    fontSize: 28,
+    value: _number(rate ? _rate : _tank),
+    label: rate ? 'Норма, л/100 км' : 'В баке, л',
+    save: (text) async {
+      final value = GasCalculation.parse(text.trim());
+      if (value == null || (rate && value <= 0))
+        throw ArgumentError('Проверьте число');
+      await TestStore.setCalculationSetting(
+        rate ? 'gasCalculatorRate' : 'gasTank',
+        value,
       );
-    } finally {
-      Future<void>.delayed(
-        const Duration(milliseconds: 300),
-        controller.dispose,
-      );
-      _editingSetting = false;
-    }
-  }
+      if (mounted)
+        setState(() {
+          if (rate) {
+            _rate = value;
+          } else {
+            _tank = value;
+          }
+        });
+    },
+  );
 
-  // The texture contains no data: every value and control below is live.
-  // Coordinates follow the approved 864 x 1536 reference.
   Widget _scene(GasReport? r) => LayoutBuilder(
     builder: (context, box) {
       final scale = box.maxWidth / 864;
@@ -567,468 +480,454 @@ class _GasCalculationScreenState extends State<_GasCalculationScreen>
       final keyRatio = (keyboardBottom - 1168) / 285;
       Widget keyAt(double x, double y, double w, String value) =>
           at(x, 1168 + (y - 1168) * keyRatio, w, 62 * keyRatio, key(value));
-      return SingleChildScrollView(
-        physics: sceneHeight > box.maxHeight
-            ? const ClampingScrollPhysics()
-            : const NeverScrollableScrollPhysics(),
-        child: SizedBox(
-          height: sceneHeight,
-          width: box.maxWidth,
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: Stack(
-                  children: [
-                    // The roof also fills the physical status-bar area.
-                    Positioned.fill(
-                      child: Image.asset(
-                        'assets/images/scenes/gas_calculation_reference.png',
-                        fit: BoxFit.cover,
-            alignment: Alignment.topCenter,
+      return KeyboardScrollArea(
+        child: SingleChildScrollView(
+          physics: sceneHeight > box.maxHeight
+              ? const ClampingScrollPhysics()
+              : const NeverScrollableScrollPhysics(),
+          child: SizedBox(
+            height: sceneHeight,
+            width: box.maxWidth,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: Stack(
+                    children: [
+                      // The roof also fills the physical status-bar area.
+                      Positioned.fill(
+                        child: Image.asset(
+                          'assets/images/scenes/gas_calculation_reference.png',
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
+                        ),
                       ),
-                    ),
-                    backgroundSlice(0, 180),
-                    backgroundSlice(180, 680),
-                    backgroundSlice(680, 1015),
-                    backgroundSlice(1015, 1536),
-                  ],
+                      backgroundSlice(0, 180),
+                      backgroundSlice(180, 680),
+                      backgroundSlice(680, 1015),
+                      backgroundSlice(1015, 1536),
+                    ],
+                  ),
                 ),
-              ),
 
-              at(
-                94,
-                headerY,
-                78,
-                78,
-                tap(
-                  Icon(
-                    Icons.arrow_back_rounded,
-                    color: goldBright,
-                    size: 43 * scale,
-                  ),
-                  () => Navigator.pop(context),
-                  label: 'Назад',
-                ),
-              ),
-              at(
-                692,
-                headerY,
-                78,
-                78,
-                tap(
-                  Icon(
-                    Icons.refresh_rounded,
-                    color: goldBright,
-                    size: 43 * scale,
-                  ),
-                  _load,
-                  label: 'Обновить данные',
-                ),
-              ),
-              at(192, headerY + 4, 478, 52, fit('Расчёт газа', 48, bold: true)),
-              at(
-                194,
-                headerY + 56,
-                470,
-                28,
-                fit(
-                  _month == null
-                      ? ''
-                      : '${_garageMonths[_month!.month - 1]} ${_month!.year}',
-                  25,
-                  color: const Color(0xFFBDC3C5),
-                ),
-              ),
-              if (_loading || _error.isNotEmpty || r == null)
                 at(
-                  100,
+                  94,
+                  headerY,
+                  78,
+                  78,
+                  tap(
+                    Icon(
+                      Icons.arrow_back_rounded,
+                      color: goldBright,
+                      size: 43 * scale,
+                    ),
+                    () => Navigator.pop(context),
+                    label: 'Назад',
+                  ),
+                ),
+                at(
+                  692,
+                  headerY,
+                  78,
+                  78,
+                  tap(
+                    Icon(
+                      Icons.refresh_rounded,
+                      color: goldBright,
+                      size: 43 * scale,
+                    ),
+                    _load,
+                    label: 'Обновить данные',
+                  ),
+                ),
+                at(
                   192,
-                  650,
-                  178,
-                  Container(
-                    color: ink.withValues(alpha: .85),
-                    alignment: Alignment.center,
-                    child: _loading
-                        ? const CircularProgressIndicator(color: gold)
-                        : tap(
-                            Padding(
-                              padding: const EdgeInsets.all(14),
-                              child: text(
-                                _error.isEmpty ? 'Нет данных' : _error,
-                                26,
-                              ),
-                            ),
-                            _load,
-                          ),
-                  ),
-                )
-              else ...[
+                  headerY + 4,
+                  478,
+                  52,
+                  fit('Расчёт газа', 48, bold: true),
+                ),
                 at(
-                  139,
                   194,
-                  291,
-                  85,
-                  stat(
-                    Icons.propane_tank_outlined,
-                    'Остаток\nс прошлого месяца',
-                    _litres(r.opening),
-                  ),
-                ),
-                at(
-                  463,
-                  194,
-                  269,
-                  85,
-                  stat(
-                    Icons.local_shipping_outlined,
-                    'Получено\nза месяц',
-                    _litres(r.gas),
-                  ),
-                ),
-                at(
-                  139,
-                  296,
-                  291,
-                  73,
-                  stat(
-                    Icons.speed_rounded,
-                    'Норма расхода',
-                    '${_number(_rate)} л / 100 км',
-                    hold: () => _editSetting(true),
-                  ),
-                ),
-                at(
-                  463,
-                  296,
-                  269,
-                  73,
-                  stat(
-                    Icons.local_gas_station_outlined,
-                    'В баке',
-                    _litres(_tank),
-                    hold: () => _editSetting(false),
-                  ),
-                ),
-                at(109, 413, 316, 54, mode(false)),
-                at(441, 413, 309, 54, mode(true)),
-                at(
-                  140,
-                  477,
-                  586,
-                  29,
+                  headerY + 56,
+                  470,
+                  28,
                   fit(
-                    _manualMode
-                        ? 'Из журнала за месяц   ${_number(r.km)} км'
-                        : 'Первое показание месяца   ${_firstKm == null ? "Нет показания" : "${_number(_firstKm!)} км"}',
-                    23,
+                    _month == null
+                        ? ''
+                        : '${_garageMonths[_month!.month - 1]} ${_month!.year}',
+                    25,
                     color: const Color(0xFFBDC3C5),
-                    align: Alignment.center,
                   ),
                 ),
-                at(
-                  126,
-                  509,
-                  612,
-                  23,
-                  _manualMode && _manualEdited
-                      ? tap(
-                          fit(
-                            '↶ Подставить пробег из журнала',
-                            20,
-                            color: goldBright,
+                if (_loading || _error.isNotEmpty || r == null)
+                  at(
+                    100,
+                    192,
+                    650,
+                    178,
+                    Container(
+                      color: ink.withValues(alpha: .85),
+                      alignment: Alignment.center,
+                      child: _loading
+                          ? const CircularProgressIndicator(color: gold)
+                          : tap(
+                              Padding(
+                                padding: const EdgeInsets.all(14),
+                                child: text(
+                                  _error.isEmpty ? 'Нет данных' : _error,
+                                  26,
+                                ),
+                              ),
+                              _load,
+                            ),
+                    ),
+                  )
+                else ...[
+                  at(
+                    139,
+                    194,
+                    291,
+                    85,
+                    stat(
+                      Icons.propane_tank_outlined,
+                      'Остаток\nс прошлого месяца',
+                      _litres(r.opening),
+                    ),
+                  ),
+                  at(
+                    463,
+                    194,
+                    269,
+                    85,
+                    stat(
+                      Icons.local_shipping_outlined,
+                      'Получено\nза месяц',
+                      _litres(r.gas),
+                    ),
+                  ),
+                  at(139, 296, 291, 73, _settingInput(true)),
+                  at(463, 296, 269, 73, _settingInput(false)),
+                  at(109, 413, 316, 54, mode(false)),
+                  at(441, 413, 309, 54, mode(true)),
+                  at(
+                    140,
+                    477,
+                    586,
+                    29,
+                    fit(
+                      _manualMode
+                          ? 'Из журнала за месяц   ${_number(r.km)} км'
+                          : 'Первое показание месяца   ${_firstKm == null ? "Нет показания" : "${_number(_firstKm!)} км"}',
+                      23,
+                      color: const Color(0xFFBDC3C5),
+                      align: Alignment.center,
+                    ),
+                  ),
+                  at(
+                    126,
+                    509,
+                    612,
+                    23,
+                    _manualMode && _manualEdited
+                        ? tap(
+                            fit(
+                              '↶ Подставить пробег из журнала',
+                              20,
+                              color: goldBright,
+                              align: Alignment.center,
+                            ),
+                            () => setState(() {
+                              _manual = _plain(r.km);
+                              _manualEdited = false;
+                              _replace = true;
+                            }),
+                          )
+                        : fit(
+                            'Это значение используется только для текущего расчёта.',
+                            17,
+                            color: muted,
                             align: Alignment.center,
                           ),
-                          () => setState(() {
-                            _manual = _plain(r.km);
-                            _manualEdited = false;
-                            _replace = true;
-                          }),
-                        )
-                      : fit(
-                          'Это значение используется только для текущего расчёта.',
-                          17,
-                          color: muted,
-                          align: Alignment.center,
-                        ),
-                ),
-                at(
-                  128,
-                  549,
-                  36,
-                  29,
-                  Icon(
-                    Icons.add_road_rounded,
-                    color: goldBright,
-                    size: 31 * scale,
                   ),
-                ),
-                at(
-                  181,
-                  549,
-                  229,
-                  29,
-                  fit(
-                    _manualMode ? 'Пробег' : 'Текущий одометр',
-                    23,
-                    color: const Color(0xFFBDC3C5),
-                  ),
-                ),
-                at(
-                  460,
-                  549,
-                  36,
-                  29,
-                  Icon(
-                    Icons.local_gas_station_outlined,
-                    color: goldBright,
-                    size: 31 * scale,
-                  ),
-                ),
-                at(
-                  514,
-                  549,
-                  221,
-                  29,
-                  fit('Газ на руках', 23, color: const Color(0xFFBDC3C5)),
-                ),
-                at(
-                  124,
-                  588,
-                  284,
-                  48,
-                  input(0, _manualMode ? _manual : _odometer, 'км'),
-                ),
-                at(458, 588, 281, 48, input(1, _hand, 'л')),
-                // Preserve selection from anywhere on either input card.
-                at(
-                  109,
-                  539,
-                  316,
-                  107,
-                  ExcludeSemantics(
-                    child: tap(const SizedBox.expand(), () => _select(0)),
-                  ),
-                ),
-                at(
-                  441,
-                  539,
-                  309,
-                  107,
-                  ExcludeSemantics(
-                    child: tap(const SizedBox.expand(), () => _select(1)),
-                  ),
-                ),
-                at(
-                  145,
-                  746,
-                  150,
-                  46,
-                  fit(
-                    'Должно\ностаться',
-                    23,
-                    color: const Color(0xFFBDC3C5),
-                    align: Alignment.center,
-                  ),
-                ),
-                at(
-                  148,
-                  802,
-                  139,
-                  48,
-                  fit(
-                    calculation == null ? '—' : _litres(calculation.expected),
-                    43,
-                    color: const Color(0xFFF0D8A7),
-                    bold: true,
-                    align: Alignment.center,
-                  ),
-                ),
-                at(
-                  596,
-                  749,
-                  151,
-                  46,
-                  fit(
-                    'Фактически',
-                    23,
-                    color: const Color(0xFFBDC3C5),
-                    align: Alignment.center,
-                  ),
-                ),
-                at(
-                  601,
-                  802,
-                  133,
-                  48,
-                  fit(
-                    calculation == null ? '—' : _litres(calculation.actual),
-                    43,
-                    color: const Color(0xFFF0D8A7),
-                    bold: true,
-                    align: Alignment.center,
-                  ),
-                ),
-                at(
-                  347,
-                  815,
-                  174,
-                  35,
-                  fit(
-                    caption,
-                    24,
-                    color: accent,
-                    bold: true,
-                    align: Alignment.center,
-                  ),
-                ),
-                at(
-                  337,
-                  854,
-                  197,
-                  67,
-                  fit(
-                    result,
-                    70,
-                    color: accent,
-                    bold: true,
-                    align: Alignment.center,
-                  ),
-                ),
-                at(
-                  404,
-                  928,
-                  58,
-                  59,
-                  Icon(
-                    Icons.local_fire_department_outlined,
-                    color: accent,
-                    size: 57 * scale,
-                  ),
-                ),
-                at(
-                  112,
-                  1040,
-                  48,
-                  50,
-                  Icon(
-                    Icons.calculate_outlined,
-                    color: goldBright,
-                    size: 45 * scale,
-                  ),
-                ),
-                at(
-                  190,
-                  1038,
-                  515,
-                  28,
-                  fit(
-                    'Фактически = Газ на руках + ${_number(_tank)} л в баке',
-                    20,
-                    color: const Color(0xFFBDC3C5),
-                  ),
-                ),
-                at(
-                  190,
-                  1068,
-                  515,
-                  28,
-                  fit(
-                    'Расчётный остаток = Остаток + Получено − Расход по норме',
-                    19,
-                    color: const Color(0xFFBDC3C5),
-                  ),
-                ),
-                at(
-                  720,
-                  1040,
-                  48,
-                  50,
-                  Tooltip(
-                    message:
-                        'Расход по норме = пробег × ${_number(_rate)} / 100',
-                    child: Icon(
-                      Icons.info_outline_rounded,
-                      color: muted,
-                      size: 29 * scale,
+                  at(
+                    128,
+                    549,
+                    36,
+                    29,
+                    Icon(
+                      Icons.add_road_rounded,
+                      color: goldBright,
+                      size: 31 * scale,
                     ),
                   ),
-                ),
-                if (warning.isNotEmpty)
                   at(
-                    120,
-                    1102,
-                    627,
-                    25,
-                    Container(
-                      color: ink.withValues(alpha: .93),
-                      child: fit(
-                        warning,
-                        19,
-                        color: badOdometer ? danger : gold,
-                        align: Alignment.center,
-                      ),
+                    181,
+                    549,
+                    229,
+                    29,
+                    fit(
+                      _manualMode ? 'Пробег' : 'Текущий одометр',
+                      23,
+                      color: const Color(0xFFBDC3C5),
                     ),
                   ),
-                if (_keys) ...[
-                  keyAt(141, 1168, 133, '1'),
-                  keyAt(290, 1168, 134, '2'),
-                  keyAt(442, 1168, 135, '3'),
-                  keyAt(594, 1168, 130, '⌫'),
-                  keyAt(136, 1240, 136, '4'),
-                  keyAt(287, 1240, 137, '5'),
-                  keyAt(441, 1240, 138, '6'),
-                  keyAt(595, 1240, 133, 'C'),
-                  keyAt(131, 1314, 140, '7'),
-                  keyAt(286, 1314, 140, '8'),
-                  keyAt(442, 1314, 140, '9'),
-                  keyAt(127, 1390, 144, ','),
-                  keyAt(286, 1390, 297, '0'),
                   at(
-                    600,
-                    1314,
-                    136,
-                    137,
-                    tap(
-                      Icon(
-                        Icons.keyboard_hide_outlined,
-                        size: 30 * scale,
+                    460,
+                    549,
+                    36,
+                    29,
+                    Icon(
+                      Icons.local_gas_station_outlined,
+                      color: goldBright,
+                      size: 31 * scale,
+                    ),
+                  ),
+                  at(
+                    514,
+                    549,
+                    221,
+                    29,
+                    fit('Газ на руках', 23, color: const Color(0xFFBDC3C5)),
+                  ),
+                  at(
+                    124,
+                    588,
+                    284,
+                    48,
+                    input(0, _manualMode ? _manual : _odometer, 'км'),
+                  ),
+                  at(458, 588, 281, 48, input(1, _hand, 'л')),
+                  // Preserve selection from anywhere on either input card.
+                  at(
+                    109,
+                    539,
+                    316,
+                    107,
+                    ExcludeSemantics(
+                      child: tap(const SizedBox.expand(), () => _select(0)),
+                    ),
+                  ),
+                  at(
+                    441,
+                    539,
+                    309,
+                    107,
+                    ExcludeSemantics(
+                      child: tap(const SizedBox.expand(), () => _select(1)),
+                    ),
+                  ),
+                  at(
+                    145,
+                    746,
+                    150,
+                    46,
+                    fit(
+                      'Должно\ностаться',
+                      23,
+                      color: const Color(0xFFBDC3C5),
+                      align: Alignment.center,
+                    ),
+                  ),
+                  at(
+                    148,
+                    802,
+                    139,
+                    48,
+                    fit(
+                      calculation == null ? '—' : _litres(calculation.expected),
+                      43,
+                      color: const Color(0xFFF0D8A7),
+                      bold: true,
+                      align: Alignment.center,
+                    ),
+                  ),
+                  at(
+                    596,
+                    749,
+                    151,
+                    46,
+                    fit(
+                      'Фактически',
+                      23,
+                      color: const Color(0xFFBDC3C5),
+                      align: Alignment.center,
+                    ),
+                  ),
+                  at(
+                    601,
+                    802,
+                    133,
+                    48,
+                    fit(
+                      calculation == null ? '—' : _litres(calculation.actual),
+                      43,
+                      color: const Color(0xFFF0D8A7),
+                      bold: true,
+                      align: Alignment.center,
+                    ),
+                  ),
+                  at(
+                    347,
+                    815,
+                    174,
+                    35,
+                    fit(
+                      caption,
+                      24,
+                      color: accent,
+                      bold: true,
+                      align: Alignment.center,
+                    ),
+                  ),
+                  at(
+                    337,
+                    854,
+                    197,
+                    67,
+                    fit(
+                      result,
+                      70,
+                      color: accent,
+                      bold: true,
+                      align: Alignment.center,
+                    ),
+                  ),
+                  at(
+                    404,
+                    928,
+                    58,
+                    59,
+                    Icon(
+                      Icons.local_fire_department_outlined,
+                      color: accent,
+                      size: 57 * scale,
+                    ),
+                  ),
+                  at(
+                    112,
+                    1040,
+                    48,
+                    50,
+                    Icon(
+                      Icons.calculate_outlined,
+                      color: goldBright,
+                      size: 45 * scale,
+                    ),
+                  ),
+                  at(
+                    190,
+                    1038,
+                    515,
+                    28,
+                    fit(
+                      'Фактически = Газ на руках + ${_number(_tank)} л в баке',
+                      20,
+                      color: const Color(0xFFBDC3C5),
+                    ),
+                  ),
+                  at(
+                    190,
+                    1068,
+                    515,
+                    28,
+                    fit(
+                      'Расчётный остаток = Остаток + Получено − Расход по норме',
+                      19,
+                      color: const Color(0xFFBDC3C5),
+                    ),
+                  ),
+                  at(
+                    720,
+                    1040,
+                    48,
+                    50,
+                    Tooltip(
+                      message:
+                          'Расход по норме = пробег × ${_number(_rate)} / 100',
+                      child: Icon(
+                        Icons.info_outline_rounded,
                         color: muted,
+                        size: 29 * scale,
                       ),
-                      () {
-                        HapticFeedback.lightImpact();
-                        setState(() => _keys = false);
-                      },
-                      label: 'Скрыть клавиатуру',
                     ),
                   ),
-                ] else
-                  at(
-                    127,
-                    1168,
-                    609,
-                    283,
-                    tap(
+                  if (warning.isNotEmpty)
+                    at(
+                      120,
+                      1102,
+                      627,
+                      25,
                       Container(
                         color: ink.withValues(alpha: .93),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.dialpad_rounded,
-                              color: gold,
-                              size: 48 * scale,
-                            ),
-                            SizedBox(height: 12 * sy),
-                            text('Показать клавиатуру', 25, color: gold),
-                          ],
+                        child: fit(
+                          warning,
+                          19,
+                          color: badOdometer ? danger : gold,
+                          align: Alignment.center,
                         ),
                       ),
-                      () => _select(_field),
-                      label: 'Показать клавиатуру',
                     ),
-                  ),
+                  if (_keys) ...[
+                    keyAt(141, 1168, 133, '1'),
+                    keyAt(290, 1168, 134, '2'),
+                    keyAt(442, 1168, 135, '3'),
+                    keyAt(594, 1168, 130, '⌫'),
+                    keyAt(136, 1240, 136, '4'),
+                    keyAt(287, 1240, 137, '5'),
+                    keyAt(441, 1240, 138, '6'),
+                    keyAt(595, 1240, 133, 'C'),
+                    keyAt(131, 1314, 140, '7'),
+                    keyAt(286, 1314, 140, '8'),
+                    keyAt(442, 1314, 140, '9'),
+                    keyAt(127, 1390, 144, ','),
+                    keyAt(286, 1390, 297, '0'),
+                    at(
+                      600,
+                      1314,
+                      136,
+                      137,
+                      tap(
+                        Icon(
+                          Icons.keyboard_hide_outlined,
+                          size: 30 * scale,
+                          color: muted,
+                        ),
+                        () {
+                          HapticFeedback.lightImpact();
+                          setState(() => _keys = false);
+                        },
+                        label: 'Скрыть клавиатуру',
+                      ),
+                    ),
+                  ] else
+                    at(
+                      127,
+                      1168,
+                      609,
+                      283,
+                      tap(
+                        Container(
+                          color: ink.withValues(alpha: .93),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.dialpad_rounded,
+                                color: gold,
+                                size: 48 * scale,
+                              ),
+                              SizedBox(height: 12 * sy),
+                              text('Показать клавиатуру', 25, color: gold),
+                            ],
+                          ),
+                        ),
+                        () => _select(_field),
+                        label: 'Показать клавиатуру',
+                      ),
+                    ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       );

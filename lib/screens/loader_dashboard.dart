@@ -3,6 +3,7 @@ part of 'app_shell.dart';
 const _loaderGold = Color(0xFFC7A568);
 const _loaderMuted = Color(0xFFAAB7BF);
 String _loaderMoney(int minor) {
+  if (!AccountScope.canRead('salary')) return 'Скрыто';
   final parts = (minor / 100).toStringAsFixed(2).split('.');
   final whole = parts[0].replaceAllMapped(
     RegExp(r'(\d)(?=(\d{3})+$)'),
@@ -285,88 +286,6 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
       lastDate: DateTime.now(),
     );
     if (mounted && d != null) setState(() => _date = d);
-  }
-
-  Future<void> _enterHours() async {
-    final hours = TextEditingController(text: _hours.text);
-    final minutes = TextEditingController(text: _minutes.text);
-    final result = await showDialog<List<String>>(
-      context: context,
-      builder: (c) => _KeyboardAlertDialog(
-        alignment: Alignment.topCenter,
-        scrollable: true,
-        backgroundColor: const Color(0xFF0B1820),
-        title: const Text('Отработанное время'),
-        content: SingleChildScrollView(
-          child: Row(
-            children: [
-              Expanded(
-                child: KeyboardInput(
-                  controller: hours,
-                  autofocus: true,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(2),
-                  ],
-                  decoration: const InputDecoration(labelText: 'Часы'),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: KeyboardInput(
-                  controller: minutes,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(2),
-                  ],
-                  decoration: const InputDecoration(labelText: 'Минуты'),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () {
-              final h = int.tryParse(hours.text),
-                  m = int.tryParse(minutes.text);
-              if (h == null ||
-                  m == null ||
-                  h < 0 ||
-                  m < 0 ||
-                  m > 59 ||
-                  h * 60 + m < 1 ||
-                  h * 60 + m > 1440) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('От 1 минуты до 24 часов. Минуты: 0–59.'),
-                  ),
-                );
-                return;
-              }
-              Navigator.pop(c, [hours.text, minutes.text]);
-            },
-            child: const Text('Готово'),
-          ),
-        ],
-      ),
-    );
-    // Dialog route may still animate out; dispose controllers after it finishes.
-    Future<void>.delayed(const Duration(milliseconds: 400), () {
-      hours.dispose();
-      minutes.dispose();
-    });
-    if (mounted && result != null)
-      setState(() {
-        _hours.text = result[0];
-        _minutes.text = result[1];
-      });
   }
 
   Widget _text(
@@ -757,57 +676,35 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
             79,
             _tap(label('+', 62, bold: true, center: true), () => _stepTime(60)),
           ),
-          // Four live digits sit on the photographed mechanical drums.
-          for (var i = 0; i < 4; i++)
+          for (final item in [
+            (_hours, 'Часы', 289.0),
+            (_minutes, 'Минуты', 486.0),
+          ])
             at(
-              [289.0, 365.0, 486.0, 560.0][i],
-              [772.0, 770.0, 767.0, 765.0][i],
-              59,
-              93,
-              _tap(
-                Center(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 120),
-                    child: Text(
-                      digits[i],
-                      key: ValueKey('$i-${digits[i]}'),
-                      style: TextStyle(
-                        color: const Color(0xFFBEB9AF),
-                        fontSize: 60 * sx,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
+              item.$3,
+              765,
+              150,
+              100,
+              KeyboardInput(
+                controller: item.$1,
+                enabled: !_busy,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.next,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(2),
+                ],
+                style: TextStyle(
+                  color: const Color(0xFFBEB9AF),
+                  fontSize: 45 * sx,
                 ),
-                _enterHours,
+                decoration: InputDecoration(
+                  labelText: item.$2,
+                  border: InputBorder.none,
+                ),
+                onChanged: (_) => setState(() {}),
               ),
             ),
-          at(
-            425,
-            791,
-            34,
-            36,
-            _tap(
-              label(
-                'ч',
-                25,
-                bold: true,
-                color: const Color(0xFFBEB9AF),
-                center: true,
-              ),
-              _enterHours,
-            ),
-          ),
-          at(
-            562,
-            834,
-            62,
-            23,
-            _tap(
-              label('мин', 18, color: const Color(0xFFBEB9AF), center: true),
-              _enterHours,
-            ),
-          ),
           for (var i = 0; i < 4; i++)
             at(
               [166.0, 322.0, 476.0, 636.0][i],

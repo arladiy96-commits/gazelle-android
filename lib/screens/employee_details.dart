@@ -548,22 +548,24 @@ class _EmployeeDetailsState extends State<_EmployeeDetails> {
         ? const Center(child: Text('Доступно владельцу'))
         : Column(
             children: [
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    for (var i = 0; i < 4; i++)
-                      Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: ChoiceChip(
-                          label: Text(
-                            const ['Обзор', 'Работа', 'Карта', 'Доступ'][i],
+              KeyboardScrollArea(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (var i = 0; i < 4; i++)
+                        Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: ChoiceChip(
+                            label: Text(
+                              const ['Обзор', 'Работа', 'Карта', 'Доступ'][i],
+                            ),
+                            selected: tab == i,
+                            onSelected: (_) => setState(() => tab = i),
                           ),
-                          selected: tab == i,
-                          onSelected: (_) => setState(() => tab = i),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               if (error != null)
@@ -772,14 +774,20 @@ class _EmployeeSectionGate extends StatelessWidget {
     valueListenable: AccountScope.access,
     builder: (context, policy, _) =>
         (section == 'loader'
-                ? AccountScope.canRead('work') && AccountScope.canRead('salary')
+                ? AccountScope.canRead('work')
                 : AccountScope.canRead(section)) &&
             (section != 'statistics' || AccountScope.canRead('salary'))
         ? child
         : Scaffold(
             backgroundColor: const Color(0xFF0B141B),
             appBar: AppBar(title: const Text('Доступ ограничен')),
-            body: const Center(child: Text('Владелец отключил этот раздел')),
+            body: Center(
+              child: Text(
+                section == 'loader'
+                    ? 'Нет разрешения на просмотр раздела «Смены, рейсы и топливо». Проверьте права сотрудника.'
+                    : 'Владелец отключил этот раздел',
+              ),
+            ),
           ),
   );
 }

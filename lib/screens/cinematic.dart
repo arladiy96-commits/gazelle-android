@@ -309,34 +309,6 @@ Future<void> _openShiftAction(BuildContext context) async =>
       if (context.mounted)
         await _showShiftForm(context, shift: b.active, close: b.active != null);
     });
-Future<void> _editCompactNote(
-  BuildContext context,
-  TextEditingController target,
-) async {
-  final copy = TextEditingController(text: target.text);
-  final result = await showModalBottomSheet<String>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (c) => _QuickEntryShell(
-      title: 'Примечание',
-      icon: Icons.edit_note,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _testField(copy, 'Текст примечания', lines: 3),
-          _detailButton(
-            'Сохранить',
-            () => Navigator.pop(c, copy.text),
-            icon: Icons.check,
-          ),
-        ],
-      ),
-    ),
-  );
-  if (result != null) target.text = result;
-  Future<void>.delayed(const Duration(seconds: 1), copy.dispose);
-}
 
 // A live Work page built against the approved warehouse photo in AppShell.
 // The reference image is a layout guide, not a screenshot used as the UI.
@@ -1426,11 +1398,17 @@ class _SceneTabStage extends StatelessWidget {
   final List<Widget> children;
   const _SceneTabStage({required this.index, required this.children});
   @override
-  Widget build(BuildContext context) => IndexedStack(
-    index: index,
+  Widget build(BuildContext context) => Stack(
+    fit: StackFit.expand,
     children: [
       for (var i = 0; i < children.length; i++)
-        TickerMode(enabled: i == index, child: children[i]),
+        DormantTab(
+          active: i == index,
+          child: TickerMode(
+            enabled: i == index,
+            child: RepaintBoundary(child: children[i]),
+          ),
+        ),
     ],
   );
 }
@@ -1943,88 +1921,93 @@ class _CinematicMore extends StatelessWidget {
                   builder: (context, box) {
                     // Natural content height keeps every tile inside the scroll
                     // and hit-test bounds when menu rows are added or text grows.
-                    return SingleChildScrollView(
-                      child: SizedBox(
-                        width: box.maxWidth,
-                        child: FittedBox(
-                          fit: BoxFit.fitWidth,
-                          alignment: Alignment.topCenter,
-                          child: SizedBox(
-                            width: 864,
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                32,
-                                22,
-                                32,
-                                12,
-                              ),
-                              child: Column(
-                                children: [
-                                  SizedBox(
-                                    height: 150,
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 80,
-                                          height: 80,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: const Color(0xDE0C1418),
-                                            border: Border.all(
-                                              color: const Color(0xFFE6B46B),
-                                              width: 2,
+                    return KeyboardScrollArea(
+                      child: SingleChildScrollView(
+                        child: SizedBox(
+                          width: box.maxWidth,
+                          child: FittedBox(
+                            fit: BoxFit.fitWidth,
+                            alignment: Alignment.topCenter,
+                            child: SizedBox(
+                              width: 864,
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  32,
+                                  22,
+                                  32,
+                                  12,
+                                ),
+                                child: Column(
+                                  children: [
+                                    SizedBox(
+                                      height: 150,
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 80,
+                                            height: 80,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: const Color(0xDE0C1418),
+                                              border: Border.all(
+                                                color: const Color(0xFFE6B46B),
+                                                width: 2,
+                                              ),
+                                            ),
+                                            child: IconButton(
+                                              onPressed: () =>
+                                                  navigate(context, 0),
+                                              tooltip: 'Назад',
+                                              icon: const Icon(
+                                                Icons.chevron_left,
+                                                color: Color(0xFFE6B46B),
+                                                size: 46,
+                                              ),
                                             ),
                                           ),
-                                          child: IconButton(
-                                            onPressed: () =>
-                                                navigate(context, 0),
-                                            tooltip: 'Назад',
-                                            icon: const Icon(
-                                              Icons.chevron_left,
-                                              color: Color(0xFFE6B46B),
-                                              size: 46,
+                                          const SizedBox(width: 40),
+                                          const Expanded(
+                                            child: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Ещё',
+                                                  style: TextStyle(
+                                                    color: Color(0xFFF1EEE6),
+                                                    fontSize: 58,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                                SizedBox(height: 7),
+                                                Text(
+                                                  'Управление, отчёты и настройки',
+                                                  style: TextStyle(
+                                                    color: Color(0xFFB7BBBC),
+                                                    fontSize: 25,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 40),
-                                        const Expanded(
-                                          child: Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'Ещё',
-                                                style: TextStyle(
-                                                  color: Color(0xFFF1EEE6),
-                                                  fontSize: 58,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                              SizedBox(height: 7),
-                                              Text(
-                                                'Управление, отчёты и настройки',
-                                                style: TextStyle(
-                                                  color: Color(0xFFB7BBBC),
-                                                  fontSize: 25,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  for (
-                                    var i = 0;
-                                    i < visibleGroups.length;
-                                    i++
-                                  ) ...[
-                                    if (i > 0) const SizedBox(height: 24),
-                                    _referenceGroup(context, visibleGroups[i]),
+                                    for (
+                                      var i = 0;
+                                      i < visibleGroups.length;
+                                      i++
+                                    ) ...[
+                                      if (i > 0) const SizedBox(height: 24),
+                                      _referenceGroup(
+                                        context,
+                                        visibleGroups[i],
+                                      ),
+                                    ],
                                   ],
-                                ],
+                                ),
                               ),
                             ),
                           ),
@@ -2344,111 +2327,11 @@ class _OpenShiftDashboardState extends State<_OpenShiftDashboard> {
   static const gold = Color(0xFFE8BD7B), white = Color(0xFFE6E9E9);
   bool busy = false, manual = false;
   String? error;
-  Future<void> edit() async {
-    if (busy) return;
-    final draft = TextEditingController(text: widget.controller.text);
-    draft.selection = TextSelection(
-      baseOffset: 0,
-      extentOffset: draft.text.length,
-    );
-    String? validation;
-    final route = _showStableInput<String>(
-      context: context,
-      builder: (sheet) => StatefulBuilder(
-        builder: (sheet, update) {
-          void accept() {
-            if (int.tryParse(draft.text) == null) {
-              update(() => validation = 'Введите показание одометра');
-              return;
-            }
-            Navigator.pop(sheet, draft.text);
-          }
-
-          return Padding(
-            padding: EdgeInsets.fromLTRB(
-              22,
-              22,
-              22,
-              MediaQuery.viewInsetsOf(sheet).bottom + 20,
-            ),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Показание одометра',
-                    style: TextStyle(color: white, fontSize: 20),
-                  ),
-                  const SizedBox(height: 16),
-                  KeyboardInput(
-                    controller: draft,
-                    autofocus: true,
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.done,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(9),
-                    ],
-                    style: const TextStyle(
-                      color: gold,
-                      fontSize: 32,
-                      letterSpacing: 3,
-                    ),
-                    cursorColor: gold,
-                    decoration: InputDecoration(
-                      suffixText: 'км',
-                      hintText: 'Введите показание',
-                      hintStyle: const TextStyle(
-                        fontSize: 18,
-                        color: Colors.white38,
-                      ),
-                      errorText: validation,
-                      filled: true,
-                      fillColor: const Color(0xFF080F14),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onSubmitted: (_) => accept(),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: gold,
-                        side: const BorderSide(color: gold),
-                        padding: const EdgeInsets.all(14),
-                      ),
-                      onPressed: accept,
-                      child: const Text('Готово'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-    final value = await route;
-    if (mounted && value != null)
-      setState(() {
-        widget.controller.text = value;
-        error = null;
-      });
-    // The closing sheet may still render its TextField during its transition.
-    Future<void>.delayed(const Duration(seconds: 1), draft.dispose);
-  }
-
   Future<void> submit() async {
     if (busy) return;
     final km = int.tryParse(widget.controller.text);
     if (!manual && km == null) {
       setState(() => error = 'Нажмите на одометр и введите показание');
-      await edit();
       return;
     }
     setState(() {
@@ -2467,62 +2350,24 @@ class _OpenShiftDashboardState extends State<_OpenShiftDashboard> {
     }
   }
 
-  Widget drum(String value) {
-    final digits = value.isEmpty ? '------' : value.padLeft(6, '0');
-    return Semantics(
-      button: true,
-      label: value.isEmpty
-          ? 'Ввести показание одометра'
-          : 'Показание одометра $value километров. Нажмите для изменения',
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: busy ? null : edit,
-        child: Row(
-          children: [
-            for (var i = 0; i < digits.length; i++)
-              Expanded(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(13),
-                    border: Border.all(
-                      color: const Color(0xFF37414A),
-                      width: 1.5,
-                    ),
-                    gradient: const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Color(0xFF03080B),
-                        Color(0xFF38424A),
-                        Color(0xFF101316),
-                        Color(0xFF24211B),
-                        Color(0xFF020507),
-                      ],
-                      stops: [0, .2, .49, .72, 1],
-                    ),
-                  ),
-                  child: Center(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        digits[i],
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 75,
-                          color: gold,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget drum(String value) => KeyboardInput(
+    controller: widget.controller,
+    enabled: !busy,
+    keyboardType: TextInputType.number,
+    textInputAction: TextInputAction.done,
+    inputFormatters: [
+      FilteringTextInputFormatter.digitsOnly,
+      LengthLimitingTextInputFormatter(9),
+    ],
+    style: const TextStyle(fontFamily: 'monospace', fontSize: 64, color: gold),
+    decoration: const InputDecoration(
+      hintText: '------',
+      border: InputBorder.none,
+    ),
+    onChanged: (_) {
+      if (error != null) setState(() => error = null);
+    },
+  );
 
   @override
   Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
@@ -2731,42 +2576,48 @@ class _OpenShiftDashboardState extends State<_OpenShiftDashboard> {
                 ],
               ),
             );
-            return SingleChildScrollView(
-              child: SizedBox(
-                width: box.maxWidth,
-                height: math.max(
-                  box.maxHeight,
-                  1536 * scale +
-                      safe +
-                      MediaQuery.viewPaddingOf(context).bottom,
-                ),
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: RepaintBoundary(
-                        child: _ExtendedArtwork(
-                          asset: 'assets/images/scenes/open_shift.png',
-                          topInset: safe,
-                        ),
-                      ),
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: RepaintBoundary(
+                    child: _ExtendedArtwork(
+                      asset: 'assets/images/scenes/open_shift.png',
+                      topInset: safe,
                     ),
-                    Positioned(
-                      top: safe,
-                      left: 0,
+                  ),
+                ),
+                KeyboardScrollArea(
+                  child: SingleChildScrollView(
+                    child: SizedBox(
                       width: box.maxWidth,
-                      height: 1536 * scale,
-                      child: FittedBox(
-                        fit: BoxFit.contain,
-                        child: MediaQuery.withClampedTextScaling(
-                          minScaleFactor: 1,
-                          maxScaleFactor: 1,
-                          child: scene,
-                        ),
+                      height: math.max(
+                        box.maxHeight,
+                        1536 * scale +
+                            safe +
+                            MediaQuery.viewPaddingOf(context).bottom,
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            top: safe,
+                            left: 0,
+                            width: box.maxWidth,
+                            height: 1536 * scale,
+                            child: FittedBox(
+                              fit: BoxFit.contain,
+                              child: MediaQuery.withClampedTextScaling(
+                                minScaleFactor: 1,
+                                maxScaleFactor: 1,
+                                child: scene,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             );
           },
         ),
@@ -2808,221 +2659,25 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
   late int? workedMinutes = widget.shift['hoursWorked'] == null
       ? null
       : ((widget.shift['hoursWorked'] as num) * 60).round();
-  Future<void> edit() async {
-    if (busy) return;
-    final draft = TextEditingController(text: widget.controller.text);
-    draft.selection = TextSelection(
-      baseOffset: 0,
-      extentOffset: draft.text.length,
-    );
-    String? validation;
-    final route = _showStableInput<String>(
-      context: context,
-      builder: (sheet) => StatefulBuilder(
-        builder: (sheet, update) {
-          void accept() {
-            if (int.tryParse(draft.text) == null) {
-              update(
-                () => validation = manual
-                    ? 'Введите пробег за смену'
-                    : 'Введите показание одометра',
-              );
-              return;
-            }
-            Navigator.pop(sheet, draft.text);
-          }
-
-          return Padding(
-            padding: EdgeInsets.fromLTRB(
-              22,
-              22,
-              22,
-              MediaQuery.viewInsetsOf(sheet).bottom + 20,
-            ),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    manual ? 'Пробег за смену' : 'Показание одометра',
-                    style: const TextStyle(color: white, fontSize: 20),
-                  ),
-                  const SizedBox(height: 16),
-                  KeyboardInput(
-                    controller: draft,
-                    autofocus: true,
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.done,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(9),
-                    ],
-                    style: const TextStyle(
-                      color: gold,
-                      fontSize: 32,
-                      letterSpacing: 3,
-                    ),
-                    cursorColor: gold,
-                    decoration: InputDecoration(
-                      suffixText: 'км',
-                      hintText: manual
-                          ? 'Введите километры'
-                          : 'Введите показание',
-                      hintStyle: const TextStyle(
-                        fontSize: 18,
-                        color: Colors.white38,
-                      ),
-                      errorText: validation,
-                      filled: true,
-                      fillColor: const Color(0xFF080F14),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onSubmitted: (_) => accept(),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: gold,
-                        side: const BorderSide(color: gold),
-                        padding: const EdgeInsets.all(14),
-                      ),
-                      onPressed: accept,
-                      child: const Text('Готово'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-    final value = await route;
-    if (mounted && value != null)
-      setState(() {
-        widget.controller.text = value;
-        error = null;
-      });
-    // The closing sheet may still render its TextField during its transition.
-    Future<void>.delayed(const Duration(seconds: 1), draft.dispose);
+  late final _hourInput = TextEditingController(
+    text: workedMinutes == null ? '' : '${workedMinutes! ~/ 60}',
+  );
+  late final _minuteInput = TextEditingController(
+    text: workedMinutes == null
+        ? '00'
+        : '${workedMinutes! % 60}'.padLeft(2, '0'),
+  );
+  void _hoursChanged(String _) {
+    final h = int.tryParse(_hourInput.text),
+        m = int.tryParse(_minuteInput.text);
+    workedMinutes = h == null || m == null || m > 59 ? null : h * 60 + m;
   }
 
-  Future<void> editHours() async {
-    if (busy) return;
-    final hour = TextEditingController(
-      text: workedMinutes == null ? '' : '${workedMinutes! ~/ 60}',
-    );
-    final minute = TextEditingController(
-      text: workedMinutes == null
-          ? '00'
-          : '${workedMinutes! % 60}'.padLeft(2, '0'),
-    );
-    String? validation;
-    final result = await _showStableInput<int>(
-      context: context,
-      builder: (sheet) => StatefulBuilder(
-        builder: (sheet, update) {
-          void accept() {
-            final h = int.tryParse(hour.text), m = int.tryParse(minute.text);
-            if (h == null || m == null || m > 59) {
-              update(() => validation = 'Введите часы и минуты от 00 до 59');
-              return;
-            }
-            Navigator.pop(sheet, h * 60 + m);
-          }
-
-          Widget field(TextEditingController c, String label, bool focus) =>
-              Expanded(
-                child: KeyboardInput(
-                  controller: c,
-                  autofocus: focus,
-                  keyboardType: TextInputType.number,
-                  textInputAction: focus
-                      ? TextInputAction.next
-                      : TextInputAction.done,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(focus ? 3 : 2),
-                  ],
-                  style: const TextStyle(color: gold, fontSize: 32),
-                  cursorColor: gold,
-                  decoration: InputDecoration(
-                    labelText: label,
-                    filled: true,
-                    fillColor: const Color(0xFF080F14),
-                    border: const OutlineInputBorder(),
-                  ),
-                  onSubmitted: focus ? null : (_) => accept(),
-                ),
-              );
-          return Padding(
-            padding: EdgeInsets.fromLTRB(
-              22,
-              22,
-              22,
-              MediaQuery.viewInsetsOf(sheet).bottom + 20,
-            ),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Отработанные часы',
-                    style: TextStyle(color: white, fontSize: 20),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      field(hour, 'Часы', true),
-                      const SizedBox(width: 16),
-                      field(minute, 'Минуты', false),
-                    ],
-                  ),
-                  if (validation != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        validation!,
-                        style: const TextStyle(color: gold),
-                      ),
-                    ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: accept,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: gold,
-                        side: const BorderSide(color: gold),
-                        padding: const EdgeInsets.all(14),
-                      ),
-                      child: const Text('Готово'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-    if (mounted && result != null)
-      setState(() {
-        workedMinutes = result;
-        error = null;
-      });
-    Future<void>.delayed(const Duration(seconds: 1), () {
-      hour.dispose();
-      minute.dispose();
-    });
+  @override
+  void dispose() {
+    _hourInput.dispose();
+    _minuteInput.dispose();
+    super.dispose();
   }
 
   Future<void> submit() async {
@@ -3034,7 +2689,6 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
             ? 'Введите пробег за смену'
             : 'Введите показание одометра',
       );
-      await edit();
       return;
     }
     if (!manual && km < (widget.shift['startKm'] as num)) {
@@ -3045,7 +2699,6 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
     }
     if (workedMinutes == null) {
       setState(() => error = 'Укажите отработанные часы');
-      await editHours();
       return;
     }
     setState(() {
@@ -3101,46 +2754,47 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
         ),
     ],
   );
-  Widget drum(String value) => Semantics(
-    button: true,
-    label: manual ? 'Изменить пробег за смену' : 'Изменить показание одометра',
-    child: GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: busy ? null : edit,
-      child: digits(value.isEmpty ? '------' : value.padLeft(6, '0')),
+  Widget drum(String value) => KeyboardInput(
+    controller: widget.controller,
+    enabled: !busy,
+    keyboardType: TextInputType.number,
+    textInputAction: TextInputAction.done,
+    inputFormatters: [
+      FilteringTextInputFormatter.digitsOnly,
+      LengthLimitingTextInputFormatter(9),
+    ],
+    style: const TextStyle(fontFamily: 'monospace', fontSize: 64, color: gold),
+    decoration: const InputDecoration(
+      hintText: '------',
+      border: InputBorder.none,
     ),
   );
-  Widget hoursDrum() => Semantics(
-    button: true,
-    label: 'Изменить отработанные часы',
-    child: GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: busy ? null : editHours,
-      child: Row(
-        children: [
-          Expanded(
-            child: digits(
-              workedMinutes == null
-                  ? '--'
-                  : '${workedMinutes! ~/ 60}'.padLeft(2, '0'),
+  Widget hoursDrum() => Row(
+    children: [
+      for (final item in [(_hourInput, 'Часы'), (_minuteInput, 'Минуты')])
+        Expanded(
+          child: KeyboardInput(
+            controller: item.$1,
+            enabled: !busy,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(item.$2 == 'Часы' ? 3 : 2),
+            ],
+            textInputAction: TextInputAction.next,
+            onChanged: _hoursChanged,
+            style: const TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 52,
+              color: gold,
+            ),
+            decoration: InputDecoration(
+              labelText: item.$2,
+              border: InputBorder.none,
             ),
           ),
-          const SizedBox(
-            width: 43,
-            child: Center(
-              child: Text(':', style: TextStyle(fontSize: 66, color: gold)),
-            ),
-          ),
-          Expanded(
-            child: digits(
-              workedMinutes == null
-                  ? '--'
-                  : '${workedMinutes! % 60}'.padLeft(2, '0'),
-            ),
-          ),
-        ],
-      ),
-    ),
+        ),
+    ],
   );
   @override
   Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
@@ -3350,42 +3004,48 @@ class _CloseShiftDashboardState extends State<_CloseShiftDashboard> {
                 ],
               ),
             );
-            return SingleChildScrollView(
-              child: SizedBox(
-                width: box.maxWidth,
-                height: math.max(
-                  box.maxHeight,
-                  1536 * scale +
-                      safe +
-                      MediaQuery.viewPaddingOf(context).bottom,
-                ),
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: RepaintBoundary(
-                        child: _ExtendedArtwork(
-                          asset: 'assets/images/scenes/close_shift.png',
-                          topInset: safe,
-                        ),
-                      ),
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: RepaintBoundary(
+                    child: _ExtendedArtwork(
+                      asset: 'assets/images/scenes/close_shift.png',
+                      topInset: safe,
                     ),
-                    Positioned(
-                      top: safe,
-                      left: 0,
+                  ),
+                ),
+                KeyboardScrollArea(
+                  child: SingleChildScrollView(
+                    child: SizedBox(
                       width: box.maxWidth,
-                      height: 1536 * scale,
-                      child: FittedBox(
-                        fit: BoxFit.contain,
-                        child: MediaQuery.withClampedTextScaling(
-                          minScaleFactor: 1,
-                          maxScaleFactor: 1,
-                          child: scene,
-                        ),
+                      height: math.max(
+                        box.maxHeight,
+                        1536 * scale +
+                            safe +
+                            MediaQuery.viewPaddingOf(context).bottom,
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            top: safe,
+                            left: 0,
+                            width: box.maxWidth,
+                            height: 1536 * scale,
+                            child: FittedBox(
+                              fit: BoxFit.contain,
+                              child: MediaQuery.withClampedTextScaling(
+                                minScaleFactor: 1,
+                                maxScaleFactor: 1,
+                                child: scene,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             );
           },
         ),

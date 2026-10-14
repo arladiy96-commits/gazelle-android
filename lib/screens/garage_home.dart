@@ -313,175 +313,177 @@ class _ReferenceHomeDashboard extends StatelessWidget {
         systemNavigationBarContrastEnforced: false,
       ),
       child: RepaintBoundary(
-        child: SingleChildScrollView(
-          physics: const ClampingScrollPhysics(),
-          child: SizedBox(
-            width: size.width,
-            height: viewportHeight,
-            child: ClipRect(
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: offsetX,
-                    top: 0,
-                    width: 853 * scale,
-                    height: 1844 * scale,
-                    child: FittedBox(
-                      fit: BoxFit.contain,
-                      child: MediaQuery.withClampedTextScaling(
-                        minScaleFactor: 1,
-                        maxScaleFactor: 1,
-                        child: scene,
+        child: KeyboardScrollArea(
+          child: SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
+            child: SizedBox(
+              width: size.width,
+              height: viewportHeight,
+              child: ClipRect(
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: offsetX,
+                      top: 0,
+                      width: 853 * scale,
+                      height: 1844 * scale,
+                      child: FittedBox(
+                        fit: BoxFit.contain,
+                        child: MediaQuery.withClampedTextScaling(
+                          minScaleFactor: 1,
+                          maxScaleFactor: 1,
+                          child: scene,
+                        ),
                       ),
                     ),
-                  ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: top * scale,
-                    height: 87 * scale,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 27 * scale),
-                      child: Row(
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: top * scale,
+                      height: 87 * scale,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 27 * scale),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _MillPress(
+                                label: 'Профиль $name',
+                                onTap: () => _openAccountMenu(context, session),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 64 * scale,
+                                      height: 64 * scale,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: const Color(0x6605090E),
+                                        border: Border.all(color: _millGold),
+                                        boxShadow: const [
+                                          BoxShadow(
+                                            color: Color(0x187A633D),
+                                            blurRadius: 9,
+                                          ),
+                                        ],
+                                      ),
+                                      child: Center(
+                                        child: _millText(initials, 25 * scale),
+                                      ),
+                                    ),
+                                    SizedBox(width: 13 * scale),
+                                    Expanded(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          _millText(
+                                            name,
+                                            24 * scale,
+                                            align: TextAlign.left,
+                                          ),
+                                          _millText(
+                                            session.role.title,
+                                            17 * scale,
+                                            color: const Color(0xFFBEC6CB),
+                                            align: TextAlign.left,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 452 * scale),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 187 * scale + offsetX,
+                      top: (top + 92) * scale,
+                      width: 480 * scale,
+                      height: 126 * scale,
+                      child: Column(
                         children: [
+                          _millText('Заработано за месяц', 22 * scale),
                           Expanded(
-                            child: _MillPress(
-                              label: 'Профиль $name',
-                              onTap: () => _openAccountMenu(context, session),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 64 * scale,
-                                    height: 64 * scale,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: const Color(0x6605090E),
-                                      border: Border.all(color: _millGold),
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Color(0x187A633D),
-                                          blurRadius: 9,
-                                        ),
-                                      ],
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: _MillPress(
+                                    label: 'Предыдущий месяц',
+                                    onTap: () => onMonthChanged(
+                                      DateTime(month.year, month.month - 1),
                                     ),
-                                    child: Center(
-                                      child: _millText(initials, 25 * scale),
+                                    child: const Icon(
+                                      Icons.chevron_left,
+                                      color: _millWhite,
                                     ),
                                   ),
-                                  SizedBox(width: 13 * scale),
-                                  Expanded(
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        _millText(
-                                          name,
-                                          24 * scale,
-                                          align: TextAlign.left,
-                                        ),
-                                        _millText(
-                                          session.role.title,
-                                          17 * scale,
-                                          color: const Color(0xFFBEC6CB),
-                                          align: TextAlign.left,
-                                        ),
-                                      ],
+                                ),
+                                Expanded(
+                                  flex: 5,
+                                  child: _MillPress(
+                                    label: 'Зарплата за выбранный месяц',
+                                    onTap: () => details('Зарплата'),
+                                    child: !AccountScope.canRead('salary')
+                                        ? const Text(
+                                            '—',
+                                            textAlign: TextAlign.center,
+                                          )
+                                        : _MillValue(
+                                            value: data.salary,
+                                            unit: ' ₸',
+                                            size: 62 * scale,
+                                            color: _millGold,
+                                          ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: _MillPress(
+                                    label: 'Следующий месяц',
+                                    onTap: () => onMonthChanged(
+                                      DateTime(month.year, month.month + 1),
+                                    ),
+                                    child: const Icon(
+                                      Icons.chevron_right,
+                                      color: _millWhite,
                                     ),
                                   ),
-                                ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          _MillPress(
+                            label: 'Выбрать месяц',
+                            onTap: () => _chooseMonth(context),
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 120),
+                              child: _millText(
+                                '${_garageMonths[month.month - 1]} ${month.year} ⌄',
+                                23 * scale,
+                                key: ValueKey(month),
                               ),
                             ),
                           ),
-                          SizedBox(width: 452 * scale),
                         ],
                       ),
                     ),
-                  ),
-                  Positioned(
-                    left: 187 * scale + offsetX,
-                    top: (top + 92) * scale,
-                    width: 480 * scale,
-                    height: 126 * scale,
-                    child: Column(
-                      children: [
-                        _millText('Заработано за месяц', 22 * scale),
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: _MillPress(
-                                  label: 'Предыдущий месяц',
-                                  onTap: () => onMonthChanged(
-                                    DateTime(month.year, month.month - 1),
-                                  ),
-                                  child: const Icon(
-                                    Icons.chevron_left,
-                                    color: _millWhite,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                flex: 5,
-                                child: _MillPress(
-                                  label: 'Зарплата за выбранный месяц',
-                                  onTap: () => details('Зарплата'),
-                                  child: !AccountScope.canRead('salary')
-                                      ? const Text(
-                                          '—',
-                                          textAlign: TextAlign.center,
-                                        )
-                                      : _MillValue(
-                                          value: data.salary,
-                                          unit: ' ₸',
-                                          size: 62 * scale,
-                                          color: _millGold,
-                                        ),
-                                ),
-                              ),
-                              Expanded(
-                                child: _MillPress(
-                                  label: 'Следующий месяц',
-                                  onTap: () => onMonthChanged(
-                                    DateTime(month.year, month.month + 1),
-                                  ),
-                                  child: const Icon(
-                                    Icons.chevron_right,
-                                    color: _millWhite,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        _MillPress(
-                          label: 'Выбрать месяц',
-                          onTap: () => _chooseMonth(context),
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 120),
-                            child: _millText(
-                              '${_garageMonths[month.month - 1]} ${month.year} ⌄',
-                              23 * scale,
-                              key: ValueKey(month),
-                            ),
-                          ),
-                        ),
-                      ],
+                    Positioned(
+                      left: 8,
+                      right: 8,
+                      bottom: padding.bottom + 3,
+                      child: _MillNavigation(
+                        onWork: () => onNavigate(1),
+                        onAdd: onQuickAdd,
+                        onInvoices: () => onNavigate(3),
+                        onMore: () => _openHomeMenu(context, session),
+                      ),
                     ),
-                  ),
-                  Positioned(
-                    left: 8,
-                    right: 8,
-                    bottom: padding.bottom + 3,
-                    child: _MillNavigation(
-                      onWork: () => onNavigate(1),
-                      onAdd: onQuickAdd,
-                      onInvoices: () => onNavigate(3),
-                      onMore: () => _openHomeMenu(context, session),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -2997,36 +2999,40 @@ class _PaidRoutesDashboardState extends State<_PaidRoutesDashboard> {
                   ],
                 ),
               );
-              return SingleChildScrollView(
-                child: SizedBox(
-                  width: box.maxWidth,
-                  height: math.max(
-                    box.maxHeight,
-                    1536 * scale + safe + MediaQuery.paddingOf(context).bottom,
-                  ),
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: _ExtendedArtwork(
-                          asset: 'assets/images/scenes/paid_dashboard.png',
-                          topInset: safe,
-                        ),
-                      ),
-                      Positioned(
-                        top: safe,
-                        left: 0,
-                        width: box.maxWidth,
-                        height: 1536 * scale,
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          child: MediaQuery.withClampedTextScaling(
-                            minScaleFactor: 1,
-                            maxScaleFactor: 1,
-                            child: scene,
+              return KeyboardScrollArea(
+                child: SingleChildScrollView(
+                  child: SizedBox(
+                    width: box.maxWidth,
+                    height: math.max(
+                      box.maxHeight,
+                      1536 * scale +
+                          safe +
+                          MediaQuery.paddingOf(context).bottom,
+                    ),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: _ExtendedArtwork(
+                            asset: 'assets/images/scenes/paid_dashboard.png',
+                            topInset: safe,
                           ),
                         ),
-                      ),
-                    ],
+                        Positioned(
+                          top: safe,
+                          left: 0,
+                          width: box.maxWidth,
+                          height: 1536 * scale,
+                          child: FittedBox(
+                            fit: BoxFit.contain,
+                            child: MediaQuery.withClampedTextScaling(
+                              minScaleFactor: 1,
+                              maxScaleFactor: 1,
+                              child: scene,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );

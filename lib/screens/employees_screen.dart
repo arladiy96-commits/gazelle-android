@@ -622,7 +622,9 @@ class _EmployeeEditorState extends State<_EmployeeEditor> {
     try {
       await SessionService.saveEmployee(
         id: widget.account?.id,
-        telegramId: EmployeeServerApi.enabled && widget.account == null ? _telegramId.text : null,
+        telegramId: EmployeeServerApi.enabled && widget.account == null
+            ? _telegramId.text
+            : null,
         name: _name.text,
         login: _login.text,
         role: _role,
@@ -718,89 +720,91 @@ class _EmployeeEditorState extends State<_EmployeeEditor> {
       ),
       content: SizedBox(
         width: 400,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (EmployeeServerApi.enabled && widget.account == null)
-                field(_telegramId, 'Telegram ID сотрудника'),
-              if (EmployeeServerApi.enabled && widget.account != null)
-                Text('Telegram ID: ${widget.account!.id}'),
-              field(_name, 'Имя и фамилия'),
-              field(_login, 'Логин'),
-              DropdownButtonFormField<AppRole>(
-                initialValue: _role,
-                decoration: const InputDecoration(labelText: 'Роль'),
-                items: [
-                  for (final role in AppRole.values.where(
-                    (r) =>
-                        r != AppRole.admin || widget.account?.isOwner == true,
-                  ))
-                    DropdownMenuItem(value: role, child: Text(role.title)),
-                ],
-                onChanged: _busy || _self
-                    ? null
-                    : (role) => setState(() => _role = role!),
-              ),
-              const SizedBox(height: 16),
-              field(
-                _password,
-                widget.account == null
-                    ? 'Пароль'
-                    : 'Новый пароль (необязательно)',
-                secret: true,
-              ),
-              field(_confirmation, 'Повторите пароль', secret: true),
-              if (_role == AppRole.loader) ...[
-                const Divider(),
-                const Text(
-                  'Оплата грузчика',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 12),
-                field(_rate, 'Часовая ставка, ₸'),
-                const Text(
-                  'Новая ставка применяется к новым сменам. Ставка сохранённых смен остаётся прежней.',
-                  style: TextStyle(fontSize: 12, color: Color(0xFFAEBAC2)),
-                ),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: _busy ? null : () => _changePayMonth(-1),
-                      icon: const Icon(Icons.chevron_left),
-                    ),
-                    Expanded(
-                      child: Text(
-                        'Удержание за ${_payMonth.month.toString().padLeft(2, '0')}.${_payMonth.year}',
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: _busy ? null : () => _changePayMonth(1),
-                      icon: const Icon(Icons.chevron_right),
-                    ),
+        child: KeyboardScrollArea(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (EmployeeServerApi.enabled && widget.account == null)
+                  field(_telegramId, 'Telegram ID сотрудника'),
+                if (EmployeeServerApi.enabled && widget.account != null)
+                  Text('Telegram ID: ${widget.account!.id}'),
+                field(_name, 'Имя и фамилия'),
+                field(_login, 'Логин'),
+                DropdownButtonFormField<AppRole>(
+                  initialValue: _role,
+                  decoration: const InputDecoration(labelText: 'Роль'),
+                  items: [
+                    for (final role in AppRole.values.where(
+                      (r) =>
+                          r != AppRole.admin || widget.account?.isOwner == true,
+                    ))
+                      DropdownMenuItem(value: role, child: Text(role.title)),
                   ],
+                  onChanged: _busy || _self
+                      ? null
+                      : (role) => setState(() => _role = role!),
                 ),
-                field(_deduction, 'Сумма удержания за месяц, ₸'),
-                const Text(
-                  'Сохраните изменения перед переходом к другому месяцу.',
-                  style: TextStyle(fontSize: 12, color: Color(0xFFAEBAC2)),
+                const SizedBox(height: 16),
+                field(
+                  _password,
+                  widget.account == null
+                      ? 'Пароль'
+                      : 'Новый пароль (необязательно)',
+                  secret: true,
                 ),
-              ],
-              if (widget.account != null)
-                const Text(
-                  'Пустое поле пароля сохраняет прежний пароль. Отключение доступа сохраняет рабочие данные.',
-                  style: TextStyle(color: Color(0xFFAEBAC2), fontSize: 12),
-                ),
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(
-                    _error!,
-                    style: const TextStyle(color: Color(0xFFE6B66D)),
+                field(_confirmation, 'Повторите пароль', secret: true),
+                if (_role == AppRole.loader) ...[
+                  const Divider(),
+                  const Text(
+                    'Оплата грузчика',
+                    style: TextStyle(fontWeight: FontWeight.w700),
                   ),
-                ),
-            ],
+                  const SizedBox(height: 12),
+                  field(_rate, 'Часовая ставка, ₸'),
+                  const Text(
+                    'Новая ставка применяется к новым сменам. Ставка сохранённых смен остаётся прежней.',
+                    style: TextStyle(fontSize: 12, color: Color(0xFFAEBAC2)),
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: _busy ? null : () => _changePayMonth(-1),
+                        icon: const Icon(Icons.chevron_left),
+                      ),
+                      Expanded(
+                        child: Text(
+                          'Удержание за ${_payMonth.month.toString().padLeft(2, '0')}.${_payMonth.year}',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _busy ? null : () => _changePayMonth(1),
+                        icon: const Icon(Icons.chevron_right),
+                      ),
+                    ],
+                  ),
+                  field(_deduction, 'Сумма удержания за месяц, ₸'),
+                  const Text(
+                    'Сохраните изменения перед переходом к другому месяцу.',
+                    style: TextStyle(fontSize: 12, color: Color(0xFFAEBAC2)),
+                  ),
+                ],
+                if (widget.account != null)
+                  const Text(
+                    'Пустое поле пароля сохраняет прежний пароль. Отключение доступа сохраняет рабочие данные.',
+                    style: TextStyle(color: Color(0xFFAEBAC2), fontSize: 12),
+                  ),
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(color: Color(0xFFE6B66D)),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

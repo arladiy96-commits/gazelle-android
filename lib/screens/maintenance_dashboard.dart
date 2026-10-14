@@ -749,406 +749,409 @@ class _MaintenancePageState extends State<_MaintenancePage> {
                 : ((book.odometer - oil.odometer) / oilInterval)
                       .clamp(0.0, 1.0)
                       .toDouble();
-            return SingleChildScrollView(
-              physics: height > box.maxHeight
-                  ? const ClampingScrollPhysics()
-                  : const NeverScrollableScrollPhysics(),
-              child: SizedBox(
-                width: box.maxWidth,
-                height: height,
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: Image.asset(
-                        _sceneAsset,
-                        fit: BoxFit.cover,
-        alignment: Alignment.topCenter,
-                      ),
-                    ),
-                    slice(0, 150),
-                    slice(150, 545),
-                    slice(545, 835),
-                    slice(835, 1536),
-                    at(
-                      59,
-                      65,
-                      80,
-                      78,
-                      tap(
-                        Icon(
-                          Icons.arrow_back_rounded,
-                          color: _gold,
-                          size: 40 * sx,
+            return KeyboardScrollArea(
+              child: SingleChildScrollView(
+                physics: height > box.maxHeight
+                    ? const ClampingScrollPhysics()
+                    : const NeverScrollableScrollPhysics(),
+                child: SizedBox(
+                  width: box.maxWidth,
+                  height: height,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: Image.asset(
+                          _sceneAsset,
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
                         ),
-                        () => Navigator.pop(context),
-                        'Назад',
                       ),
-                    ),
-                    at(
-                      734,
-                      65,
-                      80,
-                      78,
-                      tap(
-                        Icon(
-                          Icons.description_outlined,
-                          color: _gold,
-                          size: 40 * sx,
-                        ),
-                        _openBlank,
-                        'Создать бланк обслуживания',
-                      ),
-                    ),
-                    at(
-                      204,
-                      76,
-                      506,
-                      59,
-                      label('ТО и обслуживание', 47, bold: true),
-                    ),
-                    if (book == null)
+                      slice(0, 150),
+                      slice(150, 545),
+                      slice(545, 835),
+                      slice(835, 1536),
                       at(
-                        100,
-                        185,
-                        660,
-                        207,
-                        Center(
-                          child: _error == null
-                              ? const CircularProgressIndicator(color: _gold)
-                              : tap(
-                                  Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Text(
-                                      _error!,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(color: _white),
+                        59,
+                        65,
+                        80,
+                        78,
+                        tap(
+                          Icon(
+                            Icons.arrow_back_rounded,
+                            color: _gold,
+                            size: 40 * sx,
+                          ),
+                          () => Navigator.pop(context),
+                          'Назад',
+                        ),
+                      ),
+                      at(
+                        734,
+                        65,
+                        80,
+                        78,
+                        tap(
+                          Icon(
+                            Icons.description_outlined,
+                            color: _gold,
+                            size: 40 * sx,
+                          ),
+                          _openBlank,
+                          'Создать бланк обслуживания',
+                        ),
+                      ),
+                      at(
+                        204,
+                        76,
+                        506,
+                        59,
+                        label('ТО и обслуживание', 47, bold: true),
+                      ),
+                      if (book == null)
+                        at(
+                          100,
+                          185,
+                          660,
+                          207,
+                          Center(
+                            child: _error == null
+                                ? const CircularProgressIndicator(color: _gold)
+                                : tap(
+                                    Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Text(
+                                        _error!,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(color: _white),
+                                      ),
+                                    ),
+                                    _load,
+                                    'Повторить загрузку',
+                                  ),
+                          ),
+                        )
+                      else ...[
+                        oilAt(
+                          133,
+                          204,
+                          79,
+                          58,
+                          const _ServiceIcon('oil', color: _gold, size: 34),
+                        ),
+                        oilAt(
+                          228,
+                          202,
+                          351,
+                          34,
+                          label('Замена масла', 29, color: _muted),
+                        ),
+                        oilAt(
+                          604,
+                          198,
+                          146,
+                          42,
+                          tap(
+                            Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0x503A593B),
+                                borderRadius: BorderRadius.circular(99),
+                                border: Border.all(
+                                  color: const Color(0xFF74976B),
+                                  width: .7,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    oil == null
+                                        ? Icons.add_circle_outline
+                                        : Icons.check_circle,
+                                    color: const Color(0xFFA2C397),
+                                    size: 22 * sx,
+                                  ),
+                                  SizedBox(width: 6 * sx),
+                                  Flexible(
+                                    child: label(
+                                      oil == null ? 'Добавить' : 'Заменено',
+                                      20,
+                                      color: const Color(0xFFA2C397),
                                     ),
                                   ),
-                                  _load,
-                                  'Повторить загрузку',
-                                ),
-                        ),
-                      )
-                    else ...[
-                      oilAt(
-                        133,
-                        204,
-                        79,
-                        58,
-                        const _ServiceIcon('oil', color: _gold, size: 34),
-                      ),
-                      oilAt(
-                        228,
-                        202,
-                        351,
-                        34,
-                        label('Замена масла', 29, color: _muted),
-                      ),
-                      oilAt(
-                        604,
-                        198,
-                        146,
-                        42,
-                        tap(
-                          Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0x503A593B),
-                              borderRadius: BorderRadius.circular(99),
-                              border: Border.all(
-                                color: const Color(0xFF74976B),
-                                width: .7,
+                                ],
                               ),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  oil == null
-                                      ? Icons.add_circle_outline
-                                      : Icons.check_circle,
-                                  color: const Color(0xFFA2C397),
-                                  size: 22 * sx,
+                            () => _record(MaintenanceCatalog.byId('oil')),
+                            'Записать замену масла',
+                          ),
+                        ),
+                        oilAt(
+                          226,
+                          242,
+                          516,
+                          48,
+                          label(
+                            oilCaption,
+                            41,
+                            bold: true,
+                            color: remaining != null && remaining <= 0
+                                ? const Color(0xFFD59C89)
+                                : _gold,
+                          ),
+                        ),
+                        oilAt(
+                          135,
+                          294,
+                          610,
+                          19,
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(99),
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: const Color(0xFF5A6368),
                                 ),
-                                SizedBox(width: 6 * sx),
-                                Flexible(
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                              child: Padding(
+                                padding: EdgeInsets.all(2 * sx),
+                                child: LinearProgressIndicator(
+                                  value: progress,
+                                  color: _gold,
+                                  backgroundColor: const Color(0xFF252E34),
+                                  minHeight: 8,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        oilAt(
+                          135,
+                          327,
+                          610,
+                          29,
+                          label(
+                            oil == null
+                                ? 'Последняя замена ещё не указана'
+                                : '${_serviceDate(oil.date)} · ${_serviceKm(oil.odometer)} → ${_serviceKm(oil.odometer + oilInterval)}',
+                            25,
+                          ),
+                        ),
+                        oilAt(
+                          135,
+                          361,
+                          610,
+                          29,
+                          label(
+                            'Текущий пробег: ${_serviceKm(book.odometer)} · интервал ${_serviceKm(oilInterval)}',
+                            23,
+                            color: _muted,
+                          ),
+                        ),
+                        at(
+                          76,
+                          432,
+                          245,
+                          99,
+                          smallStat(
+                            Icons.access_time_rounded,
+                            'Последняя работа',
+                            last == null ? '—' : _serviceDate(last.date),
+                            last == null ? '' : _serviceKm(last.odometer),
+                          ),
+                        ),
+                        at(
+                          341,
+                          432,
+                          222,
+                          99,
+                          smallStat(
+                            Icons.description_outlined,
+                            'Работ в истории',
+                            '${allRows.length}',
+                            '',
+                          ),
+                        ),
+                        at(
+                          582,
+                          432,
+                          222,
+                          99,
+                          smallStat(
+                            Icons.build_outlined,
+                            'Следующее ТО',
+                            oil == null
+                                ? '—'
+                                : _serviceKm(oil.odometer + oilInterval),
+                            remaining == null
+                                ? ''
+                                : remaining > 0
+                                ? 'через ${_serviceKm(remaining)}'
+                                : 'пора обслужить',
+                          ),
+                        ),
+                        if (_error != null)
+                          at(
+                            103,
+                            549,
+                            658,
+                            41,
+                            tap(
+                              Container(
+                                color: const Color(0xEA0B1115),
+                                child: label(
+                                  _error!,
+                                  23,
+                                  color: const Color(0xFFD59C89),
+                                ),
+                              ),
+                              _load,
+                              'Повторить загрузку',
+                            ),
+                          ),
+                        at(
+                          74,
+                          853,
+                          231,
+                          40,
+                          label('История · ${rows.length}', 27),
+                        ),
+                        if (_filter != null)
+                          at(
+                            310,
+                            853,
+                            212,
+                            40,
+                            tap(
+                              label('Все работы', 23, color: _gold),
+                              () => setState(() => _filter = null),
+                              'Все работы',
+                            ),
+                          ),
+                        at(
+                          570,
+                          850,
+                          217,
+                          45,
+                          PopupMenuButton<bool>(
+                            tooltip: 'Порядок истории',
+                            initialValue: _newestFirst,
+                            color: const Color(0xFF11191D),
+                            onSelected: (value) =>
+                                setState(() => _newestFirst = value),
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(
+                                value: true,
+                                child: Text('Сначала новые'),
+                              ),
+                              PopupMenuItem(
+                                value: false,
+                                child: Text('Сначала старые'),
+                              ),
+                            ],
+                            child: Row(
+                              children: [
+                                Icon(Icons.sort, color: _gold, size: 28 * sx),
+                                SizedBox(width: 8 * sx),
+                                Expanded(
                                   child: label(
-                                    oil == null ? 'Добавить' : 'Заменено',
-                                    20,
-                                    color: const Color(0xFFA2C397),
+                                    _newestFirst
+                                        ? 'Сначала новые'
+                                        : 'Сначала старые',
+                                    21,
+                                    color: _gold,
                                   ),
+                                ),
+                                Icon(
+                                  Icons.expand_more,
+                                  color: _gold,
+                                  size: 25 * sx,
                                 ),
                               ],
                             ),
                           ),
-                          () => _record(MaintenanceCatalog.byId('oil')),
-                          'Записать замену масла',
                         ),
-                      ),
-                      oilAt(
-                        226,
-                        242,
-                        516,
-                        48,
-                        label(
-                          oilCaption,
-                          41,
-                          bold: true,
-                          color: remaining != null && remaining <= 0
-                              ? const Color(0xFFD59C89)
-                              : _gold,
-                        ),
-                      ),
-                      oilAt(
-                        135,
-                        294,
-                        610,
-                        19,
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(99),
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: const Color(0xFF5A6368),
-                              ),
-                              borderRadius: BorderRadius.circular(99),
-                            ),
-                            child: Padding(
-                              padding: EdgeInsets.all(2 * sx),
-                              child: LinearProgressIndicator(
-                                value: progress,
-                                color: _gold,
-                                backgroundColor: const Color(0xFF252E34),
-                                minHeight: 8,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      oilAt(
-                        135,
-                        327,
-                        610,
-                        29,
-                        label(
-                          oil == null
-                              ? 'Последняя замена ещё не указана'
-                              : '${_serviceDate(oil.date)} · ${_serviceKm(oil.odometer)} → ${_serviceKm(oil.odometer + oilInterval)}',
-                          25,
-                        ),
-                      ),
-                      oilAt(
-                        135,
-                        361,
-                        610,
-                        29,
-                        label(
-                          'Текущий пробег: ${_serviceKm(book.odometer)} · интервал ${_serviceKm(oilInterval)}',
-                          23,
-                          color: _muted,
-                        ),
-                      ),
-                      at(
-                        76,
-                        432,
-                        245,
-                        99,
-                        smallStat(
-                          Icons.access_time_rounded,
-                          'Последняя работа',
-                          last == null ? '—' : _serviceDate(last.date),
-                          last == null ? '' : _serviceKm(last.odometer),
-                        ),
-                      ),
-                      at(
-                        341,
-                        432,
-                        222,
-                        99,
-                        smallStat(
-                          Icons.description_outlined,
-                          'Работ в истории',
-                          '${allRows.length}',
-                          '',
-                        ),
-                      ),
-                      at(
-                        582,
-                        432,
-                        222,
-                        99,
-                        smallStat(
-                          Icons.build_outlined,
-                          'Следующее ТО',
-                          oil == null
-                              ? '—'
-                              : _serviceKm(oil.odometer + oilInterval),
-                          remaining == null
-                              ? ''
-                              : remaining > 0
-                              ? 'через ${_serviceKm(remaining)}'
-                              : 'пора обслужить',
-                        ),
-                      ),
-                      if (_error != null)
                         at(
-                          103,
-                          549,
-                          658,
-                          41,
-                          tap(
-                            Container(
-                              color: const Color(0xEA0B1115),
-                              child: label(
-                                _error!,
-                                23,
-                                color: const Color(0xFFD59C89),
-                              ),
-                            ),
-                            _load,
-                            'Повторить загрузку',
+                          60,
+                          914,
+                          745,
+                          420,
+                          historySurface(
+                            rows.isEmpty
+                                ? Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: const Color(0xFF776044),
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    padding: EdgeInsets.all(28 * sx),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      _filter != null
+                                          ? 'По вашему запросу ничего не найдено.'
+                                          : 'Записей нет. Добавьте выполненную работу.',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: _muted,
+                                        fontSize: 25 * sx,
+                                      ),
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    padding: EdgeInsets.zero,
+                                    primary: false,
+                                    keyboardDismissBehavior:
+                                        ScrollViewKeyboardDismissBehavior
+                                            .onDrag,
+                                    itemCount: rows.length,
+                                    itemBuilder: (_, i) => entryTile(rows[i]),
+                                  ),
                           ),
                         ),
-                      at(
-                        74,
-                        853,
-                        231,
-                        40,
-                        label('История · ${rows.length}', 27),
-                      ),
-                      if (_filter != null)
                         at(
-                          310,
-                          853,
-                          212,
-                          40,
+                          150,
+                          1358,
+                          568,
+                          98,
                           tap(
-                            label('Все работы', 23, color: _gold),
-                            () => setState(() => _filter = null),
-                            'Все работы',
-                          ),
-                        ),
-                      at(
-                        570,
-                        850,
-                        217,
-                        45,
-                        PopupMenuButton<bool>(
-                          tooltip: 'Порядок истории',
-                          initialValue: _newestFirst,
-                          color: const Color(0xFF11191D),
-                          onSelected: (value) =>
-                              setState(() => _newestFirst = value),
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(
-                              value: true,
-                              child: Text('Сначала новые'),
-                            ),
-                            PopupMenuItem(
-                              value: false,
-                              child: Text('Сначала старые'),
-                            ),
-                          ],
-                          child: Row(
-                            children: [
-                              Icon(Icons.sort, color: _gold, size: 28 * sx),
-                              SizedBox(width: 8 * sx),
-                              Expanded(
-                                child: label(
-                                  _newestFirst
-                                      ? 'Сначала новые'
-                                      : 'Сначала старые',
-                                  21,
-                                  color: _gold,
-                                ),
-                              ),
-                              Icon(
-                                Icons.expand_more,
-                                color: _gold,
-                                size: 25 * sx,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      at(
-                        60,
-                        914,
-                        745,
-                        420,
-                        historySurface(
-                          rows.isEmpty
-                              ? Container(
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 68 * sx,
+                                  height: 68 * sx,
                                   decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: const Color(0xFF776044),
-                                    ),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  padding: EdgeInsets.all(28 * sx),
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    _filter != null
-                                        ? 'По вашему запросу ничего не найдено.'
-                                        : 'Записей нет. Добавьте выполненную работу.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: _muted,
-                                      fontSize: 25 * sx,
+                                      color: _gold,
+                                      width: 2 * sx,
                                     ),
                                   ),
-                                )
-                              : ListView.builder(
-                                  padding: EdgeInsets.zero,
-                                  primary: false,
-                                  keyboardDismissBehavior:
-                                      ScrollViewKeyboardDismissBehavior.onDrag,
-                                  itemCount: rows.length,
-                                  itemBuilder: (_, i) => entryTile(rows[i]),
-                                ),
-                        ),
-                      ),
-                      at(
-                        150,
-                        1358,
-                        568,
-                        98,
-                        tap(
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 68 * sx,
-                                height: 68 * sx,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
+                                  child: Icon(
+                                    Icons.add,
+                                    size: 47 * sx,
                                     color: _gold,
-                                    width: 2 * sx,
                                   ),
                                 ),
-                                child: Icon(
-                                  Icons.add,
-                                  size: 47 * sx,
-                                  color: _gold,
+                                SizedBox(width: 20 * sx),
+                                Flexible(
+                                  child: label(
+                                    'Добавить обслуживание',
+                                    31,
+                                    color: _gold,
+                                    bold: true,
+                                  ),
                                 ),
-                              ),
-                              SizedBox(width: 20 * sx),
-                              Flexible(
-                                child: label(
-                                  'Добавить обслуживание',
-                                  31,
-                                  color: _gold,
-                                  bold: true,
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
+                            _add,
+                            'Добавить обслуживание',
                           ),
-                          _add,
-                          'Добавить обслуживание',
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             );
@@ -1514,104 +1517,112 @@ class _MaintenanceEntryFormState extends State<_MaintenanceEntryForm> {
           borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
           border: Border.all(color: _amber.withValues(alpha: .6)),
         ),
-        child: SingleChildScrollView(
-          child: AbsorbPointer(
-            absorbing: _saving,
-            child: Form(
-              key: _form,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(child: Text(widget.item.title,
-                        style: const TextStyle(color: _amber, fontSize: 24))),
-                      IconButton(
-                        tooltip: 'Закрыть',
-                        onPressed: _saving ? null : () => Navigator.pop(context),
-                        icon: const Icon(Icons.close, color: _paper),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Запись обслуживания',
-                    style: TextStyle(color: _paper),
-                  ),
-                  const SizedBox(height: 18),
-                  TextButton.icon(
-                    onPressed: () => _pick(false),
-                    icon: const Icon(Icons.calendar_month),
-                    label: Text('Дата: ${_serviceDate(_date)}'),
-                  ),
-                  _number(_at, 'Пробег при обслуживании, км'),
-                  ExpansionTile(
-                    title: const Text('Уточнить текущий пробег'),
-                    children: [_number(_current, 'Текущий пробег, км')],
-                  ),
-                  if (widget.item.id == 'oil')
-                    Text(
-                      'Интервал замены — ${_fmtInt((_interval > 0 ? _interval : 10000).toDouble())} км.',
-                      style: TextStyle(color: _amber),
+        child: KeyboardScrollArea(
+          child: SingleChildScrollView(
+            child: AbsorbPointer(
+              absorbing: _saving,
+              child: Form(
+                key: _form,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            widget.item.title,
+                            style: const TextStyle(color: _amber, fontSize: 24),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Закрыть',
+                          onPressed: _saving
+                              ? null
+                              : () => Navigator.pop(context),
+                          icon: const Icon(Icons.close, color: _paper),
+                        ),
+                      ],
                     ),
-                  if (widget.item.usesDate)
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Запись обслуживания',
+                      style: TextStyle(color: _paper),
+                    ),
+                    const SizedBox(height: 18),
                     TextButton.icon(
-                      onPressed: () => _pick(true),
-                      icon: const Icon(Icons.event),
-                      label: Text(
-                        _nextDate == null
-                            ? 'Указать срок действия'
-                            : 'До ${_serviceDate(_nextDate!)}',
+                      onPressed: () => _pick(false),
+                      icon: const Icon(Icons.calendar_month),
+                      label: Text('Дата: ${_serviceDate(_date)}'),
+                    ),
+                    _number(_at, 'Пробег при обслуживании, км'),
+                    ExpansionTile(
+                      title: const Text('Уточнить текущий пробег'),
+                      children: [_number(_current, 'Текущий пробег, км')],
+                    ),
+                    if (widget.item.id == 'oil')
+                      Text(
+                        'Интервал замены — ${_fmtInt((_interval > 0 ? _interval : 10000).toDouble())} км.',
+                        style: TextStyle(color: _amber),
                       ),
-                    )
-                  else if (widget.item.id != 'oil')
+                    if (widget.item.usesDate)
+                      TextButton.icon(
+                        onPressed: () => _pick(true),
+                        icon: const Icon(Icons.event),
+                        label: Text(
+                          _nextDate == null
+                              ? 'Указать срок действия'
+                              : 'До ${_serviceDate(_nextDate!)}',
+                        ),
+                      )
+                    else if (widget.item.id != 'oil')
+                      _number(
+                        _next,
+                        'Следующая замена на пробеге, км (необязательно)',
+                        optional: true,
+                      ),
                     _number(
-                      _next,
-                      'Следующая замена на пробеге, км (необязательно)',
+                      _cost,
+                      'Стоимость, ₸ (необязательно)',
                       optional: true,
+                      money: true,
                     ),
-                  _number(
-                    _cost,
-                    'Стоимость, ₸ (необязательно)',
-                    optional: true,
-                    money: true,
-                  ),
-                  KeyboardInput(
-                    controller: _note,
-                    maxLines: 3,
-                    validator: (v) =>
-                        widget.item.id.startsWith('other_') &&
-                            (v ?? '').trim().isEmpty
-                        ? 'Укажите название работы или документа'
-                        : null,
-                    style: const TextStyle(color: _paper),
-                    decoration: const InputDecoration(
-                      labelText: 'Что сделано',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Text(
-                        _error!,
-                        style: const TextStyle(color: Colors.redAccent),
+                    KeyboardInput(
+                      controller: _note,
+                      maxLines: 3,
+                      validator: (v) =>
+                          widget.item.id.startsWith('other_') &&
+                              (v ?? '').trim().isEmpty
+                          ? 'Укажите название работы или документа'
+                          : null,
+                      style: const TextStyle(color: _paper),
+                      decoration: const InputDecoration(
+                        labelText: 'Что сделано',
+                        border: OutlineInputBorder(),
                       ),
                     ),
-                  const SizedBox(height: 20),
-                  OutlinedButton(
-                    onPressed: _saving ? null : _save,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: _amber,
-                      side: const BorderSide(color: _amber),
-                      padding: const EdgeInsets.all(18),
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text(
+                          _error!,
+                          style: const TextStyle(color: Colors.redAccent),
+                        ),
+                      ),
+                    const SizedBox(height: 20),
+                    OutlinedButton(
+                      onPressed: _saving ? null : _save,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _amber,
+                        side: const BorderSide(color: _amber),
+                        padding: const EdgeInsets.all(18),
+                      ),
+                      child: Text(
+                        _saving ? 'Сохранение…' : 'Сохранить обслуживание',
+                      ),
                     ),
-                    child: Text(
-                      _saving ? 'Сохранение…' : 'Сохранить обслуживание',
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -1640,7 +1651,7 @@ class _ServiceNoteDialogState extends State<_ServiceNoteDialog> {
 
   @override
   Widget build(BuildContext context) => Dialog(
-      alignment: Alignment.topCenter,
+    alignment: Alignment.topCenter,
     insetAnimationDuration: Duration.zero,
     backgroundColor: Colors.transparent,
     surfaceTintColor: Colors.transparent,
@@ -1663,82 +1674,86 @@ class _ServiceNoteDialogState extends State<_ServiceNoteDialog> {
             ],
           ),
           padding: const EdgeInsets.all(22),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.edit_note_rounded,
-                      color: _amber,
-                      size: 28,
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'Примечание',
-                        style: TextStyle(
-                          color: _paper,
-                          fontSize: 21,
-                          fontWeight: FontWeight.w500,
+          child: KeyboardScrollArea(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.edit_note_rounded,
+                        color: _amber,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Примечание',
+                          style: TextStyle(
+                            color: _paper,
+                            fontSize: 21,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      tooltip: 'Закрыть',
-                      icon: const Icon(Icons.close, color: _ice, size: 22),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                KeyboardInput(
-                  controller: _text,
-                  minLines: 3,
-                  maxLines: 6,
-                  style: const TextStyle(
-                    color: _paper,
-                    fontSize: 16,
-                    height: 1.5,
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        tooltip: 'Закрыть',
+                        icon: const Icon(Icons.close, color: _ice, size: 22),
+                      ),
+                    ],
                   ),
-                  cursorColor: _amber,
-                  decoration: InputDecoration(
-                    hintText: 'Детали, марка масла или важная заметка…',
-                    hintStyle: TextStyle(
-                      color: _ice.withValues(alpha: .65),
-                      fontSize: 15,
+                  const SizedBox(height: 12),
+                  KeyboardInput(
+                    controller: _text,
+                    minLines: 3,
+                    maxLines: 6,
+                    style: const TextStyle(
+                      color: _paper,
+                      fontSize: 16,
+                      height: 1.5,
                     ),
-                    filled: true,
-                    fillColor: const Color(0x55040D12),
-                    contentPadding: const EdgeInsets.all(16),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      borderSide: BorderSide(color: _ice.withValues(alpha: .3)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      borderSide: const BorderSide(color: _amber),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.pop(context, _text.text),
-                  icon: const Icon(Icons.check, size: 20),
-                  label: const Text('Сохранить'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _amber,
-                    backgroundColor: const Color(0x33293739),
-                    side: const BorderSide(color: _amber),
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                    cursorColor: _amber,
+                    decoration: InputDecoration(
+                      hintText: 'Детали, марка масла или важная заметка…',
+                      hintStyle: TextStyle(
+                        color: _ice.withValues(alpha: .65),
+                        fontSize: 15,
+                      ),
+                      filled: true,
+                      fillColor: const Color(0x55040D12),
+                      contentPadding: const EdgeInsets.all(16),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide: BorderSide(
+                          color: _ice.withValues(alpha: .3),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide: const BorderSide(color: _amber),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 20),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(context, _text.text),
+                    icon: const Icon(Icons.check, size: 20),
+                    label: const Text('Сохранить'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _amber,
+                      backgroundColor: const Color(0x33293739),
+                      side: const BorderSide(color: _amber),
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1837,7 +1852,7 @@ class _VehicleDocumentsPageState extends State<_VehicleDocumentsPage> {
       context: context,
       backgroundColor: const Color(0xFF11191D),
       builder: (context) => SafeArea(
-      maintainBottomViewPadding: true,
+        maintainBottomViewPadding: true,
         child: Padding(
           padding: const EdgeInsets.all(22),
           child: Column(
@@ -2204,83 +2219,85 @@ class _VehicleDocumentsPageState extends State<_VehicleDocumentsPage> {
             ];
           }
 
-          return SingleChildScrollView(
-            physics: height > box.maxHeight
-                ? const ClampingScrollPhysics()
-                : const NeverScrollableScrollPhysics(),
-            child: SizedBox(
-              height: height,
-              width: box.maxWidth,
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: Image.asset(
-                      'assets/images/scenes/documents_reference.png',
-                      fit: BoxFit.fill,
-                    ),
-                  ),
-                  at(
-                    54,
-                    150,
-                    65,
-                    68,
-                    tap(
-                      Icon(
-                        Icons.arrow_back_rounded,
-                        color: gold,
-                        size: 48 * sx,
+          return KeyboardScrollArea(
+            child: SingleChildScrollView(
+              physics: height > box.maxHeight
+                  ? const ClampingScrollPhysics()
+                  : const NeverScrollableScrollPhysics(),
+              child: SizedBox(
+                height: height,
+                width: box.maxWidth,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Image.asset(
+                        'assets/images/scenes/documents_reference.png',
+                        fit: BoxFit.fill,
                       ),
-                      () => Navigator.pop(context),
-                      'Назад',
                     ),
-                  ),
-                  at(150, 151, 561, 68, text('Документы', 57, bold: true)),
-                  at(
-                    752,
-                    150,
-                    69,
-                    68,
-                    tap(
-                      Icon(Icons.refresh_rounded, color: gold, size: 51 * sx),
-                      load,
-                      'Обновить данные',
-                    ),
-                  ),
-                  if (error != null)
                     at(
-                      86,
-                      250,
-                      694,
-                      67,
+                      54,
+                      150,
+                      65,
+                      68,
                       tap(
-                        Container(
-                          color: const Color(0xDC10171B),
-                          padding: EdgeInsets.all(8 * sx),
-                          child: text(
-                            error!,
-                            25,
-                            color: const Color(0xFFE7A087),
-                          ),
+                        Icon(
+                          Icons.arrow_back_rounded,
+                          color: gold,
+                          size: 48 * sx,
                         ),
-                        load,
-                        'Повторить загрузку',
+                        () => Navigator.pop(context),
+                        'Назад',
                       ),
                     ),
-                  if (book == null && error == null)
+                    at(150, 151, 561, 68, text('Документы', 57, bold: true)),
                     at(
-                      310,
-                      510,
-                      244,
-                      122,
-                      const Center(
-                        child: CircularProgressIndicator(color: gold),
+                      752,
+                      150,
+                      69,
+                      68,
+                      tap(
+                        Icon(Icons.refresh_rounded, color: gold, size: 51 * sx),
+                        load,
+                        'Обновить данные',
                       ),
-                    )
-                  else ...[
-                    ...panel('insurance', 0),
-                    ...panel('inspection', 473),
+                    ),
+                    if (error != null)
+                      at(
+                        86,
+                        250,
+                        694,
+                        67,
+                        tap(
+                          Container(
+                            color: const Color(0xDC10171B),
+                            padding: EdgeInsets.all(8 * sx),
+                            child: text(
+                              error!,
+                              25,
+                              color: const Color(0xFFE7A087),
+                            ),
+                          ),
+                          load,
+                          'Повторить загрузку',
+                        ),
+                      ),
+                    if (book == null && error == null)
+                      at(
+                        310,
+                        510,
+                        244,
+                        122,
+                        const Center(
+                          child: CircularProgressIndicator(color: gold),
+                        ),
+                      )
+                    else ...[
+                      ...panel('insurance', 0),
+                      ...panel('inspection', 473),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           );
@@ -2690,7 +2707,7 @@ class _MaintenanceBlankPreviewState extends State<_MaintenanceBlankPreview> {
         automaticallyImplyLeading: !_saving,
       ),
       body: SafeArea(
-      maintainBottomViewPadding: true,
+        maintainBottomViewPadding: true,
         child: Column(
           children: [
             Expanded(

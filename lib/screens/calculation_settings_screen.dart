@@ -113,215 +113,19 @@ class _CalculationSettingsScreenState
       ? book.currentSalaryRates[key.substring(7)]!
       : book.calculationSettings[key] ?? 0;
 
-  Future<void> edit(TestState book, (String, String, String) field) async {
-    if (busy) return;
-    HapticFeedback.selectionClick();
-
-    final key = field.$1;
-    final current = value(book, key);
-    final isList = current is List;
-    final controller = TextEditingController(
-      text: isList ? current.join('\n') : show(current),
-    );
-
-    Object? selected;
-    String? error;
-    bool toggle = current == true;
-
-    selected = await showDialog<Object>(
-      context: context,
-      barrierColor: Colors.black.withValues(alpha: .72),
-      builder: (dialog) => StatefulBuilder(
-        builder: (c, update) => _KeyboardAlertDialog(
-          alignment: Alignment.topCenter,
-          scrollable: true,
-          backgroundColor: const Color(0xFF0C1216),
-          surfaceTintColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-            side: const BorderSide(color: Color(0xFF8B6A3D), width: 1.1),
-          ),
-          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-          contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
-          actionsPadding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-          title: Row(
-            children: [
-              _SettingsIconPlate(icon: groupIcon(widget.group), size: 44),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  field.$2,
-                  style: const TextStyle(
-                    color: white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _SettingsHairline(),
-                const SizedBox(height: 15),
-                if (current is bool)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 5,
-                    ),
-                    decoration: _SettingsChrome.panelDecoration(radius: 14),
-                    child: SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        field.$3,
-                        style: const TextStyle(color: muted, fontSize: 13),
-                      ),
-                      activeThumbColor: gold,
-                      activeTrackColor: gold.withValues(alpha: .35),
-                      value: toggle,
-                      onChanged: (v) => update(() => toggle = v),
-                    ),
-                  )
-                else
-                  KeyboardInput(
-                    style: const TextStyle(
-                      color: white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    cursorColor: gold,
-                    controller: controller,
-                    autofocus: true,
-                    maxLines: isList ? 6 : 1,
-                    keyboardType: isList
-                        ? TextInputType.multiline
-                        : const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: const Color(0xFF11191E),
-                      helperStyle: const TextStyle(color: muted, fontSize: 11),
-                      helperText: field.$3,
-                      errorText: error,
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(13),
-                        borderSide: const BorderSide(
-                          color: Color(0xFF66543B),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(13),
-                        borderSide: const BorderSide(color: gold, width: 1.2),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(13),
-                        borderSide: const BorderSide(color: Color(0xFFC96352)),
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 14),
-                Text(
-                  key.startsWith('gasCalculator') || key == 'gasTank'
-                      ? 'Применится сразу к калькулятору.'
-                      : key.startsWith('maintenance.')
-                      ? 'Интервал подставляется в новые записи обслуживания. Существующие сроки сохраняются.'
-                      : widget.group == 'Рабочий календарь'
-                      ? 'Применится к новым сменам. Нормы и условия внесённых смен сохраняются.'
-                      : 'С момента сохранения. Старые записи сохраняют свои условия расчёта.',
-                  style: const TextStyle(color: muted, fontSize: 12, height: 1.35),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              style: TextButton.styleFrom(foregroundColor: muted),
-              onPressed: () => Navigator.pop(dialog),
-              child: const Text('Отмена'),
-            ),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF4A351E),
-                foregroundColor: const Color(0xFFFFD28A),
-                side: const BorderSide(color: gold),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () {
-                try {
-                  Object v;
-                  if (current is bool) {
-                    v = toggle;
-                  } else if (isList) {
-                    final list = controller.text
-                        .split(RegExp(r'[,;\n]'))
-                        .map((s) => s.trim())
-                        .where((s) => s.isNotEmpty)
-                        .toSet()
-                        .toList();
-                    v = key == 'workdays' ? list.map(int.parse).toList() : list;
-                  } else {
-                    final input = controller.text
-                        .trim()
-                        .replaceAll(' ', '')
-                        .replaceAll(',', '.');
-                    if (!RegExp(r'^\d+(?:\.\d{1,2})?$').hasMatch(input)) {
-                      throw ArgumentError('Не более двух знаков после запятой');
-                    }
-                    v = double.parse(input);
-                  }
-                  if (key.startsWith('salary.')) {
-                    if (v is! num || !v.isFinite || v < 0 || v > 999999999) {
-                      throw ArgumentError('Проверьте ставку');
-                    }
-                  } else {
-                    CalculationSettings.validate(key, v);
-                  }
-                  Navigator.pop(dialog, v);
-                } catch (e) {
-                  update(
-                    () => error = e is ArgumentError
-                        ? '${e.message}'
-                        : 'Проверьте введённые значения',
-                  );
-                }
-              },
-              icon: const Icon(Icons.check_rounded, size: 18),
-              label: const Text('Сохранить'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    controller.dispose();
-    if (!mounted || selected == null) return;
-
-    setState(() => busy = true);
-    try {
-      if (key.startsWith('salary.')) {
-        await TestStore.setSalaryRate(
-          key.substring(7),
-          (selected as num).toDouble(),
-        );
-      } else {
-        await TestStore.setCalculationSetting(key, selected);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Не удалось сохранить: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => busy = false);
+  Future<void> _saveParameter(String key, Object selected) async {
+    if (key.startsWith('salary.')) {
+      if (selected is! num ||
+          !selected.isFinite ||
+          selected < 0 ||
+          selected > 999999999)
+        throw ArgumentError('Проверьте ставку');
+      await TestStore.setSalaryRate(key.substring(7), selected.toDouble());
+    } else {
+      CalculationSettings.validate(key, selected);
+      await TestStore.setCalculationSetting(key, selected);
     }
+    if (mounted) setState(() {});
   }
 
   IconData groupIcon(String? name) => switch (name) {
@@ -393,84 +197,52 @@ class _CalculationSettingsScreenState
     );
   }
 
-  Widget _parameterTile(
-    TestState book,
-    (String, String, String) field,
-  ) {
+  Widget _parameterTile(TestState book, (String, String, String) field) {
     final current = value(book, field.$1);
-    final valueText = show(current);
-    final enabled = current is bool && current;
-
-    return _SettingsInteractivePlate(
-      onTap: busy ? null : () => edit(book, field),
-      dense: true,
-      child: Row(
-        children: [
-          _SettingsIconPlate(icon: groupIcon(widget.group), size: 40),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  field.$2,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    height: 1.12,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  field.$3,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: muted,
-                    fontSize: 9.8,
-                    height: 1.18,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 126),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                color: enabled
-                    ? gold.withValues(alpha: .13)
-                    : const Color(0x7A0B1115),
-                border: Border.all(
-                  color: enabled
-                      ? gold.withValues(alpha: .75)
-                      : const Color(0xFF465057),
-                  width: .8,
-                ),
-              ),
-              child: Text(
-                valueText,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  color: enabled ? const Color(0xFFFFD48F) : white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          const Icon(Icons.chevron_right_rounded, color: gold, size: 21),
-        ],
+    if (current is bool)
+      return SwitchListTile(
+        title: Text(field.$2),
+        value: current,
+        onChanged: busy
+            ? null
+            : (v) async {
+                try {
+                  await _saveParameter(field.$1, v);
+                } catch (e) {
+                  if (mounted)
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text('$e')));
+                }
+              },
+      );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: InlineValueInput(
+        key: ValueKey(field.$1),
+        label: field.$2,
+        enabled: !busy,
+        value: current is List ? current.join('\n') : show(current),
+        multiline: current is List,
+        save: (text) async {
+          Object selected;
+          if (current is List) {
+            final list = text
+                .split(RegExp(r'[,;\n]'))
+                .map((s) => s.trim())
+                .where((s) => s.isNotEmpty)
+                .toSet()
+                .toList();
+            selected = field.$1 == 'workdays'
+                ? list.map(int.parse).toList()
+                : list;
+          } else {
+            final input = text.trim().replaceAll(' ', '').replaceAll(',', '.');
+            if (!RegExp(r'^\d+(?:\.\d{1,2})?$').hasMatch(input))
+              throw ArgumentError('Не более двух знаков после запятой');
+            selected = double.parse(input);
+          }
+          await _saveParameter(field.$1, selected);
+        },
       ),
     );
   }
@@ -783,7 +555,10 @@ class _CalculationSettingsScreenState
                                   ),
                                 ),
                               const SizedBox(height: 4),
-                              _sectionHeader('Изменения', Icons.history_rounded),
+                              _sectionHeader(
+                                'Изменения',
+                                Icons.history_rounded,
+                              ),
                               _navigationTile(
                                 title: 'История изменений',
                                 subtitle: 'Значения и даты начала действия',
@@ -818,8 +593,7 @@ class _CalculationSettingsScreenState
                               if (widget.group == 'Рабочий календарь') ...[
                                 const SizedBox(height: 5),
                                 const _SettingsInfoPlate(
-                                  text:
-                                      'Праздники и переносы задаются по датам для каждого года. Новые годы автоматически не добавляются.',
+                                  text: 'Праздники и переносы задаются по датам для каждого года. Новые годы автоматически не добавляются.',
                                 ),
                               ],
                             ],
@@ -839,7 +613,10 @@ class _CalculationSettingsScreenState
 }
 
 class _SettingsChrome {
-  static BoxDecoration panelDecoration({double radius = 15, bool hero = false}) {
+  static BoxDecoration panelDecoration({
+    double radius = 15,
+    bool hero = false,
+  }) {
     return BoxDecoration(
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(
@@ -850,16 +627,8 @@ class _SettingsChrome {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: hero
-            ? const [
-                Color(0xF423292C),
-                Color(0xF20D1418),
-                Color(0xF5080D10),
-              ]
-            : const [
-                Color(0xF01A2023),
-                Color(0xF20D1418),
-                Color(0xF4070C0F),
-              ],
+            ? const [Color(0xF423292C), Color(0xF20D1418), Color(0xF5080D10)]
+            : const [Color(0xF01A2023), Color(0xF20D1418), Color(0xF4070C0F)],
       ),
       boxShadow: [
         const BoxShadow(
@@ -967,7 +736,11 @@ class _SettingsIconPlate extends StatelessWidget {
         colors: [Color(0xFF4C3824), Color(0xFF182126), Color(0xFF070C0F)],
       ),
       boxShadow: const [
-        BoxShadow(color: Color(0xAA000000), blurRadius: 6, offset: Offset(2, 4)),
+        BoxShadow(
+          color: Color(0xAA000000),
+          blurRadius: 6,
+          offset: Offset(2, 4),
+        ),
         BoxShadow(color: Color(0x22E0AE63), blurRadius: 4),
       ],
     ),
@@ -995,7 +768,11 @@ class _SettingsChevronButton extends StatelessWidget {
       color: const Color(0xA50A1014),
       border: Border.all(color: const Color(0xFF8B6A3E), width: .9),
       boxShadow: const [
-        BoxShadow(color: Color(0x66000000), blurRadius: 5, offset: Offset(1, 3)),
+        BoxShadow(
+          color: Color(0x66000000),
+          blurRadius: 5,
+          offset: Offset(1, 3),
+        ),
       ],
     ),
     child: Icon(
@@ -1026,7 +803,11 @@ class _SettingsRoundButton extends StatelessWidget {
       color: const Color(0xD20A1014),
       border: Border.all(color: const Color(0xFFB38348), width: 1.15),
       boxShadow: const [
-        BoxShadow(color: Color(0x88000000), blurRadius: 10, offset: Offset(0, 4)),
+        BoxShadow(
+          color: Color(0x88000000),
+          blurRadius: 10,
+          offset: Offset(0, 4),
+        ),
         BoxShadow(color: Color(0x26E0AE63), blurRadius: 4),
       ],
     ),
@@ -1080,7 +861,11 @@ class _SettingsInfoPlate extends StatelessWidget {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.info_outline_rounded, color: Color(0xFF7FA5B7), size: 20),
+        const Icon(
+          Icons.info_outline_rounded,
+          color: Color(0xFF7FA5B7),
+          size: 20,
+        ),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
@@ -1129,10 +914,7 @@ class _SettingsEmptyPlate extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 subtitle,
-                style: const TextStyle(
-                  color: Color(0xFFAEB5B8),
-                  fontSize: 11,
-                ),
+                style: const TextStyle(color: Color(0xFFAEB5B8), fontSize: 11),
               ),
             ],
           ),

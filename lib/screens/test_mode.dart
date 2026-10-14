@@ -174,103 +174,52 @@ class _TestRecordEditorState extends State<_TestRecordEditor> {
     }
   }
 
-  Future<void> tripInput({bool weight = false}) async {
-    if (busy) return;
-    final target = weight ? amount : direction;
-    final draft = TextEditingController(text: target.text);
-    draft.selection = TextSelection(
-      baseOffset: 0,
-      extentOffset: draft.text.length,
-    );
-    final choices = weight ? <String>[] : await TestStore.directionNames(type);
-    if (!mounted) {
-      draft.dispose();
-      return;
+  final Map<String, Future<List<String>>> _directionOptions = {};
+  int _directionRevision = 0;
+  Future<void> _directionChanged(String value) async {
+    final revision = ++_directionRevision;
+    final selectedPaid = await TestStore.isPaidDirection(value);
+    if (mounted && revision == _directionRevision && direction.text == value) {
+      setState(() => paid = selectedPaid);
     }
-    final value = await _showKeyboardForm<String>(
-      context: context,
-      builder: (c) => Material(
-        color: const Color(0xFF0D1920),
-        borderRadius: BorderRadius.circular(22),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: SafeArea(
-            top: false,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    weight
-                        ? (widget.kind == 'fuel' ? 'Литры' : 'Вес, кг')
-                        : 'Выберите направление',
-                    style: const TextStyle(color: _paper, fontSize: 20),
-                  ),
-                  const SizedBox(height: 14),
-                  KeyboardInput(
-                    controller: draft,
-                    autofocus: weight,
-                    keyboardType: weight
-                        ? const TextInputType.numberWithOptions(decimal: true)
-                        : TextInputType.text,
-                    textInputAction: TextInputAction.done,
-                    style: const TextStyle(color: _paper, fontSize: 20),
-                    decoration: InputDecoration(
-                      hintText: weight
-                          ? (widget.kind == 'fuel'
-                                ? 'Введите литры'
-                                : 'Введите вес')
-                          : 'Введите своё направление',
-                      border: const OutlineInputBorder(),
-                    ),
-                    onSubmitted: (v) => Navigator.pop(c, v),
-                  ),
-                  if (!weight)
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight: MediaQuery.sizeOf(c).height * .3,
-                      ),
-                      child: ListView(
-                        shrinkWrap: true,
-                        children: [
-                          for (final name in choices)
-                            ListTile(
-                              title: Text(name),
-                              leading: const Icon(
-                                Icons.location_on_outlined,
-                                color: _amber,
-                              ),
-                              onTap: () => Navigator.pop(c, name),
-                            ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(c, draft.text),
-                      child: const Text('Готово'),
-                    ),
-                  ),
+  }
+
+  Widget tripField({bool weight = false}) => KeyboardInput(
+    controller: weight ? amount : direction,
+    enabled: !busy,
+    keyboardType: weight
+        ? const TextInputType.numberWithOptions(decimal: true)
+        : TextInputType.text,
+    textInputAction: TextInputAction.done,
+    style: const TextStyle(color: _paper, fontSize: 31),
+    onChanged: weight ? null : _directionChanged,
+    decoration: InputDecoration(
+      hintText: weight
+          ? (widget.kind == 'fuel' ? 'Введите литры' : 'Введите вес')
+          : 'Направление',
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      border: const OutlineInputBorder(),
+      suffixIcon: weight
+          ? null
+          : FutureBuilder<List<String>>(
+              future: _directionOptions.putIfAbsent(
+                type,
+                () => TestStore.directionNames(type),
+              ),
+              builder: (context, snapshot) => PopupMenuButton<String>(
+                tooltip: 'Выбрать направление',
+                itemBuilder: (_) => [
+                  for (final name in snapshot.data ?? <String>[])
+                    PopupMenuItem(value: name, child: Text(name)),
                 ],
+                onSelected: (value) {
+                  direction.text = value;
+                  _directionChanged(value);
+                },
               ),
             ),
-          ),
-        ),
-      ),
-    );
-    if (value != null) {
-      final autoPaid = weight ? paid : await TestStore.isPaidDirection(value);
-      if (mounted)
-        setState(() {
-          target.text = value.trim();
-          if (!weight) paid = autoPaid;
-          error = null;
-        });
-    }
-    Future<void>.delayed(const Duration(seconds: 1), draft.dispose);
-  }
+    ),
+  );
 
   Widget tripScreen() {
     const gold = Color(0xFFE6B46B),
@@ -467,67 +416,9 @@ class _TestRecordEditorState extends State<_TestRecordEditor> {
                       52,
                       heading(Icons.location_on, 'Направление'),
                     ),
-                    at(
-                      74,
-                      778,
-                      720,
-                      80,
-                      tap(
-                        Container(
-                          decoration: panel(),
-                          padding: const EdgeInsets.symmetric(horizontal: 29),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: text(
-                                  direction.text.isEmpty
-                                      ? 'Выберите направление'
-                                      : direction.text,
-                                  31,
-                                  color: direction.text.isEmpty ? muted : white,
-                                ),
-                              ),
-                              const Icon(
-                                Icons.expand_more,
-                                color: gold,
-                                size: 43,
-                              ),
-                            ],
-                          ),
-                        ),
-                        () => tripInput(),
-                        'Выбрать направление',
-                      ),
-                    ),
+                    at(74, 778, 720, 80, tripField(weight: false)),
                     at(78, 879, 690, 52, heading(Icons.scale, 'Вес, кг')),
-                    at(
-                      74,
-                      934,
-                      720,
-                      79,
-                      tap(
-                        Container(
-                          decoration: panel(),
-                          padding: const EdgeInsets.symmetric(horizontal: 29),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: text(
-                                  amount.text.isEmpty
-                                      ? 'Введите вес'
-                                      : amount.text,
-                                  36,
-                                  color: amount.text.isEmpty ? muted : white,
-                                ),
-                              ),
-                              text('кг', 28, color: muted),
-                            ],
-                          ),
-                        ),
-                        () => tripInput(weight: true),
-                        'Ввести вес',
-                      ),
-                    ),
+                    at(74, 934, 720, 79, tripField(weight: true)),
                     at(
                       77,
                       1037,
@@ -695,37 +586,43 @@ class _TestRecordEditorState extends State<_TestRecordEditor> {
                   ],
                 ),
               );
-              return SingleChildScrollView(
-                child: SizedBox(
-                  width: box.maxWidth,
-                  height: math.max(box.maxHeight, 1536 * scale + top),
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: RepaintBoundary(
-                          child: _ExtendedArtwork(
-                            asset: 'assets/images/scenes/trip_entry.png',
-                            topInset: top,
-                          ),
-                        ),
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: RepaintBoundary(
+                      child: _ExtendedArtwork(
+                        asset: 'assets/images/scenes/trip_entry.png',
+                        topInset: top,
                       ),
-                      Positioned(
-                        top: top,
-                        left: 0,
-                        width: box.maxWidth,
-                        height: 1536 * scale,
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          child: MediaQuery.withClampedTextScaling(
-                            minScaleFactor: 1,
-                            maxScaleFactor: 1,
-                            child: controls,
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  KeyboardScrollArea(
+                    child: SingleChildScrollView(
+                      child: SizedBox(
+                        width: box.maxWidth,
+                        height: math.max(box.maxHeight, 1536 * scale + top),
+                        child: Stack(
+                          children: [
+                            Positioned(
+                              top: top,
+                              left: 0,
+                              width: box.maxWidth,
+                              height: 1536 * scale,
+                              child: FittedBox(
+                                fit: BoxFit.contain,
+                                child: MediaQuery.withClampedTextScaling(
+                                  minScaleFactor: 1,
+                                  maxScaleFactor: 1,
+                                  child: controls,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               );
             },
           ),
@@ -927,40 +824,7 @@ class _TestRecordEditorState extends State<_TestRecordEditor> {
                       52,
                       heading(Icons.water_drop_outlined, 'Литры'),
                     ),
-                    at(
-                      74,
-                      872,
-                      720,
-                      84,
-                      tap(
-                        Container(
-                          decoration: panel(),
-                          padding: const EdgeInsets.symmetric(horizontal: 29),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: text(
-                                  amount.text.isEmpty
-                                      ? 'Введите литры'
-                                      : amount.text,
-                                  36,
-                                  color: amount.text.isEmpty ? muted : white,
-                                ),
-                              ),
-                              Container(
-                                width: 1,
-                                height: 51,
-                                color: muted.withValues(alpha: .4),
-                              ),
-                              const SizedBox(width: 27),
-                              text('Литры', 28, color: muted),
-                            ],
-                          ),
-                        ),
-                        () => tripInput(weight: true),
-                        'Ввести литры',
-                      ),
-                    ),
+                    at(74, 872, 720, 84, tripField(weight: true)),
                     at(
                       78,
                       1000,
@@ -1086,37 +950,43 @@ class _TestRecordEditorState extends State<_TestRecordEditor> {
                   ],
                 ),
               );
-              return SingleChildScrollView(
-                child: SizedBox(
-                  width: box.maxWidth,
-                  height: math.max(box.maxHeight, 1536 * scale + top),
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: RepaintBoundary(
-                          child: _ExtendedArtwork(
-                            asset: 'assets/images/scenes/fuel_entry.png',
-                            topInset: top,
-                          ),
-                        ),
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: RepaintBoundary(
+                      child: _ExtendedArtwork(
+                        asset: 'assets/images/scenes/fuel_entry.png',
+                        topInset: top,
                       ),
-                      Positioned(
-                        top: top,
-                        left: 0,
-                        width: box.maxWidth,
-                        height: 1536 * scale,
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          child: MediaQuery.withClampedTextScaling(
-                            minScaleFactor: 1,
-                            maxScaleFactor: 1,
-                            child: controls,
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  KeyboardScrollArea(
+                    child: SingleChildScrollView(
+                      child: SizedBox(
+                        width: box.maxWidth,
+                        height: math.max(box.maxHeight, 1536 * scale + top),
+                        child: Stack(
+                          children: [
+                            Positioned(
+                              top: top,
+                              left: 0,
+                              width: box.maxWidth,
+                              height: 1536 * scale,
+                              child: FittedBox(
+                                fit: BoxFit.contain,
+                                child: MediaQuery.withClampedTextScaling(
+                                  minScaleFactor: 1,
+                                  maxScaleFactor: 1,
+                                  child: controls,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               );
             },
           ),
@@ -1203,15 +1073,7 @@ class _TestRecordEditorState extends State<_TestRecordEditor> {
                     : 'Сумма, ₸',
                 numeric: true,
               ),
-            _detailRow(
-              'Примечание',
-              note.text.isEmpty ? 'Добавить' : 'Изменить',
-              subtitle: note.text.isEmpty ? null : note.text,
-              onTap: () async {
-                await _editCompactNote(context, note);
-                if (mounted) setState(() {});
-              },
-            ),
+            _testField(note, 'Примечание', lines: 3),
             if (kind == 'invoice')
               SwitchListTile(
                 value: loaded,

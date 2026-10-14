@@ -1,4 +1,5 @@
 import '../widgets/keyboard_input.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -145,106 +146,112 @@ class _LoginScreenState extends State<LoginScreen> {
           const ColoredBox(color: Color(0x57020A10)),
           SafeArea(
             child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 460),
-                  child: Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: const Color(0xF20B141B),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: const Color(0xFFB79254)),
-                      boxShadow: const [
-                        BoxShadow(color: Colors.black, blurRadius: 24),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const Icon(
-                          Icons.grain,
-                          color: Color(0xFFE3B66A),
-                          size: 48,
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'МЕЛЬНИЦА',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Color(0xFFE3B66A),
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 3,
-                          ),
-                        ),
-                        const SizedBox(height: 28),
-                        Text(
-                          _setup == true
-                              ? 'Создать администратора'
-                              : 'Вход в приложение',
-                          style: const TextStyle(
-                            fontSize: 25,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          _setup == true
-                              ? 'Создайте свою учётную запись. После входа вы сможете добавить сотрудников и назначить роли.'
-                              : 'Введите логин и пароль своей учётной записи.',
-                          style: const TextStyle(
-                            color: Color(0xFFAFBAC1),
-                            height: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        if (_setup == null && _error == null)
-                          const Center(child: CircularProgressIndicator())
-                        else if (_setup != null) ...[
-                          if (_setup!) field(_name, 'Имя'),
-                          field(_login, 'Логин'),
-                          field(_password, 'Пароль', secret: true),
-                          if (_setup!)
-                            field(
-                              _confirmation,
-                              'Повторите пароль',
-                              secret: true,
-                            ),
+              child: KeyboardScrollArea(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 460),
+                    child: Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: const Color(0xF20B141B),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: const Color(0xFFB79254)),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black, blurRadius: 24),
                         ],
-                        if (_error != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: Text(
-                              _error!,
-                              style: const TextStyle(color: Color(0xFFE6B56A)),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Icon(
+                            Icons.grain,
+                            color: Color(0xFFE3B66A),
+                            size: 48,
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'МЕЛЬНИЦА',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Color(0xFFE3B66A),
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 3,
                             ),
                           ),
-                        FilledButton(
-                          onPressed: _busy
-                              ? null
-                              : _setup == null
-                              ? _check
-                              : _submit,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFFBE944E),
-                            foregroundColor: const Color(0xFF071219),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          const SizedBox(height: 28),
+                          Text(
+                            _setup == true
+                                ? 'Создать администратора'
+                                : 'Вход в приложение',
+                            style: const TextStyle(
+                              fontSize: 25,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
                           ),
-                          child: Text(
-                            _busy
-                                ? 'Подождите…'
+                          const SizedBox(height: 10),
+                          Text(
+                            _setup == true
+                                ? 'Создайте свою учётную запись. После входа вы сможете добавить сотрудников и назначить роли.'
+                                : 'Введите логин и пароль своей учётной записи.',
+                            style: const TextStyle(
+                              color: Color(0xFFAFBAC1),
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          if (_setup == null && _error == null)
+                            const Center(child: CircularProgressIndicator())
+                          else if (_setup != null) ...[
+                            if (_setup!) field(_name, 'Имя'),
+                            field(_login, 'Логин'),
+                            field(_password, 'Пароль', secret: true),
+                            if (_setup!)
+                              field(
+                                _confirmation,
+                                'Повторите пароль',
+                                secret: true,
+                              ),
+                          ],
+                          if (_error != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: Text(
+                                _error!,
+                                style: const TextStyle(
+                                  color: Color(0xFFE6B56A),
+                                ),
+                              ),
+                            ),
+                          FilledButton(
+                            onPressed: _busy
+                                ? null
                                 : _setup == null
-                                ? 'Повторить'
-                                : _setup!
-                                ? 'Создать и войти'
-                                : 'Войти',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+                                ? _check
+                                : _submit,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFFBE944E),
+                              foregroundColor: const Color(0xFF071219),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            child: Text(
+                              _busy
+                                  ? 'Подождите…'
+                                  : _setup == null
+                                  ? 'Повторить'
+                                  : _setup!
+                                  ? 'Создать и войти'
+                                  : 'Войти',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

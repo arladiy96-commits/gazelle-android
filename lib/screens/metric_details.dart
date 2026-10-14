@@ -1517,35 +1517,37 @@ class _MetricDetailsState extends State<_MetricDetails> {
               ),
             ),
             SafeArea(
-              child: SingleChildScrollView(
-                key: const PageStorageKey('salary-screen'),
-                controller: _scroll,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: availableHeight),
-                  child: IntrinsicHeight(
-                    child: Column(
-                      children: [
-                        _salaryHeader(),
-                        const SizedBox(height: 63),
-                        const Expanded(child: SizedBox(height: 165)),
-                        if (_error != null)
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              children: [
-                                _DetailGlass(child: _dt(_error!)),
-                                _detailButton('Повторить', _load),
-                              ],
-                            ),
-                          )
-                        else if (_total == null || _book == null)
-                          const Padding(
-                            padding: EdgeInsets.all(40),
-                            child: CircularProgressIndicator(color: _amber),
-                          )
-                        else
-                          _salaryPanel(),
-                      ],
+              child: KeyboardScrollArea(
+                child: SingleChildScrollView(
+                  key: const PageStorageKey('salary-screen'),
+                  controller: _scroll,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: availableHeight),
+                    child: IntrinsicHeight(
+                      child: Column(
+                        children: [
+                          _salaryHeader(),
+                          const SizedBox(height: 63),
+                          const Expanded(child: SizedBox(height: 165)),
+                          if (_error != null)
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                children: [
+                                  _DetailGlass(child: _dt(_error!)),
+                                  _detailButton('Повторить', _load),
+                                ],
+                              ),
+                            )
+                          else if (_total == null || _book == null)
+                            const Padding(
+                              padding: EdgeInsets.all(40),
+                              child: CircularProgressIndicator(color: _amber),
+                            )
+                          else
+                            _salaryPanel(),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -2691,35 +2693,37 @@ class _DayDetails extends StatelessWidget {
                   ],
                 ),
               );
-              return SingleChildScrollView(
-                child: SizedBox(
-                  height: height,
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: RepaintBoundary(
-                          child: _ExtendedArtwork(
-                            asset: 'assets/images/scenes/day_summary.png',
-                            topInset: top,
+              return KeyboardScrollArea(
+                child: SingleChildScrollView(
+                  child: SizedBox(
+                    height: height,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: RepaintBoundary(
+                            child: _ExtendedArtwork(
+                              asset: 'assets/images/scenes/day_summary.png',
+                              topInset: top,
+                            ),
                           ),
                         ),
-                      ),
-                      Positioned(
-                        top: top,
-                        left: 0,
-                        right: 0,
-                        height: 1536 * scale,
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          alignment: Alignment.topCenter,
-                          child: MediaQuery.withClampedTextScaling(
-                            minScaleFactor: 1,
-                            maxScaleFactor: 1,
-                            child: scene,
+                        Positioned(
+                          top: top,
+                          left: 0,
+                          right: 0,
+                          height: 1536 * scale,
+                          child: FittedBox(
+                            fit: BoxFit.contain,
+                            alignment: Alignment.topCenter,
+                            child: MediaQuery.withClampedTextScaling(
+                              minScaleFactor: 1,
+                              maxScaleFactor: 1,
+                              child: scene,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -4745,36 +4749,40 @@ class _MileageReferenceState extends State<_MileageReference> {
                   ],
                 ),
               );
-              return SingleChildScrollView(
-                child: SizedBox(
-                  width: box.maxWidth,
-                  height: math.max(
-                    box.maxHeight,
-                    1536 * scale + safe + MediaQuery.paddingOf(context).bottom,
-                  ),
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: _ExtendedArtwork(
-                          asset: 'assets/images/scenes/mileage_dashboard.png',
-                          topInset: safe,
-                        ),
-                      ),
-                      Positioned(
-                        top: safe,
-                        left: 0,
-                        width: box.maxWidth,
-                        height: 1536 * scale,
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          child: MediaQuery.withClampedTextScaling(
-                            minScaleFactor: 1,
-                            maxScaleFactor: 1,
-                            child: scene,
+              return KeyboardScrollArea(
+                child: SingleChildScrollView(
+                  child: SizedBox(
+                    width: box.maxWidth,
+                    height: math.max(
+                      box.maxHeight,
+                      1536 * scale +
+                          safe +
+                          MediaQuery.paddingOf(context).bottom,
+                    ),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: _ExtendedArtwork(
+                            asset: 'assets/images/scenes/mileage_dashboard.png',
+                            topInset: safe,
                           ),
                         ),
-                      ),
-                    ],
+                        Positioned(
+                          top: safe,
+                          left: 0,
+                          width: box.maxWidth,
+                          height: 1536 * scale,
+                          child: FittedBox(
+                            fit: BoxFit.contain,
+                            child: MediaQuery.withClampedTextScaling(
+                              minScaleFactor: 1,
+                              maxScaleFactor: 1,
+                              child: scene,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -5553,38 +5561,42 @@ class _DistrictDashboardState extends State<_DistrictDashboard> {
                   ],
                 ),
               );
-              return SingleChildScrollView(
-                child: SizedBox(
-                  width: box.maxWidth,
-                  height: math.max(
-                    box.maxHeight,
-                    1536 * scale + safe + MediaQuery.paddingOf(context).bottom,
-                  ),
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: _ExtendedArtwork(
-                          asset: widget.city
-                              ? 'assets/images/scenes/city_dashboard.png'
-                              : 'assets/images/scenes/district_dashboard.png',
-                          topInset: safe,
-                        ),
-                      ),
-                      Positioned(
-                        top: safe,
-                        left: 0,
-                        width: box.maxWidth,
-                        height: 1536 * scale,
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          child: MediaQuery.withClampedTextScaling(
-                            minScaleFactor: 1,
-                            maxScaleFactor: 1,
-                            child: scene,
+              return KeyboardScrollArea(
+                child: SingleChildScrollView(
+                  child: SizedBox(
+                    width: box.maxWidth,
+                    height: math.max(
+                      box.maxHeight,
+                      1536 * scale +
+                          safe +
+                          MediaQuery.paddingOf(context).bottom,
+                    ),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: _ExtendedArtwork(
+                            asset: widget.city
+                                ? 'assets/images/scenes/city_dashboard.png'
+                                : 'assets/images/scenes/district_dashboard.png',
+                            topInset: safe,
                           ),
                         ),
-                      ),
-                    ],
+                        Positioned(
+                          top: safe,
+                          left: 0,
+                          width: box.maxWidth,
+                          height: 1536 * scale,
+                          child: FittedBox(
+                            fit: BoxFit.contain,
+                            child: MediaQuery.withClampedTextScaling(
+                              minScaleFactor: 1,
+                              maxScaleFactor: 1,
+                              child: scene,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -6059,36 +6071,40 @@ class _SalaryDashboardState extends State<_SalaryDashboard> {
                   ],
                 ),
               );
-              return SingleChildScrollView(
-                child: SizedBox(
-                  width: box.maxWidth,
-                  height: math.max(
-                    box.maxHeight,
-                    1536 * scale + safe + MediaQuery.paddingOf(context).bottom,
-                  ),
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: _ExtendedArtwork(
-                          asset: 'assets/images/scenes/salary_dashboard.png',
-                          topInset: safe,
-                        ),
-                      ),
-                      Positioned(
-                        top: safe,
-                        left: 0,
-                        width: box.maxWidth,
-                        height: 1536 * scale,
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          child: MediaQuery.withClampedTextScaling(
-                            minScaleFactor: 1,
-                            maxScaleFactor: 1,
-                            child: scene,
+              return KeyboardScrollArea(
+                child: SingleChildScrollView(
+                  child: SizedBox(
+                    width: box.maxWidth,
+                    height: math.max(
+                      box.maxHeight,
+                      1536 * scale +
+                          safe +
+                          MediaQuery.paddingOf(context).bottom,
+                    ),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: _ExtendedArtwork(
+                            asset: 'assets/images/scenes/salary_dashboard.png',
+                            topInset: safe,
                           ),
                         ),
-                      ),
-                    ],
+                        Positioned(
+                          top: safe,
+                          left: 0,
+                          width: box.maxWidth,
+                          height: 1536 * scale,
+                          child: FittedBox(
+                            fit: BoxFit.contain,
+                            child: MediaQuery.withClampedTextScaling(
+                              minScaleFactor: 1,
+                              maxScaleFactor: 1,
+                              child: scene,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );

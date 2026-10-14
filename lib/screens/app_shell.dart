@@ -1,4 +1,6 @@
+import '../widgets/dormant_tab.dart';
 import '../widgets/keyboard_input.dart';
+
 import 'dart:io';
 import 'dart:convert';
 
@@ -143,6 +145,7 @@ class _AppShellState extends State<AppShell> {
     final view = jsonEncode([policy, _session.displayName, _session.role.name]);
     if (_lastAccountView == view) return;
     _lastAccountView = view;
+    _tabCache.clear();
     if (mounted) setState(() {});
   }
 
@@ -202,6 +205,8 @@ class _AppShellState extends State<AppShell> {
     ];
   }
 
+  final Set<int> _visitedTabs = {0};
+  final Map<int, Widget> _tabCache = {};
   List<Widget> get _pages {
     if (_session.role == AppRole.loader) {
       return [
@@ -210,13 +215,13 @@ class _AppShellState extends State<AppShell> {
       ];
     }
 
-    return [
+    final candidates = <Widget>[
       HomePage(
         session: _session,
         onNavigate: _selectTab,
         onQuickAdd: _openQuickAdd,
       ),
-      if (_index == 1)
+      if (_visitedTabs.contains(1))
         WorkPage(
           session: _session,
           onNavigate: _selectTab,
@@ -225,16 +230,26 @@ class _AppShellState extends State<AppShell> {
       else
         const SizedBox.shrink(),
       const SizedBox.shrink(),
-      _MillStatistics(
-        session: _session,
-        onHome: () => setState(() => _index = 0),
-      ),
-      _CinematicMore(
-        session: _session,
-        onNavigate: _selectTab,
-        showNavigation: false,
-      ),
-    ].map(_guardEmployeeSection).toList();
+      if (_visitedTabs.contains(3))
+        _MillStatistics(session: _session, onHome: () => _selectTab(0))
+      else
+        const SizedBox.shrink(),
+      if (_visitedTabs.contains(4))
+        _CinematicMore(
+          session: _session,
+          onNavigate: _selectTab,
+          showNavigation: false,
+        )
+      else
+        const SizedBox.shrink(),
+    ];
+    return [
+      for (var i = 0; i < candidates.length; i++)
+        if (_visitedTabs.contains(i))
+          _tabCache.putIfAbsent(i, () => _guardEmployeeSection(candidates[i]))
+        else
+          const SizedBox.shrink(),
+    ];
   }
 
   void _selectTab(int index) {
@@ -249,7 +264,11 @@ class _AppShellState extends State<AppShell> {
       return;
     }
     if (index < 0 || index > 4 || index == _index) return;
-    setState(() => _index = index);
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      _visitedTabs.add(index);
+      _index = index;
+    });
   }
 
   void _openQuickAdd() {
@@ -2560,9 +2579,11 @@ Future<void> _showHomeSheet(
                       const Divider(height: 1, color: Color(0xFF3D281A)),
                       const SizedBox(height: 10),
                       Flexible(
-                        child: SingleChildScrollView(
-                          physics: const BouncingScrollPhysics(),
-                          child: child,
+                        child: KeyboardScrollArea(
+                          child: SingleChildScrollView(
+                            physics: const BouncingScrollPhysics(),
+                            child: child,
+                          ),
                         ),
                       ),
                     ],
@@ -3244,35 +3265,37 @@ class _QuickAddMenu extends StatelessWidget {
               ],
             ),
           );
-          return SingleChildScrollView(
-            child: SizedBox(
-              width: box.maxWidth,
-              height: math.max(box.maxHeight, 1536 * scale + top),
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: RepaintBoundary(
-                      child: _ExtendedArtwork(
-                        asset: 'assets/images/scenes/quick_add.png',
-                        topInset: top,
+          return KeyboardScrollArea(
+            child: SingleChildScrollView(
+              child: SizedBox(
+                width: box.maxWidth,
+                height: math.max(box.maxHeight, 1536 * scale + top),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: RepaintBoundary(
+                        child: _ExtendedArtwork(
+                          asset: 'assets/images/scenes/quick_add.png',
+                          topInset: top,
+                        ),
                       ),
                     ),
-                  ),
-                  Positioned(
-                    top: top,
-                    left: 0,
-                    width: box.maxWidth,
-                    height: 1536 * scale,
-                    child: FittedBox(
-                      fit: BoxFit.contain,
-                      child: MediaQuery.withClampedTextScaling(
-                        minScaleFactor: 1,
-                        maxScaleFactor: 1,
-                        child: controls,
+                    Positioned(
+                      top: top,
+                      left: 0,
+                      width: box.maxWidth,
+                      height: 1536 * scale,
+                      child: FittedBox(
+                        fit: BoxFit.contain,
+                        child: MediaQuery.withClampedTextScaling(
+                          minScaleFactor: 1,
+                          maxScaleFactor: 1,
+                          child: controls,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
@@ -3771,40 +3794,42 @@ class _QuickEntryShell extends StatelessWidget {
         constraints: BoxConstraints(
           maxHeight: math.max(140, size.height - keyboard - top - 24),
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-          child: _DetailGlass(
-            accent: true,
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 32,
-                  height: 3,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF67747B),
-                    borderRadius: BorderRadius.circular(3),
+        child: KeyboardScrollArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            child: _DetailGlass(
+              accent: true,
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 32,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF67747B),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(icon, color: _amber, size: 21),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _dt(title, size: 16, weight: FontWeight.w500),
-                    ),
-                    IconButton(
-                      tooltip: 'Закрыть',
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close, color: _paper, size: 21),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                child,
-              ],
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(icon, color: _amber, size: 21),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _dt(title, size: 16, weight: FontWeight.w500),
+                      ),
+                      IconButton(
+                        tooltip: 'Закрыть',
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, color: _paper, size: 21),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  child,
+                ],
+              ),
             ),
           ),
         ),

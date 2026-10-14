@@ -123,45 +123,20 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
       ..stage = 'review';
     await commit(next);
   });
-  Future<void> editTotal() async {
-    final c = TextEditingController(
-      text: invoice.statedWeightKg?.toString() ?? '',
-    );
-    final value = await showDialog<double>(
-      context: context,
-      builder: (d) => _KeyboardAlertDialog(
-        alignment: Alignment.topCenter,
-        scrollable: true,
-        backgroundColor: const Color(0xFF11191D),
-        title: const Text('Вес в накладной, кг'),
-        content: KeyboardInput(
-          controller: c,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(d),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () {
-              final v = double.tryParse(c.text.replaceAll(',', '.'));
-              if (v != null && v.isFinite && v > 0) Navigator.pop(d, v);
-            },
-            child: const Text('Сохранить'),
-          ),
-        ],
-      ),
-    );
-    // Dispose after the dialog's closing transition releases the text field.
-    Future<void>.delayed(const Duration(milliseconds: 300), c.dispose);
-    if (value != null && mounted)
+  Widget totalInput() => InlineValueInput(
+    value: invoice.statedWeightKg == null ? '' : kg(invoice.statedWeightKg!),
+    label: 'Вес в накладной, кг',
+    enabled: !busy,
+    save: (text) async {
+      final value = double.tryParse(text.replaceAll(',', '.'));
+      if (value == null || !value.isFinite || value <= 0)
+        throw ArgumentError('Введите вес больше нуля');
       await perform(
         'Сохранение…',
         () => commit(invoice.copy()..statedWeightKg = value),
       );
-  }
+    },
+  );
 
   Future<void> editItem([LoadingInvoiceItem? item]) async {
     final result = await showDialog<LoadingInvoiceItem>(
@@ -727,19 +702,7 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
                                                   'Вес по данным позиций',
                                                   '${kg(invoice.recognizedWeight)} кг',
                                                 ),
-                                                InkWell(
-                                                  onTap: busy
-                                                      ? null
-                                                      : editTotal,
-                                                  child: line(
-                                                    'Вес в накладной ✎',
-                                                    invoice.statedWeightKg ==
-                                                            null
-                                                        ? 'Указать'
-                                                        : '${kg(invoice.statedWeightKg!)} кг',
-                                                    color: gold,
-                                                  ),
-                                                ),
+                                                totalInput(),
                                                 line(
                                                   'Расчётный вес',
                                                   '${kg(invoice.weight)} кг',
