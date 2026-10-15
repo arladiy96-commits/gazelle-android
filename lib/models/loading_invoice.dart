@@ -58,13 +58,14 @@ class LoadingInvoice {
   LoadingInvoice({
     required this.invoiceId,
     required this.createdAt,
-    this.photos = const [],
-    this.items = const [],
+    List<String> photos = const [],
+    List<LoadingInvoiceItem> items = const [],
     this.statedWeightKg,
     this.stage = 'photos',
     this.mock = false,
     this.completedAt,
-  });
+  }) : photos = List<String>.of(photos),
+       items = List<LoadingInvoiceItem>.of(items);
   factory LoadingInvoice.empty() =>
       LoadingInvoice(invoiceId: invoiceEntityId(), createdAt: DateTime.now());
   int get bags => items.fold(0, (s, i) => s + i.bagsCount);
