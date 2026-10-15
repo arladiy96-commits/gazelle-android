@@ -5,6 +5,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../models/server_merge.dart';
+
 import '../services/gps_tracker.dart';
 
 // Real geographic tiles and GPS samples share one Web Mercator projection.
@@ -28,6 +30,7 @@ class ShiftRouteMap extends StatefulWidget {
 
 class _ShiftRouteMapState extends State<ShiftRouteMap> {
   List<Map<String, dynamic>> points = [];
+  List<Offset> _projected = [];
   Timer? timer;
   bool loading = false;
   String? error;
@@ -51,6 +54,7 @@ class _ShiftRouteMapState extends State<ShiftRouteMap> {
     if (old.shiftId != widget.shiftId) {
       generation++;
       points = [];
+      _projected = [];
       pan = Offset.zero;
       zoomDelta = 0;
       follow = true;
@@ -67,7 +71,9 @@ class _ShiftRouteMapState extends State<ShiftRouteMap> {
     try {
       final rows =
           await (widget.routeLoader?.call(id) ?? GpsRouteStore.points(id));
-      if (mounted && token == generation)
+      if (mounted &&
+          token == generation &&
+          (error != null || !ServerMerge.same(points, rows)))
         setState(() {
           points = rows
               .where(
@@ -78,6 +84,7 @@ class _ShiftRouteMapState extends State<ShiftRouteMap> {
                     (p['lng'] as num).isFinite,
               )
               .toList();
+          _projected = points.map(project).toList();
           error = null;
         });
     } catch (_) {
@@ -108,7 +115,7 @@ class _ShiftRouteMapState extends State<ShiftRouteMap> {
     builder: (context, box) {
       final u = widget.unit;
       // Default viewport is a regional overview, never presented as a GPS fix.
-      final projected = points.map(project).toList();
+      final projected = _projected;
       final bounds = projected.isEmpty
           ? [
               project({'lat': 53.3, 'lng': 69.4}),
