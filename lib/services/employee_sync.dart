@@ -104,8 +104,9 @@ class EmployeeSync with WidgetsBindingObserver {
     AccountToken scope,
     SharedPreferences disk,
     Map<String, dynamic> base,
-    Map<String, dynamic> remote,
-  ) async {
+    Map<String, dynamic> remote, {
+    bool preserveNewLocalChanges = false,
+  }) async {
     scope.check();
     if (remote['accountId'] != scope.id || remote['version'] is! int) {
       throw const FormatException('Неверная область или версия данных');
@@ -113,11 +114,13 @@ class EmployeeSync with WidgetsBindingObserver {
     await TestStore.mergeServerPreferences(
       base['preferences'] as Map? ?? {},
       remote['preferences'] as Map? ?? {},
+      preserveNewLocalChanges: preserveNewLocalChanges,
     );
     scope.check();
     await LoaderService.mergeServer(
       base['loaderShifts'] as List? ?? [],
       remote['loaderShifts'] as List? ?? [],
+      preserveNewLocalChanges: preserveNewLocalChanges,
     );
     scope.check();
     if (!await disk.setInt(
@@ -299,6 +302,7 @@ class EmployeeSync with WidgetsBindingObserver {
       disk,
       Map<String, dynamic>.from(job['local'] as Map),
       Map<String, dynamic>.from(job['remote'] as Map),
+      preserveNewLocalChanges: true,
     );
     scope.check();
     if (!await disk.remove('employee_sync_pending_${scope.id}'))
@@ -306,7 +310,8 @@ class EmployeeSync with WidgetsBindingObserver {
     if (!await disk.remove('employee_sync_recovery_${scope.id}'))
       throw StateError('Восстановление не завершено');
     conflict.value = false;
-    message.value = 'Загружена версия сервера. Местная копия сохранена.';
+    message.value =
+        'Версия сервера загружена. Более новые местные изменения сохранены.';
   }
 
   /// Explicit user choice only. Keep the full local version and pending request.

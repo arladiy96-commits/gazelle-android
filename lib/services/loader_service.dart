@@ -33,14 +33,24 @@ class LoaderShift {
 /// Separate account-owned journal; driver storage is never read or modified.
 class LoaderService {
   static Future<void> _queue = Future<void>.value();
-  static Future<void> mergeServer(List base, List remote) {
+  static Future<void> mergeServer(
+    List base,
+    List remote, {
+    bool preserveNewLocalChanges = false,
+  }) {
     final scope = AccountScope.capture();
     return _serial(() async {
       final prefs = await SharedPreferences.getInstance();
       scope.check();
       final key = 'melnitsa_loader_shifts_v1_${scope.id}';
       final local = jsonDecode(prefs.getString(key) ?? '[]') as List;
-      final merged = ServerMerge.merge(base, local, remote);
+      final merged = ServerMerge.merge(
+        base,
+        local,
+        remote,
+        'data',
+        preserveNewLocalChanges,
+      );
       if (ServerMerge.same(merged, local)) return;
       if (!await prefs.setString(key, jsonEncode(merged))) {
         throw StateError('Не удалось сохранить смены с сервера');

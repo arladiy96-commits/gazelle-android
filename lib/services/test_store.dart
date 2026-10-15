@@ -157,7 +157,11 @@ class TestPreferences {
   Future<bool> setBool(String k, bool v) => _write(k, v);
   Future<bool> remove(String k) => _write(k, null);
   Future<bool> clear() => _write(null, null, reset: true);
-  static Future<void> mergeServer(Map base, Map remote) async {
+  static Future<void> mergeServer(
+    Map base,
+    Map remote, {
+    bool preserveNewLocalChanges = false,
+  }) async {
     final p = await getInstance();
     final task = p._queue.then((_) async {
       p._scope.check();
@@ -165,6 +169,7 @@ class TestPreferences {
         base,
         Map<String, dynamic>.from(p._values),
         remote,
+        {'preserveNewLocalChanges': preserveNewLocalChanges},
       ]);
       p._scope.check();
       if (result == null) return;
@@ -734,10 +739,20 @@ class TestStore {
   static final revision = TestPreferences.revision;
   static Future<void> _queue = Future<void>.value();
   static Future<void> flush() => _queue;
-  static Future<void> mergeServerPreferences(Map base, Map remote) {
+  static Future<void> mergeServerPreferences(
+    Map base,
+    Map remote, {
+    bool preserveNewLocalChanges = false,
+  }) {
     final scope = AccountScope.capture();
     final task = _queue.then(
-      (_) => scope.bind(() => TestPreferences.mergeServer(base, remote)),
+      (_) => scope.bind(
+        () => TestPreferences.mergeServer(
+          base,
+          remote,
+          preserveNewLocalChanges: preserveNewLocalChanges,
+        ),
+      ),
     );
     _queue = task.then<void>((_) {}, onError: (Object e, StackTrace s) {});
     return task;
@@ -1449,6 +1464,8 @@ class TestStore {
     snapshots[0],
     snapshots[1],
     snapshots[2],
+    preserveNewLocalChanges:
+        snapshots.length > 3 && snapshots[3]['preserveNewLocalChanges'] == true,
   );
   if (ServerMerge.same(merged, snapshots[1])) return null;
   return (merged, jsonEncode(merged));
