@@ -208,11 +208,13 @@ class InlineValueInput extends StatefulWidget {
   final double fontSize;
   final bool enabled, multiline;
   final Future<void> Function(String) save;
+  final Widget Function(VoidCallback? edit)? displayBuilder;
   const InlineValueInput({
     super.key,
     required this.value,
     required this.label,
     required this.save,
+    this.displayBuilder,
     this.enabled = true,
     this.multiline = false,
     this.fontSize = 18,
@@ -223,7 +225,7 @@ class InlineValueInput extends StatefulWidget {
 
 class _InlineValueInputState extends State<InlineValueInput> {
   late final _text = TextEditingController(text: widget.value);
-  bool _saving = false, _dirty = false;
+  bool _saving = false, _dirty = false, _editing = false;
   String? _error;
   @override
   void didUpdateWidget(covariant InlineValueInput oldWidget) {
@@ -246,7 +248,11 @@ class _InlineValueInputState extends State<InlineValueInput> {
     });
     try {
       await widget.save(_text.text);
-      if (mounted) setState(() => _dirty = false);
+      if (mounted)
+        setState(() {
+          _dirty = false;
+          _editing = false;
+        });
     } catch (e) {
       if (mounted)
         setState(
@@ -260,33 +266,62 @@ class _InlineValueInputState extends State<InlineValueInput> {
   }
 
   @override
-  Widget build(BuildContext context) => KeyboardInput(
-    controller: _text,
-    style: TextStyle(fontSize: widget.fontSize),
-    enabled: widget.enabled && !_saving,
-    maxLines: widget.multiline ? 3 : 1,
-    keyboardType: widget.multiline
-        ? TextInputType.multiline
-        : const TextInputType.numberWithOptions(decimal: true),
-    textInputAction: TextInputAction.done,
-    onChanged: (_) => _dirty = true,
-    onSubmitted: (_) => _save(),
-    decoration: InputDecoration(
-      labelText: widget.label,
-      errorText: _error,
-      suffixIcon: IconButton(
-        tooltip: 'Сохранить',
-        onPressed: _saving ? null : _save,
-        icon: _saving
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.check),
+  Widget build(BuildContext context) {
+    if (!_editing && widget.displayBuilder != null) {
+      return widget.displayBuilder!(
+        widget.enabled
+            ? () => setState(() {
+                _text.text = widget.value;
+                _text.selection = TextSelection(
+                  baseOffset: 0,
+                  extentOffset: _text.text.length,
+                );
+                _editing = true;
+              })
+            : null,
+      );
+    }
+    return KeyboardInput(
+      autofocus: widget.displayBuilder != null,
+      controller: _text,
+      style: TextStyle(
+        fontSize: widget.fontSize,
+        color: widget.displayBuilder == null ? null : const Color(0xFFE0B87B),
+        fontWeight: widget.displayBuilder == null ? null : FontWeight.w600,
       ),
-    ),
-  );
+      enabled: widget.enabled && !_saving,
+      maxLines: widget.multiline ? 3 : 1,
+      keyboardType: widget.multiline
+          ? TextInputType.multiline
+          : const TextInputType.numberWithOptions(decimal: true),
+      textInputAction: TextInputAction.done,
+      onChanged: (_) => _dirty = true,
+      onSubmitted: (_) => _save(),
+      decoration: InputDecoration(
+        labelText: widget.displayBuilder == null ? widget.label : null,
+        hintText: widget.displayBuilder == null ? null : widget.label,
+        isDense: widget.displayBuilder != null,
+        contentPadding: widget.displayBuilder == null
+            ? null
+            : const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        suffixIconConstraints: widget.displayBuilder == null
+            ? null
+            : const BoxConstraints(minWidth: 32, minHeight: 32),
+        errorText: _error,
+        suffixIcon: IconButton(
+          tooltip: 'Сохранить',
+          onPressed: _saving ? null : _save,
+          icon: _saving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.check),
+        ),
+      ),
+    );
+  }
 }
 
 /// One editable control with the original mechanical counter face.
