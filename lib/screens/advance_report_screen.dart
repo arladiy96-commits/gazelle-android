@@ -19,9 +19,7 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
   @override
   void initState() {
     super.initState();
-    _repository = AdvanceReportRepository(
-      '${widget.session.role.storageValue}:${widget.session.login}',
-    );
+    _repository = AdvanceReportRepository(widget.session.ownerKey);
     TestStore.revision.addListener(_reload);
     _reload();
   }
