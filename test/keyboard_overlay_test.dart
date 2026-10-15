@@ -1,3 +1,4 @@
+import '../scripts/check_server_merge.dart' as recovery_checks;
 import 'package:gazelle_android/widgets/app_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +7,7 @@ import 'package:gazelle_android/widgets/keyboard_input.dart';
 import 'package:gazelle_android/widgets/dormant_tab.dart';
 
 void main() {
+  test('server recovery preserves newer local work', recovery_checks.main);
   testWidgets(
     'direct input keeps a single field and fixed header/menu while scrolling form',
     (tester) async {
