@@ -110,6 +110,7 @@ class EmployeeServerApi {
     String path, {
     Map<String, dynamic>? body,
     bool anonymous = false,
+    Duration timeout = const Duration(seconds: 20),
   }) async {
     final base = Uri.parse(baseUrl);
     if (base.scheme != 'https' ||
@@ -137,7 +138,10 @@ class EmployeeServerApi {
             'Bearer $_token',
           );
         if (body != null) {
-          final payload = path == '/me/sync' || path.contains('/routes/')
+          final payload =
+              path == '/me/sync' ||
+                  path.contains('/routes/') ||
+                  path == '/invoices/recognize'
               ? await compute(_encodeApiBody, body)
               : _encodeApiBody(body);
           // The Python server reads Content-Length, not chunked request bodies.
@@ -165,7 +169,7 @@ class EmployeeServerApi {
           );
         }
         return data;
-      })().timeout(const Duration(seconds: 20));
+      })().timeout(timeout);
     } finally {
       client.close(force: true);
     }
