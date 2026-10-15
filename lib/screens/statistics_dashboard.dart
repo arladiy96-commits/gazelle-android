@@ -104,9 +104,34 @@ class _MillStatisticsState extends State<_MillStatistics>
   String get periodLabel => period == 0
       ? '${_garageMonths[month.month - 1]} ${month.year} г.'
       : '${date(range.start)}.${range.start.year} — ${date(range.end)}.${range.end.year}';
+  TestState? _cachedBook;
+  int? _cachedMinute;
+  final _dayCache = <DateTimeRange, List<_StatsDay>>{};
+
   List<_StatsDay> data(TestState b, DateTimeRange r) {
+    // Salary for an open shift depends on time; never reuse across a minute
+    // or a journal revision. Metric/filter changes reuse the same calculations.
+    final minute = DateTime.now().millisecondsSinceEpoch ~/ 60000;
+    if (!identical(b, _cachedBook) || minute != _cachedMinute) {
+      _dayCache.clear();
+      _cachedBook = b;
+      _cachedMinute = minute;
+    }
+    return _dayCache.putIfAbsent(r, () => _calculateDays(b, r));
+  }
+
+  List<_StatsDay> _calculateDays(TestState b, DateTimeRange r) {
     final out = <_StatsDay>[];
     final factors = <String, double>{};
+    final dailyStats = <DateTime, Map<String, double>>{};
+    Map<String, double> stats(DateTime day) =>
+        dailyStats.putIfAbsent(day, () => b.statistics(day, day: day));
+    final tripsByDay = <String, int>{};
+    for (final entry in b.records) {
+      if (entry['kind'] != 'trip') continue;
+      final key = TestState.dayKey(b.recordDay(entry));
+      tripsByDay[key] = (tripsByDay[key] ?? 0) + 1;
+    }
     for (
       var d = r.start;
       !d.isAfter(r.end);
@@ -116,22 +141,11 @@ class _MillStatisticsState extends State<_MillStatistics>
       final factor = factors.putIfAbsent(key, () {
         var sum = 0.0;
         for (var i = 1; i <= DateTime(d.year, d.month + 1, 0).day; i++)
-          sum +=
-              b.statistics(
-                d,
-                day: DateTime(d.year, d.month, i),
-              )['base_salary'] ??
-              0;
+          sum += stats(DateTime(d.year, d.month, i))['base_salary'] ?? 0;
         return sum == 0 ? 1 : (b.statistics(d)['base_salary'] ?? 0) / sum;
       });
-      final s = b.statistics(d, day: d);
-      final trips = b.records
-          .where(
-            (e) =>
-                e['kind'] == 'trip' &&
-                TestState.dayKey(b.recordDay(e)) == TestState.dayKey(d),
-          )
-          .length;
+      final s = stats(d);
+      final trips = tripsByDay[TestState.dayKey(d)] ?? 0;
       out.add(
         _StatsDay(
           d,
@@ -347,6 +361,7 @@ class _MillStatisticsState extends State<_MillStatistics>
   Widget build(BuildContext context) => Stack(
     children: [
       _TestLive(
+        refreshInterval: const Duration(minutes: 1),
         builder: (b) {
           final rows = data(b, range);
           final shown = rows.where((d) => !onlyActive || d.active).toList();
@@ -392,368 +407,396 @@ class _MillStatisticsState extends State<_MillStatistics>
                 ? DateTimeRange(start: monthly.start, end: monthly.end)
                 : range,
           );
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+          return Column(
             children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed:
-                        widget.onHome ?? () => Navigator.maybePop(context),
-                    icon: const Icon(Icons.arrow_back, color: gold),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'Статистика',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 21,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => pickMonth(),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.calendar_month_outlined,
-                          color: gold,
-                          size: 17,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          '${_garageMonths[month.month - 1]} ${month.year}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                          ),
-                        ),
-                        const Icon(Icons.expand_more, color: gold, size: 16),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              panel(
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'ПЕРИОД',
-                      style: TextStyle(
-                        color: Color(0xFFB5B5AE),
-                        fontSize: 10,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      periodLabel,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        for (var i = 0; i < 3; i++)
-                          chip(
-                            const ['Месяц', '3 месяца', 'Свой'][i],
-                            period == i,
-                            () => setPeriod(i),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-                light: true,
-              ),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
                 child: Row(
                   children: [
-                    for (var i = 0; i < 5; i++)
-                      chip(
-                        names[i],
-                        metric == i,
-                        () => setState(() => metric = i),
+                    IconButton(
+                      onPressed:
+                          widget.onHome ?? () => Navigator.maybePop(context),
+                      icon: const Icon(Icons.arrow_back, color: gold),
+                    ),
+                    const Expanded(
+                      child: Text(
+                        'Статистика',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 21,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              panel(
-                Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${names[metric]}, ${units[metric]}',
+                    ),
+                    TextButton(
+                      onPressed: () => pickMonth(),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.calendar_month_outlined,
+                            color: gold,
+                            size: 17,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            '${_garageMonths[month.month - 1]} ${month.year}',
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 13,
+                              fontSize: 10,
                             ),
                           ),
-                        ),
-                        Text(
-                          '${_fmt1(total(rows, metric))} ${units[metric]}',
-                          style: const TextStyle(
-                            color: gold,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                          const Icon(Icons.expand_more, color: gold, size: 16),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                  children: [
+                    panel(
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'ПЕРИОД',
+                            style: TextStyle(
+                              color: Color(0xFFB5B5AE),
+                              fontSize: 10,
+                              letterSpacing: 1,
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 5),
+                          Text(
+                            periodLabel,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              for (var i = 0; i < 3; i++)
+                                chip(
+                                  const ['Месяц', '3 месяца', 'Свой'][i],
+                                  period == i,
+                                  () => setPeriod(i),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      light: true,
+                    ),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (var i = 0; i < 5; i++)
+                            chip(
+                              names[i],
+                              metric == i,
+                              () => setState(() => metric = i),
+                            ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 8),
-                    SizedBox(
-                      height: 145,
-                      width: double.infinity,
-                      child: LayoutBuilder(
-                        builder: (context, box) => GestureDetector(
-                          onTapUp: (tap) {
-                            final i =
-                                ((tap.localPosition.dx - 35) /
-                                        (box.maxWidth - 45) *
-                                        (rows.length - 1))
-                                    .round()
-                                    .clamp(0, rows.length - 1);
-                            openDay(b, rows[i]);
-                          },
-                          child: CustomPaint(
-                            painter: _StatsLine(
-                              rows.map((d) => d.value(metric)).toList(),
-                              rows.map((d) => date(d.date)).toList(),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (metric == 4)
-                      const Text(
-                        'Эффективность — перевезённые кг на 1 км',
-                        style: TextStyle(color: Colors.grey, fontSize: 10),
-                      ),
-                  ],
-                ),
-              ),
-              panel(
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Сравнение периодов',
-                      style: TextStyle(color: Colors.white, fontSize: 13),
-                    ),
-                    if (period == 0) ...[
-                      TextButton.icon(
-                        onPressed: () => pickMonth(comparison: true),
-                        icon: const Icon(
-                          Icons.calendar_month_outlined,
-                          color: gold,
-                          size: 17,
-                        ),
-                        label: Text(
-                          '${_garageMonths[previous.start.month - 1]} ${previous.start.year} · Изменить',
-                          style: const TextStyle(color: gold, fontSize: 12),
-                        ),
-                      ),
-                      Text(
-                        '${date(monthly.start)}.${monthly.start.year}–${date(monthly.end)}.${monthly.end.year}'
-                        ' / ${date(previous.start)}.${previous.start.year}–${date(previous.end)}.${previous.end.year}',
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 11,
-                        ),
-                      ),
-                      const Text(
-                        'С начала месяца по сегодняшнее число включительно. '
-                        'Для короткого месяца — по последнюю общую дату.',
-                        style: TextStyle(color: Colors.grey, fontSize: 10),
-                      ),
-                    ] else
-                      Text(
-                        '${date(range.start)}.${range.start.year}–${date(range.end)}.${range.end.year}'
-                        ' / ${date(previous.start)}.${previous.start.year}–${date(previous.end)}.${previous.end.year}',
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 11,
-                        ),
-                      ),
-                    const SizedBox(height: 10),
-                    if (!hasBefore || !hasCurrent)
-                      Text(
-                        !hasBefore
-                            ? 'За выбранный период сравнения записей нет'
-                            : 'За основной период записей нет',
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 11,
-                        ),
-                      )
-                    else ...[
-                      const Text(
-                        'Основной период / период сравнения',
-                        style: TextStyle(color: Colors.grey, fontSize: 10),
-                      ),
-                      for (var i = 0; i < 7; i++)
-                        comparisonLine(
-                          const [
-                            'Город',
-                            'Район',
-                            'Общий тоннаж',
-                            'Рейсы',
-                            'Пробег',
-                            'Зарплата',
-                            'Эффективность',
-                          ][i],
-                          i < 2 ? 'кг' : units[i - 2],
-                          comparisonValue(comparisonRows, i),
-                          comparisonValue(before, i),
-                        ),
-                    ],
-                  ],
-                ),
-                light: true,
-              ),
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: Text(
-                  'Ключевые итоги',
-                  style: TextStyle(color: Colors.white, fontSize: 17),
-                ),
-              ),
-              Row(
-                children: [
-                  for (var i = 0; i < 4; i++)
-                    Expanded(
-                      child: Padding(
-                        padding: EdgeInsets.only(right: i == 3 ? 0 : 5),
-                        child: panel(
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    panel(
+                      Column(
+                        children: [
+                          Row(
                             children: [
-                              Icon(
-                                const [
-                                  Icons.scale_outlined,
-                                  Icons.local_shipping_outlined,
-                                  Icons.route_outlined,
-                                  Icons.payments_outlined,
-                                ][i],
-                                color: gold,
-                                size: 20,
-                              ),
-                              const SizedBox(height: 5),
-                              Text(
-                                names[i],
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 9,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
+                              Expanded(
                                 child: Text(
-                                  _fmt1(total(rows, i)),
+                                  '${names[metric]}, ${units[metric]}',
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 15,
+                                    fontSize: 13,
                                   ),
                                 ),
                               ),
                               Text(
-                                units[i],
+                                '${_fmt1(total(rows, metric))} ${units[metric]}',
                                 style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 9,
+                                  color: gold,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              panel(
-                Column(
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.calendar_month_outlined,
-                          color: gold,
-                          size: 19,
-                        ),
-                        const SizedBox(width: 7),
-                        const Expanded(
-                          child: Text(
-                            'Детализация по дням',
-                            style: TextStyle(color: Colors.white, fontSize: 13),
-                          ),
-                        ),
-                        PopupMenuButton<bool>(
-                          initialValue: onlyActive,
-                          onSelected: (v) => setState(() => onlyActive = v),
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(value: false, child: Text('Все дни')),
-                            PopupMenuItem(
-                              value: true,
-                              child: Text('С записями'),
-                            ),
-                          ],
-                          child: Row(
-                            children: [
-                              Text(
-                                onlyActive ? 'С записями' : 'Все дни',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            height: 145,
+                            width: double.infinity,
+                            child: LayoutBuilder(
+                              builder: (context, box) => GestureDetector(
+                                onTapUp: (tap) {
+                                  final i =
+                                      ((tap.localPosition.dx - 35) /
+                                              (box.maxWidth - 45) *
+                                              (rows.length - 1))
+                                          .round()
+                                          .clamp(0, rows.length - 1);
+                                  openDay(b, rows[i]);
+                                },
+                                child: CustomPaint(
+                                  painter: _StatsLine(
+                                    rows.map((d) => d.value(metric)).toList(),
+                                    rows.map((d) => date(d.date)).toList(),
+                                  ),
                                 ),
                               ),
-                              const Icon(
-                                Icons.expand_more,
+                            ),
+                          ),
+                          if (metric == 4)
+                            const Text(
+                              'Эффективность — перевезённые кг на 1 км',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 10,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    panel(
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Сравнение периодов',
+                            style: TextStyle(color: Colors.white, fontSize: 13),
+                          ),
+                          if (period == 0) ...[
+                            TextButton.icon(
+                              onPressed: () => pickMonth(comparison: true),
+                              icon: const Icon(
+                                Icons.calendar_month_outlined,
                                 color: gold,
                                 size: 17,
                               ),
-                            ],
+                              label: Text(
+                                '${_garageMonths[previous.start.month - 1]} ${previous.start.year} · Изменить',
+                                style: const TextStyle(
+                                  color: gold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '${date(monthly.start)}.${monthly.start.year}–${date(monthly.end)}.${monthly.end.year}'
+                              ' / ${date(previous.start)}.${previous.start.year}–${date(previous.end)}.${previous.end.year}',
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 11,
+                              ),
+                            ),
+                            const Text(
+                              'С начала месяца по сегодняшнее число включительно. '
+                              'Для короткого месяца — по последнюю общую дату.',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ] else
+                            Text(
+                              '${date(range.start)}.${range.start.year}–${date(range.end)}.${range.end.year}'
+                              ' / ${date(previous.start)}.${previous.start.year}–${date(previous.end)}.${previous.end.year}',
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 11,
+                              ),
+                            ),
+                          const SizedBox(height: 10),
+                          if (!hasBefore || !hasCurrent)
+                            Text(
+                              !hasBefore
+                                  ? 'За выбранный период сравнения записей нет'
+                                  : 'За основной период записей нет',
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 11,
+                              ),
+                            )
+                          else ...[
+                            const Text(
+                              'Основной период / период сравнения',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 10,
+                              ),
+                            ),
+                            for (var i = 0; i < 7; i++)
+                              comparisonLine(
+                                const [
+                                  'Город',
+                                  'Район',
+                                  'Общий тоннаж',
+                                  'Рейсы',
+                                  'Пробег',
+                                  'Зарплата',
+                                  'Эффективность',
+                                ][i],
+                                i < 2 ? 'кг' : units[i - 2],
+                                comparisonValue(comparisonRows, i),
+                                comparisonValue(before, i),
+                              ),
+                          ],
+                        ],
+                      ),
+                      light: true,
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        'Ключевые итоги',
+                        style: TextStyle(color: Colors.white, fontSize: 17),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        for (var i = 0; i < 4; i++)
+                          Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.only(right: i == 3 ? 0 : 5),
+                              child: panel(
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      const [
+                                        Icons.scale_outlined,
+                                        Icons.local_shipping_outlined,
+                                        Icons.route_outlined,
+                                        Icons.payments_outlined,
+                                      ][i],
+                                      color: gold,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      names[i],
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 9,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        _fmt1(total(rows, i)),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      units[i],
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 9,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    tableRow([
-                      'Дата',
-                      'Город, кг',
-                      'Район, кг',
-                      'Км',
-                      '₸',
-                    ], header: true),
-                    if (shown.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.all(20),
-                        child: Text(
-                          'Записей за период нет',
-                          style: TextStyle(color: Colors.grey),
-                        ),
+                    panel(
+                      Column(
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.calendar_month_outlined,
+                                color: gold,
+                                size: 19,
+                              ),
+                              const SizedBox(width: 7),
+                              const Expanded(
+                                child: Text(
+                                  'Детализация по дням',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              PopupMenuButton<bool>(
+                                initialValue: onlyActive,
+                                onSelected: (v) =>
+                                    setState(() => onlyActive = v),
+                                itemBuilder: (_) => const [
+                                  PopupMenuItem(
+                                    value: false,
+                                    child: Text('Все дни'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: true,
+                                    child: Text('С записями'),
+                                  ),
+                                ],
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      onlyActive ? 'С записями' : 'Все дни',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.expand_more,
+                                      color: gold,
+                                      size: 17,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          tableRow([
+                            'Дата',
+                            'Город, кг',
+                            'Район, кг',
+                            'Км',
+                            '₸',
+                          ], header: true),
+                          if (shown.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.all(20),
+                              child: Text(
+                                'Записей за период нет',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ),
+                          for (final d in shown)
+                            InkWell(
+                              onTap: () => openDay(b, d),
+                              child: tableRow([
+                                date(d.date),
+                                _fmt1(d.city),
+                                _fmt1(d.region),
+                                _fmt1(d.km),
+                                _fmt1(d.salary),
+                              ], weekend: d.date.weekday >= 6),
+                            ),
+                        ],
                       ),
-                    for (final d in shown)
-                      InkWell(
-                        onTap: () => openDay(b, d),
-                        child: tableRow([
-                          date(d.date),
-                          _fmt1(d.city),
-                          _fmt1(d.region),
-                          _fmt1(d.km),
-                          _fmt1(d.salary),
-                        ], weekend: d.date.weekday >= 6),
-                      ),
+                    ),
                   ],
                 ),
               ),

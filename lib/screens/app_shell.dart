@@ -3108,7 +3108,6 @@ Future<void> _showQuickAddMenu(BuildContext context, AppSession session) async {
     transitionsBuilder: AppMotion.transition,
   );
   final choice = await Navigator.of(context).push<String>(route);
-  await route.completed;
   if (choice != null && context.mounted) await _testEditor(context, choice);
 }
 

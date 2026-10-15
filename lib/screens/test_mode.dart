@@ -1811,7 +1811,11 @@ class _TestShiftEditorState extends State<_TestShiftEditor> {
 
 class _TestLive extends StatefulWidget {
   final Widget Function(TestState) builder;
-  const _TestLive({required this.builder});
+  final Duration refreshInterval;
+  const _TestLive({
+    required this.builder,
+    this.refreshInterval = const Duration(seconds: 1),
+  });
   @override
   State<_TestLive> createState() => _TestLiveState();
 }
@@ -1837,7 +1841,7 @@ class _TestLiveState extends State<_TestLive> {
     super.initState();
     TestStore.revision.addListener(load);
     load();
-    timer = Timer.periodic(const Duration(seconds: 1), (_) {
+    timer = Timer.periodic(widget.refreshInterval, (_) {
       if (mounted && b?.active != null && visible) setState(() {});
     });
   }
