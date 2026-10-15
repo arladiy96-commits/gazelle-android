@@ -19,7 +19,9 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
   @override
   void initState() {
     super.initState();
-    _repository = AdvanceReportRepository(widget.session.ownerKey);
+    _repository = AdvanceReportRepository(
+      '${widget.session.role.storageValue}:${widget.session.login}',
+    );
     TestStore.revision.addListener(_reload);
     _reload();
   }
@@ -122,21 +124,83 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
     Navigator.pop(context);
   }
 
-  Widget _cashInput(AdvanceReport report) => InlineValueInput(
-    value: AdvanceRow.decimal(report.received, 2),
-    label: 'Получено из кассы',
-    enabled: _archive == null && !_busy,
-    save: (text) async {
-      if (text.trim().isEmpty) {
-        await _run(() => _repository.setCash(null));
-        return;
-      }
-      final value = AdvanceRow.parseDecimal(text, 2);
-      if (value == null || value < 0)
-        throw ArgumentError('Введите сумму от нуля');
-      await _run(() => _repository.setCash(value));
-    },
-  );
+  Future<void> _editCash() async {
+    final report = _report;
+    if (report == null || _archive != null || _busy) return;
+    final controller = TextEditingController(
+      text: AdvanceRow.decimal(report.received, 2),
+    );
+    String? error;
+    final result = await showDialog<Object>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (c, update) => AlertDialog(
+          backgroundColor: const Color(0xFF11181C),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(17),
+            side: const BorderSide(color: Color(0xFF776044), width: .8),
+          ),
+          surfaceTintColor: Colors.transparent,
+          title: const Text(
+            'Получено из кассы',
+            style: TextStyle(fontSize: 20),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _text(
+                'Автоматически: ${_money(report.expenses)}. Введите фактически полученную сумму или вернитесь к автоматическому расчёту.',
+                color: muted,
+                size: 12,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                style: const TextStyle(color: Color(0xFFE9EAEB)),
+                decoration: InputDecoration(
+                  labelText: 'Фактически получено',
+                  suffixText: '₸',
+                  errorText: error,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog),
+              child: const Text('Отмена'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialog, 'auto'),
+              child: const Text('Автоматически'),
+            ),
+            TextButton(
+              onPressed: () {
+                final value = AdvanceRow.parseDecimal(controller.text, 2);
+                if (value == null || value > 99999999999) {
+                  update(() => error = 'Введите сумму от 0 до 999 999 999,99');
+                  return;
+                }
+                Navigator.pop(dialog, value);
+              },
+              child: const Text('Сохранить'),
+            ),
+          ],
+        ),
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    controller.dispose();
+    if (mounted && result != null)
+      await _run(
+        () => _repository.setCash(result == 'auto' ? null : result as int),
+      );
+  }
 
   Future<void> _editExpense([AdvanceRow? row]) async {
     if (_busy || _archive != null) return;
@@ -172,8 +236,11 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
       );
       return;
     }
-    final result = await _showKeyboardForm<AdvanceRow>(
+    final result = await showModalBottomSheet<AdvanceRow>(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      useSafeArea: true,
       builder: (_) => _AdvanceExpenseEditor(row: row),
     );
     if (mounted && result != null)
@@ -218,7 +285,6 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
       context: context,
       backgroundColor: const Color(0xFF11181C),
       builder: (c) => SafeArea(
-        maintainBottomViewPadding: true,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -285,7 +351,28 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
     padding: const EdgeInsets.all(16),
     child: Column(
       children: [
-        _cashInput(report),
+        InkWell(
+          onTap: _archive != null || _busy ? null : _editCash,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                Expanded(child: _text('Получено из кассы', color: muted)),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: _text(_money(report.received), size: 23, bold: true),
+                  ),
+                ),
+                if (_archive == null) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.edit_outlined, color: gold, size: 18),
+                ],
+              ],
+            ),
+          ),
+        ),
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 10),
           child: Divider(height: 1, color: Color(0xFF353A3D)),
@@ -473,15 +560,13 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
                 ),
               ),
             Expanded(
-              child: KeyboardScrollArea(
-                child: SingleChildScrollView(
-                  child: report.rows.isEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 30),
-                          child: _text('Расходов пока нет', color: muted),
-                        )
-                      : _table(report),
-                ),
+              child: SingleChildScrollView(
+                child: report.rows.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 30),
+                        child: _text('Расходов пока нет', color: muted),
+                      )
+                    : _table(report),
               ),
             ),
             if (_archive == null)
@@ -586,7 +671,6 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        resizeToAvoidBottomInset: false,
         backgroundColor: const Color(0xFF080E12),
         body: LayoutBuilder(
           builder: (context, box) {
@@ -774,7 +858,19 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
                           }),
                         ),
                       ),
-                      at(220, 280, 264, 145, _cashInput(report)),
+                      at(
+                        220,
+                        280,
+                        264,
+                        145,
+                        stat(
+                          'Получено\nиз кассы',
+                          report.received,
+                          Icons.payments_outlined,
+                          const Color(0xFFE6B46B),
+                          onTap: _archive == null ? _editCash : null,
+                        ),
+                      ),
                       at(
                         490,
                         280,
@@ -1115,13 +1211,11 @@ class _AdvanceReportScreenState extends State<_AdvanceReportScreen> {
               systemNavigationBarIconBrightness: Brightness.light,
             ),
             child: Scaffold(
-              resizeToAvoidBottomInset: false,
               backgroundColor: const Color(0xFF101517),
               body: Stack(
                 children: [
                   _CinematicMore.backdrop(),
                   SafeArea(
-                    maintainBottomViewPadding: true,
                     child: Column(
                       children: [
                         Padding(
@@ -1266,7 +1360,7 @@ class _AdvanceExpenseEditorState extends State<_AdvanceExpenseEditor> {
       String title, {
       bool numeric = false,
       int? maxLength,
-    }) => KeyboardInput(
+    }) => TextField(
       controller: controller,
       maxLength: maxLength,
       textCapitalization: numeric
@@ -1288,118 +1382,99 @@ class _AdvanceExpenseEditorState extends State<_AdvanceExpenseEditor> {
       ),
     );
     return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-      child: KeyboardScrollArea(
-        child: SingleChildScrollView(
-          child: _AdvanceMoreSurface(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.row == null ? 'Новый расход' : 'Изменить расход',
-                  style: const TextStyle(
-                    color: Color(0xFFE9EAEB),
-                    fontSize: 21,
-                    fontWeight: FontWeight.w600,
+      padding: EdgeInsets.fromLTRB(
+        10,
+        0,
+        10,
+        MediaQuery.viewInsetsOf(context).bottom + 8,
+      ),
+      child: SingleChildScrollView(
+        child: _AdvanceMoreSurface(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.row == null ? 'Новый расход' : 'Изменить расход',
+                style: const TextStyle(
+                  color: Color(0xFFE9EAEB),
+                  fontSize: 21,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () async {
+                  final selected = await showDatePicker(
+                    context: context,
+                    initialDate: _date,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime.now(),
+                  );
+                  if (selected != null && mounted)
+                    setState(() => _date = selected);
+                },
+                icon: const Icon(
+                  Icons.calendar_today_outlined,
+                  size: 16,
+                  color: Color(0xFFCEA15B),
+                ),
+                label: Text(
+                  '${_date.day.toString().padLeft(2, '0')}.${_date.month.toString().padLeft(2, '0')}.${_date.year}',
+                  style: const TextStyle(color: Color(0xFFCEA15B)),
+                ),
+              ),
+              field(_name, 'Наименование', maxLength: 160),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: field(_quantity, 'Количество', numeric: true),
+                  ),
+                  const SizedBox(width: 18),
+                  Expanded(child: field(_price, 'Цена, ₸', numeric: true)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              field(_direction, 'Направление (необязательно)', maxLength: 120),
+              const SizedBox(height: 18),
+              Text(
+                'Сумма: ${quantity <= 999999999 && price <= 99999999999 ? AdvanceRow.decimal(AdvanceRow.calculateTotal(quantity, price), 2, grouped: true) : '—'} ₸',
+                style: const TextStyle(
+                  color: Color(0xFFE9EAEB),
+                  fontSize: 21,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Color(0xFFD29280)),
                   ),
                 ),
-                TextButton.icon(
-                  onPressed: () async {
-                    final selected = await showDatePicker(
-                      context: context,
-                      initialDate: _date,
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime.now(),
-                    );
-                    if (selected != null && mounted)
-                      setState(() => _date = selected);
-                  },
-                  icon: const Icon(
-                    Icons.calendar_today_outlined,
-                    size: 16,
-                    color: Color(0xFFCEA15B),
-                  ),
-                  label: Text(
-                    '${_date.day.toString().padLeft(2, '0')}.${_date.month.toString().padLeft(2, '0')}.${_date.year}',
-                    style: const TextStyle(color: Color(0xFFCEA15B)),
-                  ),
-                ),
-                field(_name, 'Наименование', maxLength: 160),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: field(_quantity, 'Количество', numeric: true),
-                    ),
-                    const SizedBox(width: 18),
-                    Expanded(child: field(_price, 'Цена, ₸', numeric: true)),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: field(
-                        _direction,
-                        'Направление (необязательно)',
-                        maxLength: 120,
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Выбрать направление',
-                      icon: const Icon(
-                        Icons.expand_more,
-                        color: Color(0xFFCEA15B),
-                      ),
-                      onPressed: () async {
-                        final name = await _pickDirection(context);
-                        if (mounted && name != null)
-                          setState(() => _direction.text = name);
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  'Сумма: ${quantity <= 999999999 && price <= 99999999999 ? AdvanceRow.decimal(AdvanceRow.calculateTotal(quantity, price), 2, grouped: true) : '—'} ₸',
-                  style: const TextStyle(
-                    color: Color(0xFFE9EAEB),
-                    fontSize: 21,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(color: Color(0xFFD29280)),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      'Отмена',
+                      style: TextStyle(color: Color(0xFF90999E)),
                     ),
                   ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text(
-                        'Отмена',
-                        style: TextStyle(color: Color(0xFF90999E)),
-                      ),
+                  TextButton(
+                    onPressed: _save,
+                    child: const Text(
+                      'Сохранить',
+                      style: TextStyle(color: Color(0xFFCEA15B)),
                     ),
-                    TextButton(
-                      onPressed: _save,
-                      child: const Text(
-                        'Сохранить',
-                        style: TextStyle(color: Color(0xFFCEA15B)),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -1543,7 +1618,6 @@ class _AdvanceImagePreviewState extends State<_AdvanceImagePreview> {
   Widget build(BuildContext context) => PopScope(
     canPop: !_saving,
     child: Scaffold(
-      resizeToAvoidBottomInset: false,
       backgroundColor: const Color(0xFF111619),
       appBar: AppBar(
         backgroundColor: const Color(0xFF111619),
@@ -1552,7 +1626,6 @@ class _AdvanceImagePreviewState extends State<_AdvanceImagePreview> {
         automaticallyImplyLeading: !_saving,
       ),
       body: SafeArea(
-        maintainBottomViewPadding: true,
         child: Column(
           children: [
             Expanded(

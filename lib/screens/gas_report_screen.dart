@@ -122,34 +122,89 @@ class _GasReportScreenState extends State<_GasReportScreen> {
       ],
     ),
   );
-  Widget _openingInput(GasReport report) => Column(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      InlineValueInput(
-        key: ValueKey('opening-${report.month}'),
-        value: report.opening == null ? '' : _number(report.opening!),
-        label: 'На начало месяца, л',
-        enabled: !_busy,
-        save: (text) async {
-          final value = double.tryParse(
-            text.trim().replaceAll(' ', '').replaceAll(',', '.'),
-          );
-          if (value == null || !value.isFinite || value < 0)
-            throw ArgumentError('Введите число не меньше нуля');
-          await _commit(
-            () => GasReportRepository.setOpening(report.month, value),
-          );
-        },
-      ),
-      if (report.manualOpening && report.carriedOpening != null)
-        TextButton(
-          onPressed: _busy
-              ? null
-              : () => _commit(() => GasReportRepository.useCarry(report.month)),
-          child: const Text('Использовать перенос'),
+  Future<void> _opening(GasReport report) async {
+    final controller = TextEditingController(
+      text: report.opening == null ? '' : _number(report.opening!),
+    );
+    String? error;
+    final result = await showDialog<Object>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (dialog, update) => AlertDialog(
+          backgroundColor: const Color(0xFF11181C),
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(17),
+            side: const BorderSide(color: Color(0xFF776044), width: .8),
+          ),
+          title: const Text(
+            'Начальный остаток',
+            style: TextStyle(color: Color(0xFFF1EEE6), fontSize: 20),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Остаток газа с прошлого месяца',
+                style: TextStyle(color: muted, fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                style: const TextStyle(color: Color(0xFFE9EAEB)),
+                decoration: InputDecoration(
+                  suffixText: 'л',
+                  errorText: error,
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(color: Color(0xFF5A656B)),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(color: gold),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              if (report.manualOpening && report.carriedOpening != null)
+                _action(
+                  'Использовать перенос: ${_litres(report.carriedOpening)}',
+                  () => Navigator.pop(dialog, 'carry'),
+                ),
+            ],
+          ),
+          actions: [
+            _action('Отмена', () => Navigator.pop(dialog)),
+            _action('Сохранить', () {
+              final value = double.tryParse(
+                controller.text.trim().replaceAll(' ', '').replaceAll(',', '.'),
+              );
+              if (value == null || !value.isFinite || value < 0) {
+                update(() => error = 'Введите число не меньше нуля');
+                return;
+              }
+              Navigator.pop(dialog, value);
+            }),
+          ],
         ),
-    ],
-  );
+      ),
+    );
+    // Let the dialog finish its closing transition before disposing its field.
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    controller.dispose();
+    if (!mounted || result == null) {
+      return;
+    }
+    await _commit(
+      () => result == 'carry'
+          ? GasReportRepository.useCarry(report.month)
+          : GasReportRepository.setOpening(report.month, result as double),
+    );
+  }
 
   Future<void> _submit(GasReport report) async {
     final next = DateTime(report.month.year, report.month.month + 1);
@@ -314,7 +369,31 @@ class _GasReportScreenState extends State<_GasReportScreen> {
         const SizedBox(height: 8),
         _GasReportMoreSurface(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          child: _openingInput(r),
+          child: InkWell(
+            onTap: _busy ? null : () => _opening(r),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Row(
+                children: [
+                  const Text(
+                    'На начало месяца: ',
+                    style: TextStyle(color: muted, fontSize: 13),
+                  ),
+                  Expanded(
+                    child: Text(
+                      r.opening == null ? 'Указать' : _litres(r.opening),
+                      style: const TextStyle(
+                        color: gold,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.edit_outlined, color: gold, size: 19),
+                ],
+              ),
+            ),
+          ),
         ),
         if ((r.closing ?? 0) < 0)
           const Padding(
@@ -1046,7 +1125,6 @@ class _GasReportScreenState extends State<_GasReportScreen> {
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        resizeToAvoidBottomInset: false,
         backgroundColor: const Color(0xFF080E12),
         body: Stack(
           children: [
@@ -1057,7 +1135,6 @@ class _GasReportScreenState extends State<_GasReportScreen> {
               ),
             ),
             SafeArea(
-              maintainBottomViewPadding: true,
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final scale = constraints.maxWidth / 864;
@@ -1079,492 +1156,511 @@ class _GasReportScreenState extends State<_GasReportScreen> {
                     height: h * ratio,
                     child: child,
                   );
-                  return KeyboardScrollArea(
-                    child: SingleChildScrollView(
-                      child: SizedBox(
-                        width: constraints.maxWidth,
-                        height: height * scale,
-                        child: FittedBox(
-                          fit: BoxFit.fill,
-                          child: SizedBox(
-                            width: 864,
-                            height: height,
-                            child: Material(
-                              color: Colors.transparent,
-                              child: Stack(
-                                children: [
-                                  Positioned.fill(
-                                    child: Image.asset(
-                                      'assets/images/scenes/gas_report_reference.png',
-                                      fit: BoxFit.fill,
+                  return SingleChildScrollView(
+                    child: SizedBox(
+                      width: constraints.maxWidth,
+                      height: height * scale,
+                      child: FittedBox(
+                        fit: BoxFit.fill,
+                        child: SizedBox(
+                          width: 864,
+                          height: height,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: Image.asset(
+                                    'assets/images/scenes/gas_report_reference.png',
+                                    fit: BoxFit.fill,
+                                  ),
+                                ),
+                                at(
+                                  30,
+                                  20,
+                                  90,
+                                  90,
+                                  IconButton(
+                                    tooltip: 'Назад',
+                                    onPressed: () => Navigator.pop(context),
+                                    icon: const Icon(
+                                      Icons.chevron_left,
+                                      color: amber,
+                                      size: 49,
                                     ),
                                   ),
-                                  at(
-                                    30,
-                                    20,
-                                    90,
-                                    90,
-                                    IconButton(
-                                      tooltip: 'Назад',
-                                      onPressed: () => Navigator.pop(context),
-                                      icon: const Icon(
-                                        Icons.chevron_left,
-                                        color: amber,
-                                        size: 49,
-                                      ),
-                                    ),
-                                  ),
-                                  at(
-                                    140,
-                                    30,
-                                    680,
-                                    76,
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: label(
-                                        'Отчёт за газ',
-                                        57,
-                                        weight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                  at(
-                                    100,
-                                    121,
-                                    449,
-                                    72,
-                                    Row(
-                                      children: [
-                                        SizedBox(
-                                          width: 75,
-                                          child: IconButton(
-                                            tooltip: 'Предыдущий месяц',
-                                            onPressed: _busy
-                                                ? null
-                                                : () => _move(-1),
-                                            icon: const Icon(
-                                              Icons.chevron_left,
-                                              color: amber,
-                                              size: 40,
-                                            ),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: FittedBox(
-                                            fit: BoxFit.scaleDown,
-                                            child: label(
-                                              _monthName(_month),
-                                              28,
-                                              color: amber,
-                                              weight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                        SizedBox(
-                                          width: 75,
-                                          child: IconButton(
-                                            tooltip: 'Следующий месяц',
-                                            onPressed: canNext && !_busy
-                                                ? () => _move(1)
-                                                : null,
-                                            icon: Icon(
-                                              Icons.chevron_right,
-                                              color: canNext && !_busy
-                                                  ? amber
-                                                  : muted,
-                                              size: 40,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  at(
-                                    96,
-                                    247,
-                                    480,
-                                    48,
-                                    label(
-                                      'Итоги месяца',
-                                      36,
+                                ),
+                                at(
+                                  140,
+                                  30,
+                                  680,
+                                  76,
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: label(
+                                      'Отчёт за газ',
+                                      57,
                                       weight: FontWeight.w700,
                                     ),
                                   ),
-                                  at(
-                                    82,
-                                    304,
-                                    516,
-                                    280,
-                                    surface(
-                                      Column(
-                                        children: [
-                                          metric(
-                                            'Остаток\nс прошлого месяца',
-                                            _litres(r.opening),
-                                            Icons.inventory_2_outlined,
+                                ),
+                                at(
+                                  100,
+                                  121,
+                                  449,
+                                  72,
+                                  Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 75,
+                                        child: IconButton(
+                                          tooltip: 'Предыдущий месяц',
+                                          onPressed: _busy
+                                              ? null
+                                              : () => _move(-1),
+                                          icon: const Icon(
+                                            Icons.chevron_left,
+                                            color: amber,
+                                            size: 40,
                                           ),
-                                          metric(
-                                            'Получено газа\nза месяц',
-                                            _litres(r.gas),
-                                            Icons.local_shipping_outlined,
-                                          ),
-                                          metric(
-                                            'Пробег за месяц',
-                                            '${_number(r.km)} км',
-                                            Icons.add_road,
-                                          ),
-                                          metric(
-                                            'Расход по норме',
-                                            _litres(r.consumption),
-                                            Icons.bar_chart,
-                                            subtitle:
-                                                'Норма ${r.normDescription}',
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  at(
-                                    82,
-                                    597,
-                                    516,
-                                    83,
-                                    surface(
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            badge(
-                                              Icons.local_gas_station_outlined,
-                                            ),
-                                            const SizedBox(width: 25),
-                                            Expanded(
-                                              child: label(
-                                                'Текущий остаток',
-                                                23,
-                                                color: amber,
-                                                weight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            SizedBox(
-                                              width: 195,
-                                              child: fitted(
-                                                _litres(r.closing),
-                                                51,
-                                                color: (r.closing ?? 0) < 0
-                                                    ? const Color(0xFFD29280)
-                                                    : const Color(0xFFFFE5AE),
-                                              ),
-                                            ),
-                                          ],
                                         ),
                                       ),
-                                      highlight: true,
-                                    ),
-                                  ),
-                                  at(
-                                    82,
-                                    693,
-                                    516,
-                                    62,
-                                    surface(_openingInput(r)),
-                                  ),
-                                  at(
-                                    82,
-                                    851,
-                                    500,
-                                    52,
-                                    label(
-                                      'Журнал за месяц',
-                                      35,
-                                      weight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  at(
-                                    603,
-                                    846,
-                                    204,
-                                    60,
-                                    surface(
-                                      InkWell(
-                                        onTap: expandJournal,
-                                        child: Center(
+                                      Expanded(
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
                                           child: label(
-                                            'Развернуть ↗',
-                                            24,
+                                            _monthName(_month),
+                                            28,
                                             color: amber,
                                             weight: FontWeight.w600,
                                           ),
                                         ),
                                       ),
-                                      highlight: true,
-                                    ),
-                                  ),
-                                  at(
-                                    61,
-                                    919,
-                                    744,
-                                    62,
-                                    Row(
-                                      children: [
-                                        for (final distance in [false, true])
-                                          Expanded(
-                                            child: InkWell(
-                                              onTap: () => setState(
-                                                () => _distance = distance,
-                                              ),
-                                              child: surface(
-                                                Center(
-                                                  child: label(
-                                                    distance
-                                                        ? 'Пробег за день'
-                                                        : 'Показания одометра',
-                                                    22,
-                                                    color: _distance == distance
-                                                        ? amber
-                                                        : const Color(
-                                                            0xFFB6BFC1,
-                                                          ),
-                                                    weight:
-                                                        _distance == distance
-                                                        ? FontWeight.w600
-                                                        : FontWeight.w400,
-                                                  ),
-                                                ),
-                                                highlight:
-                                                    _distance == distance,
-                                              ),
-                                            ),
+                                      SizedBox(
+                                        width: 75,
+                                        child: IconButton(
+                                          tooltip: 'Следующий месяц',
+                                          onPressed: canNext && !_busy
+                                              ? () => _move(1)
+                                              : null,
+                                          icon: Icon(
+                                            Icons.chevron_right,
+                                            color: canNext && !_busy
+                                                ? amber
+                                                : muted,
+                                            size: 40,
                                           ),
-                                      ],
-                                    ),
-                                  ),
-                                  at(
-                                    58,
-                                    993,
-                                    750,
-                                    193,
-                                    surface(
-                                      Column(
-                                        children: [
-                                          journalLine([
-                                            'Дата',
-                                            if (_distance)
-                                              'Пробег, км'
-                                            else ...[
-                                              'Начало, км',
-                                              'Конец, км',
-                                            ],
-                                            'Газ, л',
-                                            'Бензин, л',
-                                            'Направление',
-                                          ], header: true),
-                                          Expanded(
-                                            child: r.days.isEmpty
-                                                ? Center(
-                                                    child: label(
-                                                      'В этом месяце смен пока нет',
-                                                      22,
-                                                      color: muted,
-                                                    ),
-                                                  )
-                                                : ListView(
-                                                    padding: EdgeInsets.zero,
-                                                    children: [
-                                                      for (final d in r.days)
-                                                        journalLine([
-                                                          '${d.date.day.toString().padLeft(2, '0')}.${d.date.month.toString().padLeft(2, '0')}',
-                                                          if (_distance)
-                                                            '${_number(d.km)}${d.pending > 0 ? ' *' : ''}'
-                                                          else ...[
-                                                            d.startKm == null
-                                                                ? '—'
-                                                                : _number(
-                                                                    d.startKm!,
-                                                                  ),
-                                                            d.endKm == null
-                                                                ? '—'
-                                                                : _number(
-                                                                    d.endKm!,
-                                                                  ),
-                                                          ],
-                                                          d.gas == 0
-                                                              ? '—'
-                                                              : _number(d.gas),
-                                                          d.petrol == 0
-                                                              ? '—'
-                                                              : _number(
-                                                                  d.petrol,
-                                                                ),
-                                                          d.directions.isEmpty
-                                                              ? '—'
-                                                              : d.directions,
-                                                        ], day: d),
-                                                    ],
-                                                  ),
-                                          ),
-                                          journalLine([
-                                            'Итого',
-                                            '${_number(r.km)}${_distance ? ' км' : ''}',
-                                            if (!_distance) 'км',
-                                            _litres(r.gas),
-                                            _litres(r.petrol),
-                                            '—',
-                                          ], total: true),
-                                        ],
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                  at(
-                                    76,
-                                    1190,
-                                    725,
-                                    42,
-                                    Row(
+                                ),
+                                at(
+                                  96,
+                                  247,
+                                  480,
+                                  48,
+                                  label(
+                                    'Итоги месяца',
+                                    36,
+                                    weight: FontWeight.w700,
+                                  ),
+                                ),
+                                at(
+                                  82,
+                                  304,
+                                  516,
+                                  280,
+                                  surface(
+                                    Column(
                                       children: [
-                                        const Icon(
-                                          Icons.calendar_month,
-                                          color: amber,
-                                          size: 25,
+                                        metric(
+                                          'Остаток\nс прошлого месяца',
+                                          _litres(r.opening),
+                                          Icons.inventory_2_outlined,
                                         ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: label(
-                                            '${r.days.length} дн. · ${_number(r.km)} км${r.pending > 0 ? ' · Незавершённых: ${r.pending}' : ''}',
-                                            20,
-                                            color: const Color(0xFFB6BFC1),
-                                          ),
+                                        metric(
+                                          'Получено газа\nза месяц',
+                                          _litres(r.gas),
+                                          Icons.local_shipping_outlined,
+                                        ),
+                                        metric(
+                                          'Пробег за месяц',
+                                          '${_number(r.km)} км',
+                                          Icons.add_road,
+                                        ),
+                                        metric(
+                                          'Расход по норме',
+                                          _litres(r.consumption),
+                                          Icons.bar_chart,
+                                          subtitle:
+                                              'Норма ${r.normDescription}',
                                         ),
                                       ],
                                     ),
                                   ),
-                                  at(
-                                    65,
-                                    1280,
-                                    740,
-                                    92,
-                                    InkWell(
-                                      onTap: _busy ? null : form,
+                                ),
+                                at(
+                                  82,
+                                  597,
+                                  516,
+                                  83,
+                                  surface(
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
                                       child: Row(
                                         children: [
                                           badge(
-                                            Icons.description_outlined,
-                                            size: 80,
+                                            Icons.local_gas_station_outlined,
                                           ),
-                                          const SizedBox(width: 32),
+                                          const SizedBox(width: 25),
                                           Expanded(
-                                            child: Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                label(
-                                                  'Открыть бланк',
-                                                  30,
-                                                  weight: FontWeight.w600,
-                                                ),
-                                                const SizedBox(height: 5),
-                                                label(
-                                                  'Просмотр и сохранение картинки',
-                                                  21,
-                                                  color: muted,
-                                                ),
-                                              ],
+                                            child: label(
+                                              'Текущий остаток',
+                                              23,
+                                              color: amber,
+                                              weight: FontWeight.w600,
                                             ),
                                           ),
+                                          const SizedBox(width: 12),
+                                          SizedBox(
+                                            width: 195,
+                                            child: fitted(
+                                              _litres(r.closing),
+                                              51,
+                                              color: (r.closing ?? 0) < 0
+                                                  ? const Color(0xFFD29280)
+                                                  : const Color(0xFFFFE5AE),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    highlight: true,
+                                  ),
+                                ),
+                                at(
+                                  82,
+                                  693,
+                                  516,
+                                  62,
+                                  surface(
+                                    InkWell(
+                                      onTap: _busy ? null : () => _opening(r),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 18,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            badge(Icons.settings, size: 42),
+                                            const SizedBox(width: 22),
+                                            Expanded(
+                                              child: label(
+                                                'На начало месяца:  ${_litres(r.opening)}',
+                                                21,
+                                                color: const Color(0xFFB6BFC1),
+                                              ),
+                                            ),
+                                            const Icon(
+                                              Icons.edit_outlined,
+                                              color: amber,
+                                              size: 31,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                at(
+                                  82,
+                                  851,
+                                  500,
+                                  52,
+                                  label(
+                                    'Журнал за месяц',
+                                    35,
+                                    weight: FontWeight.w700,
+                                  ),
+                                ),
+                                at(
+                                  603,
+                                  846,
+                                  204,
+                                  60,
+                                  surface(
+                                    InkWell(
+                                      onTap: expandJournal,
+                                      child: Center(
+                                        child: label(
+                                          'Развернуть ↗',
+                                          24,
+                                          color: amber,
+                                          weight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                    highlight: true,
+                                  ),
+                                ),
+                                at(
+                                  61,
+                                  919,
+                                  744,
+                                  62,
+                                  Row(
+                                    children: [
+                                      for (final distance in [false, true])
+                                        Expanded(
+                                          child: InkWell(
+                                            onTap: () => setState(
+                                              () => _distance = distance,
+                                            ),
+                                            child: surface(
+                                              Center(
+                                                child: label(
+                                                  distance
+                                                      ? 'Пробег за день'
+                                                      : 'Показания одометра',
+                                                  22,
+                                                  color: _distance == distance
+                                                      ? amber
+                                                      : const Color(0xFFB6BFC1),
+                                                  weight: _distance == distance
+                                                      ? FontWeight.w600
+                                                      : FontWeight.w400,
+                                                ),
+                                              ),
+                                              highlight: _distance == distance,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                at(
+                                  58,
+                                  993,
+                                  750,
+                                  193,
+                                  surface(
+                                    Column(
+                                      children: [
+                                        journalLine([
+                                          'Дата',
+                                          if (_distance)
+                                            'Пробег, км'
+                                          else ...[
+                                            'Начало, км',
+                                            'Конец, км',
+                                          ],
+                                          'Газ, л',
+                                          'Бензин, л',
+                                          'Направление',
+                                        ], header: true),
+                                        Expanded(
+                                          child: r.days.isEmpty
+                                              ? Center(
+                                                  child: label(
+                                                    'В этом месяце смен пока нет',
+                                                    22,
+                                                    color: muted,
+                                                  ),
+                                                )
+                                              : ListView(
+                                                  padding: EdgeInsets.zero,
+                                                  children: [
+                                                    for (final d in r.days)
+                                                      journalLine([
+                                                        '${d.date.day.toString().padLeft(2, '0')}.${d.date.month.toString().padLeft(2, '0')}',
+                                                        if (_distance)
+                                                          '${_number(d.km)}${d.pending > 0 ? ' *' : ''}'
+                                                        else ...[
+                                                          d.startKm == null
+                                                              ? '—'
+                                                              : _number(
+                                                                  d.startKm!,
+                                                                ),
+                                                          d.endKm == null
+                                                              ? '—'
+                                                              : _number(
+                                                                  d.endKm!,
+                                                                ),
+                                                        ],
+                                                        d.gas == 0
+                                                            ? '—'
+                                                            : _number(d.gas),
+                                                        d.petrol == 0
+                                                            ? '—'
+                                                            : _number(d.petrol),
+                                                        d.directions.isEmpty
+                                                            ? '—'
+                                                            : d.directions,
+                                                      ], day: d),
+                                                  ],
+                                                ),
+                                        ),
+                                        journalLine([
+                                          'Итого',
+                                          '${_number(r.km)}${_distance ? ' км' : ''}',
+                                          if (!_distance) 'км',
+                                          _litres(r.gas),
+                                          _litres(r.petrol),
+                                          '—',
+                                        ], total: true),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                at(
+                                  76,
+                                  1190,
+                                  725,
+                                  42,
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.calendar_month,
+                                        color: amber,
+                                        size: 25,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: label(
+                                          '${r.days.length} дн. · ${_number(r.km)} км${r.pending > 0 ? ' · Незавершённых: ${r.pending}' : ''}',
+                                          20,
+                                          color: const Color(0xFFB6BFC1),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                at(
+                                  65,
+                                  1280,
+                                  740,
+                                  92,
+                                  InkWell(
+                                    onTap: _busy ? null : form,
+                                    child: Row(
+                                      children: [
+                                        badge(
+                                          Icons.description_outlined,
+                                          size: 80,
+                                        ),
+                                        const SizedBox(width: 32),
+                                        Expanded(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              label(
+                                                'Открыть бланк',
+                                                30,
+                                                weight: FontWeight.w600,
+                                              ),
+                                              const SizedBox(height: 5),
+                                              label(
+                                                'Просмотр и сохранение картинки',
+                                                21,
+                                                color: muted,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const Icon(
+                                          Icons.chevron_right,
+                                          size: 40,
+                                          color: amber,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                at(
+                                  65,
+                                  1396,
+                                  740,
+                                  97,
+                                  InkWell(
+                                    onTap:
+                                        _busy ||
+                                            r.submitted ||
+                                            r.pending > 0 ||
+                                            r.opening == null
+                                        ? null
+                                        : () => _submit(r),
+                                    child: Row(
+                                      children: [
+                                        badge(
+                                          r.changed
+                                              ? Icons.refresh
+                                              : Icons.check_circle_outline,
+                                          size: 80,
+                                        ),
+                                        const SizedBox(width: 32),
+                                        Expanded(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              label(
+                                                _busy
+                                                    ? 'Сохранение…'
+                                                    : r.submitted
+                                                    ? 'Отчёт сдан'
+                                                    : 'Сдать отчёт',
+                                                30,
+                                                weight: FontWeight.w600,
+                                              ),
+                                              const SizedBox(height: 5),
+                                              label(
+                                                r.changed
+                                                    ? 'Данные изменились · проверить перенос'
+                                                    : r.submitted
+                                                    ? 'Зафиксировано: ${_litres(r.fixedClosing)}'
+                                                    : r.opening == null
+                                                    ? 'Укажите начальный остаток'
+                                                    : r.pending > 0
+                                                    ? 'Сначала завершите смены: ${r.pending}'
+                                                    : 'Перенести остаток в следующий месяц',
+                                                21,
+                                                color: muted,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (r.changed &&
+                                            _keptSignature != r.signature)
+                                          IconButton(
+                                            tooltip: 'Проверить изменившийся перенос',
+                                            onPressed: _busy
+                                                ? null
+                                                : changedReport,
+                                            icon: const Icon(
+                                              Icons.info_outline,
+                                              size: 40,
+                                              color: amber,
+                                            ),
+                                          )
+                                        else if (!r.submitted)
                                           const Icon(
                                             Icons.chevron_right,
                                             size: 40,
                                             color: amber,
                                           ),
-                                        ],
-                                      ),
+                                      ],
                                     ),
                                   ),
-                                  at(
-                                    65,
-                                    1396,
-                                    740,
-                                    97,
-                                    InkWell(
-                                      onTap:
-                                          _busy ||
-                                              r.submitted ||
-                                              r.pending > 0 ||
-                                              r.opening == null
-                                          ? null
-                                          : () => _submit(r),
-                                      child: Row(
-                                        children: [
-                                          badge(
-                                            r.changed
-                                                ? Icons.refresh
-                                                : Icons.check_circle_outline,
-                                            size: 80,
-                                          ),
-                                          const SizedBox(width: 32),
-                                          Expanded(
-                                            child: Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                label(
-                                                  _busy
-                                                      ? 'Сохранение…'
-                                                      : r.submitted
-                                                      ? 'Отчёт сдан'
-                                                      : 'Сдать отчёт',
-                                                  30,
-                                                  weight: FontWeight.w600,
-                                                ),
-                                                const SizedBox(height: 5),
-                                                label(
-                                                  r.changed
-                                                      ? 'Данные изменились · проверить перенос'
-                                                      : r.submitted
-                                                      ? 'Зафиксировано: ${_litres(r.fixedClosing)}'
-                                                      : r.opening == null
-                                                      ? 'Укажите начальный остаток'
-                                                      : r.pending > 0
-                                                      ? 'Сначала завершите смены: ${r.pending}'
-                                                      : 'Перенести остаток в следующий месяц',
-                                                  21,
-                                                  color: muted,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          if (r.changed &&
-                                              _keptSignature != r.signature)
-                                            IconButton(
-                                              tooltip: 'Проверить изменившийся перенос',
-                                              onPressed: _busy
-                                                  ? null
-                                                  : changedReport,
-                                              icon: const Icon(
-                                                Icons.info_outline,
-                                                size: 40,
-                                                color: amber,
-                                              ),
-                                            )
-                                          else if (!r.submitted)
-                                            const Icon(
-                                              Icons.chevron_right,
-                                              size: 40,
-                                              color: amber,
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -1593,7 +1689,6 @@ class _GasReportScreenState extends State<_GasReportScreen> {
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        resizeToAvoidBottomInset: false,
         backgroundColor: const Color(0xFF080E12),
         body: Stack(
           children: [
@@ -1604,7 +1699,6 @@ class _GasReportScreenState extends State<_GasReportScreen> {
               ),
             ),
             SafeArea(
-              maintainBottomViewPadding: true,
               child: Column(
                 children: [
                   Row(
@@ -1931,7 +2025,6 @@ class _GasFormPreviewState extends State<_GasFormPreview> {
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,
     child: Scaffold(
-      resizeToAvoidBottomInset: false,
       backgroundColor: const Color(0xFF111619),
       appBar: AppBar(
         backgroundColor: const Color(0xFF111619),
@@ -1940,7 +2033,6 @@ class _GasFormPreviewState extends State<_GasFormPreview> {
         title: const Text('Карточка водителя'),
       ),
       body: SafeArea(
-        maintainBottomViewPadding: true,
         child: Column(
           children: [
             if (_error != null)
@@ -2002,7 +2094,7 @@ class _GasFormPreviewState extends State<_GasFormPreview> {
                               ])
                                 Padding(
                                   padding: const EdgeInsets.only(bottom: 14),
-                                  child: KeyboardInput(
+                                  child: TextField(
                                     controller: field.$1,
                                     enabled: !_busy,
                                     maxLength: 120,
