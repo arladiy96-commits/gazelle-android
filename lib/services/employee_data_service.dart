@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
@@ -18,34 +20,10 @@ class EmployeeDataService {
     final disk = await SharedPreferences.getInstance();
     scope.check();
     final raw = disk.getString('${TestPreferences.storageKey}_account_$id');
-    final values = raw == null
-        ? <String, dynamic>{}
-        : Map<String, dynamic>.from(jsonDecode(raw) as Map);
-    values.remove('gazelle_real_gps_routes_v1');
-    // A camera draft belongs to this device, not to the shared invoice journal.
-    values.removeWhere(
-      (key, _) =>
-          key.startsWith('loading_invoices_v1_') && key.endsWith('_pending'),
-    );
-    if (values['journal'] is String) {
-      final journal = Map<String, dynamic>.from(
-        jsonDecode(values['journal'] as String) as Map,
-      );
-      for (final shift in journal['shifts'] as List? ?? []) {
-        for (final key in ['gpsKm', 'gpsNativeCounters', 'gpsSignalGaps']) {
-          (shift as Map).remove(key);
-        }
-      }
-      values['journal'] = jsonEncode(journal);
-    }
-    return {
-      'accountId': id,
-      'receivedAt': null,
-      'preferences': values,
-      'loaderShifts': jsonDecode(
-        disk.getString('melnitsa_loader_shifts_v1_$id') ?? '[]',
-      ),
-    };
+    final loaderRaw = disk.getString('melnitsa_loader_shifts_v1_$id') ?? '[]';
+    final result = await compute(_decodeLocalSnapshot, (id, raw, loaderRaw));
+    scope.check();
+    return result;
   }
 
   static Future<Map<String, dynamic>> read(String id) async {
@@ -113,4 +91,34 @@ class EmployeeDataService {
       ],
     };
   }
+}
+
+Map<String, dynamic> _decodeLocalSnapshot((String, String?, String) input) {
+  final (id, raw, loaderRaw) = input;
+  final values = raw == null
+      ? <String, dynamic>{}
+      : Map<String, dynamic>.from(jsonDecode(raw) as Map);
+  values.remove('gazelle_real_gps_routes_v1');
+  // A camera draft belongs to this device, not to the shared invoice journal.
+  values.removeWhere(
+    (key, _) =>
+        key.startsWith('loading_invoices_v1_') && key.endsWith('_pending'),
+  );
+  if (values['journal'] is String) {
+    final journal = Map<String, dynamic>.from(
+      jsonDecode(values['journal'] as String) as Map,
+    );
+    for (final shift in journal['shifts'] as List? ?? []) {
+      for (final key in ['gpsKm', 'gpsNativeCounters', 'gpsSignalGaps']) {
+        (shift as Map).remove(key);
+      }
+    }
+    values['journal'] = jsonEncode(journal);
+  }
+  return {
+    'accountId': id,
+    'receivedAt': null,
+    'preferences': values,
+    'loaderShifts': jsonDecode(loaderRaw),
+  };
 }

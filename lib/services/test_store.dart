@@ -4,6 +4,7 @@ import 'account_scope.dart';
 import 'employee_server_api.dart';
 
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -139,7 +140,10 @@ class TestPreferences {
           next[key] = value;
         }
       }
-      if (!await _disk.setString(_storageKey, jsonEncode(next)))
+      if (ServerMerge.same(next, _values)) return true;
+      final encoded = await compute(_encodePreferenceSnapshot, next);
+      _scope.check();
+      if (!await _disk.setString(_storageKey, encoded))
         throw StateError('Не удалось сохранить тестовые данные');
       _values = next;
       revision.value++;
@@ -736,6 +740,9 @@ class TestState {
 }
 
 class TestStore {
+  static final Object _gpsImportZone = Object();
+  static bool get isGpsImportNotification =>
+      Zone.current[_gpsImportZone] == true;
   static final revision = TestPreferences.revision;
   static Future<void> _queue = Future<void>.value();
   static Future<void> flush() => _queue;
@@ -1337,9 +1344,10 @@ class TestStore {
         }
         if (changed) {
           scope.check();
-          await (await TestPreferences.getInstance()).setString(
-            'journal',
-            jsonEncode(state.toJson()),
+          final preferences = await TestPreferences.getInstance();
+          await runZoned(
+            () => preferences.setString('journal', jsonEncode(state.toJson())),
+            zoneValues: {_gpsImportZone: true},
           );
         }
       }),
@@ -1470,3 +1478,6 @@ class TestStore {
   if (ServerMerge.same(merged, snapshots[1])) return null;
   return (merged, jsonEncode(merged));
 }
+
+String _encodePreferenceSnapshot(Map<String, dynamic> values) =>
+    jsonEncode(values);

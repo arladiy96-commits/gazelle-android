@@ -25,6 +25,7 @@ class EmployeeSync with WidgetsBindingObserver {
   final message = ValueNotifier<String?>(null);
   final conflict = ValueNotifier<bool>(false);
   Timer? _timer;
+  DateTime? _lastDataSync;
   bool _busy = false, _attached = false;
   Future<void> start() async {
     if (!_attached) {
@@ -32,12 +33,16 @@ class EmployeeSync with WidgetsBindingObserver {
       _attached = true;
     }
     _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 30), (_) => tick());
+    _timer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => tick(background: true),
+    );
     await tick();
   }
 
   void stop() {
     conflict.value = false;
+    _lastDataSync = null;
     _timer?.cancel();
     _timer = null;
     if (_attached) WidgetsBinding.instance.removeObserver(this);
@@ -46,7 +51,7 @@ class EmployeeSync with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) tick();
+    if (state == AppLifecycleState.resumed) tick(background: true);
   }
 
   Future<void> restore() async {
@@ -176,7 +181,7 @@ class EmployeeSync with WidgetsBindingObserver {
     }
   }
 
-  Future<void> tick() async {
+  Future<void> tick({bool background = false}) async {
     if (!AccountScope.signedIn) return;
     if (EmployeeServerApi.enabled &&
         EmployeeServerApi.dataReadyAccount != AccountScope.capture().id)
@@ -198,6 +203,12 @@ class EmployeeSync with WidgetsBindingObserver {
         await GpsTrackerController.instance.resumeForAccess();
       }
       if (!EmployeeServerApi.enabled || AccountScope.restricted) return;
+      final now = DateTime.now();
+      if (background &&
+          _lastDataSync != null &&
+          now.difference(_lastDataSync!) < const Duration(minutes: 2))
+        return;
+      _lastDataSync = now;
       final disk = await SharedPreferences.getInstance();
       scope.check();
       final recovery = disk.getString('employee_sync_recovery_${scope.id}');

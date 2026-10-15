@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/employee_access.dart';
 
@@ -136,7 +137,9 @@ class EmployeeServerApi {
             'Bearer $_token',
           );
         if (body != null) {
-          final payload = utf8.encode(jsonEncode(body));
+          final payload = path == '/me/sync' || path.contains('/routes/')
+              ? await compute(_encodeApiBody, body)
+              : _encodeApiBody(body);
           // The Python server reads Content-Length, not chunked request bodies.
           request.contentLength = payload.length;
           request.add(payload);
@@ -150,7 +153,9 @@ class EmployeeServerApi {
         }
         final data = bytes.isEmpty
             ? <String, dynamic>{}
-            : Map<String, dynamic>.from(jsonDecode(utf8.decode(bytes)) as Map);
+            : bytes.length > 64 * 1024
+            ? await compute(_decodeApiResponse, bytes)
+            : _decodeApiResponse(bytes);
         if (response.statusCode < 200 || response.statusCode >= 300) {
           throw EmployeeApiError(
             response.statusCode,
@@ -166,3 +171,8 @@ class EmployeeServerApi {
     }
   }
 }
+
+List<int> _encodeApiBody(Map<String, dynamic> body) =>
+    utf8.encode(jsonEncode(body));
+Map<String, dynamic> _decodeApiResponse(List<int> bytes) =>
+    Map<String, dynamic>.from(jsonDecode(utf8.decode(bytes)) as Map);
