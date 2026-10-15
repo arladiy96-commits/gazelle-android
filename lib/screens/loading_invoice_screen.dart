@@ -19,7 +19,7 @@ class _DefaultInvoiceRecognition implements InvoiceRecognitionService {
   Future<InvoiceRecognitionResult> recognize({
     required String invoiceId,
     required List<String> photoPaths,
-  }) => MockInvoiceRecognitionService().recognize(
+  }) => ServerInvoiceRecognitionService().recognize(
     invoiceId: invoiceId,
     photoPaths: photoPaths,
   );
@@ -36,6 +36,7 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
   List<LoadingInvoice> history = [];
   bool busy = true, showHistory = false;
   String? error;
+  String? recognitionNotice;
   String activity = 'Загрузка…';
   bool get review => invoice.stage == 'review';
   bool get loading => invoice.stage == 'loading';
@@ -116,6 +117,9 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
       invoiceId: invoice.invoiceId,
       photoPaths: List.unmodifiable(invoice.photos),
     );
+    recognitionNotice = result.warnings.isEmpty
+        ? null
+        : result.warnings.join("\n");
     final next = invoice.copy()
       ..items = result.items
       ..statedWeightKg = result.statedWeightKg
@@ -627,6 +631,16 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
                                 Expanded(
                                   child: ListView(
                                     children: [
+                                      if (recognitionNotice != null)
+                                        panel(
+                                          Text(
+                                            recognitionNotice!,
+                                            style: const TextStyle(
+                                              color: warn,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
                                       if (invoice.mock)
                                         panel(
                                           const Text(
@@ -668,7 +682,7 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
                                         ),
                                         panel(
                                           const Text(
-                                            'Распознавание пока работает в демонстрационном режиме. Фото на сервер не отправляются.',
+                                            'Фото отправляются на ваш сервер для распознавания. Перед погрузкой проверьте товары, количество мешков и вес.',
                                             style: TextStyle(
                                               color: muted,
                                               fontSize: 13,
@@ -780,7 +794,7 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
                                 panel(
                                   invoice.stage == 'photos'
                                       ? action(
-                                          'Распознать · демо',
+                                          'Распознать через ИИ',
                                           invoice.photos.isEmpty
                                               ? null
                                               : recognize,
