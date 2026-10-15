@@ -119,6 +119,7 @@ class _AppShellState extends State<AppShell> {
 
   void _syncGpsTracker() {
     if (!_loggingOut &&
+        !TestStore.isGpsImportNotification &&
         _session.role != AppRole.loader &&
         AccountScope.signedIn) {
       GpsTrackerController.instance.syncWithJournal().catchError((Object _) {});

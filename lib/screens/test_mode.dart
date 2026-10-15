@@ -174,7 +174,6 @@ class _TestRecordEditorState extends State<_TestRecordEditor> {
     }
   }
 
-  final Map<String, Future<List<String>>> _directionOptions = {};
   int _directionRevision = 0;
   Future<void> _directionChanged(String value) async {
     final revision = ++_directionRevision;
@@ -184,42 +183,56 @@ class _TestRecordEditorState extends State<_TestRecordEditor> {
     }
   }
 
-  Widget tripField({bool weight = false}) => KeyboardInput(
-    controller: weight ? amount : direction,
-    enabled: !busy,
-    keyboardType: weight
-        ? const TextInputType.numberWithOptions(decimal: true)
-        : TextInputType.text,
-    textInputAction: TextInputAction.done,
-    style: const TextStyle(color: _paper, fontSize: 31),
-    onChanged: weight ? null : _directionChanged,
-    decoration: InputDecoration(
-      hintText: weight
-          ? (widget.kind == 'fuel' ? 'Введите литры' : 'Введите вес')
-          : 'Направление',
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      border: const OutlineInputBorder(),
-      suffixIcon: weight
-          ? null
-          : FutureBuilder<List<String>>(
-              future: _directionOptions.putIfAbsent(
-                type,
-                () => TestStore.directionNames(type),
+  Future<void> _chooseTripDirection() async {
+    if (busy) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    final selectedType = type;
+    final value = await _pickDirection(context, type: selectedType);
+    if (!mounted || value == null || selectedType != type) return;
+    setState(() => direction.text = value);
+    await _directionChanged(value);
+  }
+
+  Widget tripField({bool weight = false}) {
+    if (!weight)
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: busy ? null : _chooseTripDirection,
+          child: InputDecorator(
+            decoration: const InputDecoration(
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 12,
               ),
-              builder: (context, snapshot) => PopupMenuButton<String>(
-                tooltip: 'Выбрать направление',
-                itemBuilder: (_) => [
-                  for (final name in snapshot.data ?? <String>[])
-                    PopupMenuItem(value: name, child: Text(name)),
-                ],
-                onSelected: (value) {
-                  direction.text = value;
-                  _directionChanged(value);
-                },
-              ),
+              border: OutlineInputBorder(),
+              suffixIcon: Icon(Icons.arrow_drop_down),
             ),
-    ),
-  );
+            child: Text(
+              direction.text.isEmpty ? 'Направление' : direction.text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: _paper, fontSize: 31),
+            ),
+          ),
+        ),
+      );
+    return KeyboardInput(
+      controller: amount,
+      enabled: !busy,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      textInputAction: TextInputAction.done,
+      style: const TextStyle(color: _paper, fontSize: 31),
+      decoration: InputDecoration(
+        hintText: widget.kind == 'fuel' ? 'Введите литры' : 'Введите вес',
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 12,
+        ),
+        border: const OutlineInputBorder(),
+      ),
+    );
+  }
 
   Widget tripScreen() {
     const gold = Color(0xFFE6B46B),
@@ -1240,7 +1253,8 @@ class _TestHubState extends State<_TestHub> {
     TestStore.revision.addListener(load);
     load();
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && book?.active != null) setState(() {});
+      if (mounted && TickerMode.of(context) && book?.active != null)
+        setState(() {});
     });
   }
 
