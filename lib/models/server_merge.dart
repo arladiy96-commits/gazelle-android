@@ -22,6 +22,7 @@ class ServerMerge {
     Object? local,
     Object? remote, [
     String path = 'data',
+    bool preserveNewLocalChanges = false,
   ]) {
     if (same(local, base)) return remote;
     if (same(remote, base) || same(local, remote)) return local;
@@ -33,6 +34,7 @@ class ServerMerge {
           local.containsKey(k) ? local[k] : _missing,
           remote.containsKey(k) ? remote[k] : _missing,
           '$path.$k',
+          preserveNewLocalChanges,
         );
         if (!identical(value, _missing)) out[k as String] = value;
       }
@@ -60,10 +62,14 @@ class ServerMerge {
             indexed(local),
             indexed(remote),
             path,
+            preserveNewLocalChanges,
           ) as Map).values.toList();
         }
       }
     }
+    // Only after an explicit server-version choice: base is the durable local
+    // backup at confirmation time. Differences from it are newer user work.
+    if (preserveNewLocalChanges) return local;
     throw StateError(
       'Запись изменена с двух устройств: $path. Местные данные сохранены.',
     );
@@ -86,12 +92,15 @@ class ServerMerge {
   static Map<String, dynamic> mergePreferences(
     Map base,
     Map local,
-    Map remote,
-  ) {
+    Map remote, {
+    bool preserveNewLocalChanges = false,
+  }) {
     final merged = merge(
       decodePreferences(base),
       decodePreferences(local),
       decodePreferences(remote),
+      'data',
+      preserveNewLocalChanges,
     ) as Map;
     return {
       for (final e in merged.entries)
