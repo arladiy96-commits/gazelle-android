@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 /// The same quiet dissolve for app routes and tab changes.
 abstract final class AppMotion {
-  static const duration = Duration(milliseconds: 300);
-  static const curve = Curves.easeInOutCubic;
+  static const duration = Duration(milliseconds: 200);
+  static const curve = Curves.easeOutCubic;
 
   static Widget transition(
     BuildContext context,

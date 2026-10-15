@@ -179,15 +179,18 @@ class _KeyboardScrollAreaState extends State<KeyboardScrollArea>
       return true;
     });
     final metrics = MediaQueryData.fromView(View.of(context));
-    final box = context.findRenderObject();
+    // Only keyboard avoidance needs a screen coordinate. Do not derive a
+    // persistent clip from last frame's render position: it can cut off headers
+    // after a route/focus change, even with the keyboard closed.
+    final keyboardOpen = containsFocus && metrics.viewInsets.bottom > 0;
+    final box = keyboardOpen ? context.findRenderObject() : null;
     final top = box is RenderBox && box.hasSize
         ? box.localToGlobal(Offset.zero).dy
         : metrics.viewPadding.top;
-    final height = containsFocus && metrics.viewInsets.bottom > 0
+    final height = keyboardOpen
         ? math.max(0.0, metrics.size.height - metrics.viewInsets.bottom - top)
         : double.infinity;
     return ClipRect(
-      clipper: _FormSafeClip(math.max(0.0, metrics.viewPadding.top - top)),
       child: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
@@ -197,16 +200,6 @@ class _KeyboardScrollAreaState extends State<KeyboardScrollArea>
       ),
     );
   }
-}
-
-class _FormSafeClip extends CustomClipper<Rect> {
-  final double top;
-  const _FormSafeClip(this.top);
-  @override
-  Rect getClip(Size size) =>
-      Rect.fromLTRB(0, top.clamp(0.0, size.height), size.width, size.height);
-  @override
-  bool shouldReclip(_FormSafeClip oldClipper) => top != oldClipper.top;
 }
 
 /// A value edited and saved where it is displayed, without a dialog.
