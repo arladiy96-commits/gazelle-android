@@ -112,21 +112,38 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
     await commit(next);
     await repository.setPending(null);
   });
-  Future<void> recognize() => perform('Распознавание…', () async {
-    final result = await widget.recognition.recognize(
-      invoiceId: invoice.invoiceId,
-      photoPaths: List.unmodifiable(invoice.photos),
-    );
-    recognitionNotice = result.warnings.isEmpty
-        ? null
-        : result.warnings.join("\n");
-    final next = invoice.copy()
-      ..items = result.items
-      ..statedWeightKg = result.statedWeightKg
-      ..mock = result.isMock
-      ..stage = 'review';
-    await commit(next);
-  });
+  Future<void> returnToPhotos() => perform(
+    'Возврат к фото…',
+    () => commit(invoice.copy()..stage = 'photos'),
+  );
+
+  Future<void> recognize() async {
+    if (busy) return;
+    if (invoice.items.isNotEmpty &&
+        !await confirm(
+          'Распознать заново?',
+          'После успешного распознавания текущие позиции и отметки загрузки заменятся результатом ИИ.',
+          'Распознать',
+        ))
+      return;
+    if (!mounted) return;
+    await perform('Распознавание…', () async {
+      final result = await widget.recognition.recognize(
+        invoiceId: invoice.invoiceId,
+        photoPaths: List.unmodifiable(invoice.photos),
+      );
+      recognitionNotice = result.warnings.isEmpty
+          ? null
+          : result.warnings.join("\n");
+      final next = invoice.copy()
+        ..items = result.items
+        ..statedWeightKg = result.statedWeightKg
+        ..mock = result.isMock
+        ..stage = 'review';
+      await commit(next);
+    });
+  }
+
   Widget totalInput() => InlineValueInput(
     value: invoice.statedWeightKg == null ? '' : kg(invoice.statedWeightKg!),
     label: 'Вес в накладной, кг',
@@ -417,7 +434,15 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
   );
   @override
   Widget build(BuildContext context) => PopScope(
-    canPop: !busy,
+    canPop: !busy && !showHistory && !review,
+    onPopInvokedWithResult: (didPop, result) {
+      if (didPop || busy) return;
+      if (showHistory) {
+        setState(() => showHistory = false);
+      } else if (review) {
+        returnToPhotos();
+      }
+    },
     child: AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -461,6 +486,8 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
                               : () {
                                   if (showHistory) {
                                     setState(() => showHistory = false);
+                                  } else if (review) {
+                                    returnToPhotos();
                                   } else {
                                     Navigator.pop(context);
                                   }
@@ -700,6 +727,13 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
                                           icon: Icons.edit_outlined,
                                         ),
                                       ] else ...[
+                                        if (review)
+                                          action(
+                                            'Вернуться к фото и сканированию',
+                                            returnToPhotos,
+                                            icon:
+                                                Icons.document_scanner_outlined,
+                                          ),
                                         if (review)
                                           panel(
                                             Column(
