@@ -232,15 +232,44 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
     ),
   );
 
-  Widget panel(Widget child) => Container(
+  bool get referenceMenu => !showHistory && (review || invoice.stage == 'photos');
+
+  Widget referenceFrame(Widget child, {bool enabled = true, EdgeInsets padding = EdgeInsets.zero}) =>
+      CustomPaint(
+        painter: _InvoicePanelPainter(enabled: enabled),
+        child: Padding(padding: padding, child: child),
+      );
+
+  Widget panel(Widget child) => referenceMenu
+      ? Padding(
+          padding: const EdgeInsets.only(bottom: 9),
+          child: child is Text
+              ? Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: entryPanel(),
+                  child: Container(
+                    padding: const EdgeInsets.only(left: 12),
+                    decoration: const BoxDecoration(border: Border(
+                      left: BorderSide(color: Color(0xFFBC843D), width: 2))),
+                    child: child,
+                  ),
+                )
+              : referenceFrame(child, padding: EdgeInsets.symmetric(
+                  horizontal: 18, vertical: child is ExpansionTile ? 0 : 10)),
+        )
+      : Container(
     width: double.infinity,
     margin: const EdgeInsets.only(bottom: 12),
     padding: const EdgeInsets.all(16),
     decoration: entryPanel(),
     child: child,
   );
-  Widget line(String label, String value, {Color color = white}) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
+  Widget line(String label, String value, {Color color = white}) => Container(
+    decoration: referenceMenu && label != 'Расчётный вес'
+        ? const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFF354149), width: .6)))
+        : null,
+    padding: EdgeInsets.symmetric(vertical: referenceMenu ? 5 : 4),
     child: Row(
       children: [
         Expanded(
@@ -260,8 +289,34 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
       ],
     ),
   );
-  Widget action(String label, VoidCallback? tap, {IconData? icon}) =>
-      TextButton.icon(
+  Widget action(String label, VoidCallback? tap, {IconData? icon}) => referenceMenu
+      ? Padding(
+          padding: const EdgeInsets.only(bottom: 7),
+          child: referenceFrame(
+            Material(color: Colors.transparent,
+              child: InkWell(onTap: busy ? null : tap,
+                customBorder: const BeveledRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(7))),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                  child: Row(children: [
+                    Icon(icon ?? Icons.chevron_right, size: 25,
+                      color: busy || tap == null ? muted.withValues(alpha: .5) : gold),
+                    if (invoice.stage == 'photos' && label != 'Распознать через ИИ')
+                      Container(width: 1, height: 23, margin: const EdgeInsets.symmetric(horizontal: 13),
+                        color: const Color(0xFF455057))
+                    else const SizedBox(width: 14),
+                    Expanded(child: Text(label, style: TextStyle(
+                      color: busy || tap == null ? muted.withValues(alpha: .5) : gold,
+                      fontSize: 16, height: 1.15))),
+                    if (label != 'Распознать через ИИ' && label != 'Начать погрузку')
+                      const Icon(Icons.chevron_right, color: gold, size: 24),
+                  ]),
+                ),
+              ),
+            ), enabled: !busy && tap != null,
+          ),
+        )
+      : TextButton.icon(
         onPressed: busy ? null : tap,
         style: TextButton.styleFrom(
           foregroundColor: gold,
@@ -341,9 +396,12 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
       ),
     ),
   );
-  Widget itemRow(LoadingInvoiceItem item, int index) => Container(
-    margin: const EdgeInsets.only(bottom: 8),
-    decoration: entryPanel(),
+  Widget itemRow(LoadingInvoiceItem item, int index) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: CustomPaint(
+    painter: referenceMenu ? const _InvoicePanelPainter() : null,
+    child: Container(
+    decoration: referenceMenu ? null : entryPanel(),
     child: Material(
       color: Colors.transparent,
       child: InkWell(
@@ -361,7 +419,7 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
                 });
               },
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+          padding: EdgeInsets.fromLTRB(17, referenceMenu ? 7 : 12, 10, referenceMenu ? 7 : 12),
           child: Row(
             children: [
               Icon(
@@ -430,6 +488,8 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
           ),
         ),
       ),
+    ),
+    ),
     ),
   );
   Future<void> toggleLoaded(LoadingInvoiceItem item) async {
@@ -656,8 +716,10 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
         backgroundColor: const Color(0xFF0B1115),
         body: loading && !showHistory ? loadingChecklist(context) : Stack(
           children: [
-            const Positioned.fill(
-              child: RepaintBoundary(
+            Positioned.fill(
+              child: referenceMenu
+                  ? _InvoiceReferenceBackdrop(review: review)
+                  : const RepaintBoundary(
                 child: _ExtendedArtwork(
                   asset: 'assets/images/scenes/trip_entry.png',
                   topInset: 0,
@@ -668,7 +730,7 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
                   MediaQuery.sizeOf(context).width * 74 / 864,
-                  8,
+                  referenceMenu ? 16 : 8,
                   MediaQuery.sizeOf(context).width * 70 / 864,
                   math.max(12.0, MediaQuery.sizeOf(context).width * 70 / 864),
                 ),
@@ -707,22 +769,27 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
                             showHistory
                                 ? 'Накладные'
                                 : invoice.stage == 'photos'
-                                ? 'Добавить накладную'
+                                ? 'Добавить\nнакладную'
                                 : review
-                                ? 'Проверка накладной'
+                                ? 'Проверка\nнакладной'
                                 : completed
                                 ? 'Накладная сохранена'
                                 : 'Погрузка',
                             style: const TextStyle(
                               color: white,
-                              fontSize: 20,
-                              height: 1.15,
-                              fontWeight: FontWeight.w400,
+                              fontSize: 23,
+                              height: 1.05,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
                         IconButton(
                           tooltip: 'История накладных',
+                          style: referenceMenu ? IconButton.styleFrom(
+                            backgroundColor: const Color(0xD5081117),
+                            side: const BorderSide(color: gold),
+                            minimumSize: const Size(44, 44),
+                          ) : null,
                           onPressed: busy
                               ? null
                               : () => perform('Загрузка…', () async {
@@ -733,18 +800,19 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
                         ),
                       ],
                     ),
-                    Center(
-                      child: Container(width: 140, height: 1, color: gold),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 100, right: 48),
+                      child: Container(height: 1, color: gold),
                     ),
                     SizedBox(
                       height: math.max(
                         12.0,
                         math.min(
-                              MediaQuery.sizeOf(context).width * 538 / 864,
+                              MediaQuery.sizeOf(context).width * (referenceMenu ? (review ? .39 : .49) : 538 / 864),
                               MediaQuery.sizeOf(context).height * .35,
                             ) -
                             MediaQuery.paddingOf(context).top -
-                            83,
+                            (referenceMenu ? 53 : 83),
                       ),
                     ),
                     if (error != null)
@@ -891,8 +959,7 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
                                         ),
                                         if (invoice.photos.isNotEmpty)
                                           panel(photos()),
-                                        panel(
-                                          Column(
+                                        Column(
                                             children: [
                                               action(
                                                 'Сфотографировать страницу',
@@ -907,7 +974,6 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
                                               ),
                                             ],
                                           ),
-                                        ),
                                         panel(
                                           const Text(
                                             'Фото отправляются на ваш сервер для распознавания. Перед погрузкой проверьте товары, количество мешков и вес.',
@@ -974,6 +1040,11 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
                                           panel(
                                             ExpansionTile(
                                               tilePadding: EdgeInsets.zero,
+                                              dense: true,
+                                              minTileHeight: 44,
+                                              leading: const Icon(Icons.image_outlined, color: gold),
+                                              shape: const Border(),
+                                              collapsedShape: const Border(),
                                               title: Text(
                                                 'Исходные фото · ${invoice.photos.length}',
                                                 style: const TextStyle(
@@ -1026,7 +1097,9 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
                                     ],
                                   ),
                                 ),
-                                panel(
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 9),
+                                  child:
                                   invoice.stage == 'photos'
                                       ? action(
                                           'Распознать через ИИ',
@@ -1253,4 +1326,115 @@ class _LoadingMetalPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _LoadingMetalPainter oldDelegate) =>
       oldDelegate.active != active || oldDelegate.button != button;
+}
+
+class _InvoicePanelPainter extends CustomPainter {
+  final bool enabled;
+  const _InvoicePanelPainter({this.enabled = true});
+  Path bevel(Rect r, double c) => Path()
+    ..moveTo(r.left + c, r.top)..lineTo(r.right - c, r.top)
+    ..lineTo(r.right, r.top + c)..lineTo(r.right, r.bottom - c)
+    ..lineTo(r.right - c, r.bottom)..lineTo(r.left + c, r.bottom)
+    ..lineTo(r.left, r.bottom - c)..lineTo(r.left, r.top + c)..close();
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = (Offset.zero & size).deflate(1);
+    final path = bevel(r, 7);
+    canvas.drawShadow(path, Colors.black, 3, false);
+    canvas.drawPath(path, Paint()..shader = LinearGradient(
+      begin: Alignment.topLeft, end: Alignment.bottomRight,
+      colors: enabled
+        ? const [Color(0xFFE4BC75), Color(0xFF3C4850), Color(0xFF9D7136), Color(0xFF101C22), Color(0xFFE2AC5A)]
+        : const [Color(0xFF66757F), Color(0xFF24323B), Color(0xFF60727D)],
+    ).createShader(r));
+    final inside = bevel(r.deflate(2), 6);
+    canvas.drawPath(inside, Paint()..shader = const LinearGradient(
+      begin: Alignment.topLeft, end: Alignment.bottomRight,
+      colors: [Color(0xFF15232B), Color(0xFF081218), Color(0xFF0B141A)],
+    ).createShader(r));
+    canvas.save();
+    canvas.clipPath(inside);
+    final texture = Paint()..color = const Color(0x084E7181)..strokeWidth = .5;
+    for (double x = -size.height; x < size.width; x += 5) {
+      canvas.drawLine(Offset(x, 0), Offset(x + size.height, size.height), texture);
+    }
+    canvas.restore();
+    canvas.drawPath(bevel(r.deflate(4), 7), Paint()
+      ..style = PaintingStyle.stroke..strokeWidth = .5
+      ..color = enabled ? const Color(0x887B704E) : const Color(0x66566A76));
+    for (final x in [7.5, size.width - 7.5]) {
+      for (final y in [7.5, size.height - 7.5]) {
+        canvas.drawCircle(Offset(x, y), 2.7, Paint()..color = const Color(0xFF03080C));
+        canvas.drawCircle(Offset(x, y), 1.8, Paint()
+          ..style = PaintingStyle.stroke..strokeWidth = .7
+          ..color = enabled ? const Color(0xFFAE9061) : const Color(0xFF65757F));
+        canvas.drawLine(Offset(x - 1, y + 1), Offset(x + 1, y - 1),
+          Paint()..color = const Color(0xFF62717A)..strokeWidth = .7);
+      }
+    }
+  }
+  @override
+  bool shouldRepaint(covariant _InvoicePanelPainter oldDelegate) => oldDelegate.enabled != enabled;
+}
+
+// Reuse the existing scene; only its empty central frame extends vertically.
+class _InvoiceReferenceBackdrop extends StatefulWidget {
+  final bool review;
+  const _InvoiceReferenceBackdrop({required this.review});
+  @override
+  State<_InvoiceReferenceBackdrop> createState() => _InvoiceReferenceBackdropState();
+}
+class _InvoiceReferenceBackdropState extends State<_InvoiceReferenceBackdrop> {
+  ImageStream? stream;
+  ImageInfo? info;
+  late final listener = ImageStreamListener((ImageInfo next, bool synchronous) {
+    final previous = info;
+    if (mounted) { setState(() => info = next); } else { next.dispose(); }
+    previous?.dispose();
+  });
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final next = const AssetImage('assets/images/scenes/trip_entry.png')
+        .resolve(createLocalImageConfiguration(context));
+    if (stream?.key == next.key) return;
+    stream?.removeListener(listener);
+    stream = next;
+    next.addListener(listener);
+  }
+  @override
+  void dispose() {
+    stream?.removeListener(listener);
+    info?.dispose();
+    super.dispose();
+  }
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+    painter: info == null ? null : _InvoiceBackdropPainter(info!, widget.review),
+  );
+}
+class _InvoiceBackdropPainter extends CustomPainter {
+  final ImageInfo info;
+  final bool review;
+  const _InvoiceBackdropPainter(this.info, this.review);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final im = info.image;
+    final w = im.width.toDouble(), h = im.height.toDouble();
+    final header = math.min(size.height * .35, size.width * (review ? .39 : .49));
+    final foot = math.min(size.height * .15, size.width * .21);
+    // Header is cropped, not stretched. Source artwork contains no UI text.
+    final sourceHeader = h * .317;
+    final sourceHeight = math.min(sourceHeader, header * w / size.width);
+    final paint = Paint()..filterQuality = FilterQuality.medium;
+    canvas.drawImageRect(im, Rect.fromLTWH(0, sourceHeader - sourceHeight, w, sourceHeight),
+      Rect.fromLTWH(0, 0, size.width, header), paint);
+    canvas.drawImageRect(im, Rect.fromLTWH(0, sourceHeader, w, h * .61),
+      Rect.fromLTWH(0, header, size.width, size.height - header - foot), paint);
+    canvas.drawImageRect(im, Rect.fromLTWH(0, h * .927, w, h * .073),
+      Rect.fromLTWH(0, size.height - foot, size.width, foot), paint);
+  }
+  @override
+  bool shouldRepaint(covariant _InvoiceBackdropPainter oldDelegate) =>
+      oldDelegate.info != info || oldDelegate.review != review;
 }
