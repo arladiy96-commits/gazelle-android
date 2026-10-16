@@ -676,41 +676,54 @@ class _LoaderDashboardState extends State<_LoaderDashboard> {
             79,
             _tap(label('+', 62, bold: true, center: true), () => _stepTime(60)),
           ),
-          for (final item in [
-            (_hours, 'Часы', 289.0),
-            (_minutes, 'Минуты', 486.0),
-          ])
-            at(
-              item.$3,
-              765,
-              150,
-              100,
-              KeyboardInput(
-                controller: item.$1,
-                enabled: !_busy,
-                keyboardType: TextInputType.number,
-                textInputAction: TextInputAction.next,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(2),
-                ],
-                style: TextStyle(
-                  color: const Color(0xFFBEB9AF),
-                  fontSize: 45 * sx,
-                ),
-                decoration: InputDecoration(
-                  labelText: item.$2,
-                  border: InputBorder.none,
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-            ),
+          // Digits sit directly on the four drums in the notebook artwork.
+          // Read-only: only the existing step and preset buttons change time.
           for (var i = 0; i < 4; i++)
             at(
-              [166.0, 322.0, 476.0, 636.0][i],
-              899,
-              128,
-              49,
+              [288.0, 366.0, 484.0, 557.0][i],
+              [765.0, 763.0, 761.0, 759.0][i],
+              62,
+              88,
+              IgnorePointer(
+                child: ExcludeSemantics(
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: ShaderMask(
+                        blendMode: BlendMode.srcIn,
+                        shaderCallback: (rect) => const LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Color(0xFFC3C0B6), Color(0xFFF1EEE3), Color(0xFFD4D0C4)],
+                          stops: [0, .48, 1],
+                        ).createShader(rect),
+                        child: Text(digits[i], style: TextStyle(
+                          fontSize: 66 * sx,
+                          height: 1,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          shadows: const [Shadow(color: Colors.black87, offset: Offset(0, 2), blurRadius: 2)],
+                        )),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          at(430, 794, 42, 26, IgnorePointer(child: label('ч', 22,
+            bold: true, center: true, color: const Color(0xFFD9D5C9)))),
+          at(566, 849, 58, 20, IgnorePointer(child: label('мин', 16,
+            center: true, color: const Color(0xFFD9D5C9)))),
+          at(288, 759, 331, 95, IgnorePointer(child: Semantics(
+            label: 'Отработано: ${_loaderHours(_enteredMinutes)}',
+            child: const SizedBox.expand(),
+          ))),
+          for (var i = 0; i < 4; i++)
+            at(
+              [164.0, 319.0, 473.0, 630.0][i],
+              [897.0, 892.0, 888.0, 883.0][i],
+              [138.0, 136.0, 138.0, 143.0][i],
+              54,
               _tap(
                 Container(
                   decoration: BoxDecoration(
