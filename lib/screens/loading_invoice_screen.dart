@@ -432,6 +432,207 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
       ),
     ),
   );
+  Future<void> toggleLoaded(LoadingInvoiceItem item) async {
+    if (busy || !loading) return;
+    HapticFeedback.lightImpact();
+    await perform('Сохранение…', () async {
+      final next = invoice.copy();
+      final at = next.items.indexWhere((i) => i.itemId == item.itemId);
+      if (at < 0) return;
+      next.items[at].isLoaded = !next.items[at].isLoaded;
+      await commit(next);
+    });
+  }
+
+  String bagLabel(int count) {
+    final last = count % 10, lastTwo = count % 100;
+    if (lastTwo >= 11 && lastTwo <= 14) return 'мешков';
+    if (last == 1) return 'мешок';
+    if (last >= 2 && last <= 4) return 'мешка';
+    return 'мешков';
+  }
+
+  Widget loadingChecklist(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final top = MediaQuery.paddingOf(context).top;
+    final heroHeight = math.max(top + 80.0, width * .33);
+    Widget roundButton(IconData icon, String label, VoidCallback tap) =>
+        IconButton(
+          tooltip: label,
+          onPressed: busy ? null : tap,
+          style: IconButton.styleFrom(
+            foregroundColor: gold,
+            backgroundColor: const Color(0xB3081015),
+            side: const BorderSide(color: gold),
+            minimumSize: const Size(44, 44),
+          ),
+          icon: Icon(icon, size: 25),
+        );
+    return Column(
+      children: [
+        SizedBox(
+          height: heroHeight,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset('assets/images/scenes/loading_warehouse.png',
+                  fit: BoxFit.cover, alignment: Alignment.bottomCenter),
+              const DecoratedBox(decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                  colors: [Color(0xA6000000), Color(0x00000000), Color(0x7002090D)],
+                  stops: [0, .65, 1],
+                ),
+              )),
+              Positioned(
+                left: 12, right: 12, top: top + 6,
+                child: Row(children: [
+                  roundButton(Icons.arrow_back, 'Назад', () => Navigator.pop(context)),
+                  const SizedBox(width: 12),
+                  const Icon(Icons.assignment_outlined, color: gold, size: 34),
+                  const SizedBox(width: 8),
+                  Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Погрузка', style: TextStyle(
+                        color: white, fontSize: 24, height: 1.1,
+                        fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 4),
+                      const Text('Отметьте загруженный товар', style: TextStyle(
+                        color: white, fontSize: 12, height: 1.1)),
+                    ],
+                  )),
+                  roundButton(Icons.history, 'История накладных', () =>
+                    perform('Загрузка…', () async {
+                      history = await repository.load();
+                      showHistory = true;
+                    })),
+                ]),
+              ),
+            ],
+          ),
+        ),
+        if (error != null)
+          Padding(padding: const EdgeInsets.all(8),
+            child: Text(error!, style: const TextStyle(color: warn))),
+        Expanded(
+          child: Scrollbar(
+            child: ListView.builder(
+              key: PageStorageKey('loading-${invoice.invoiceId}'),
+              padding: const EdgeInsets.fromLTRB(9, 2, 9, 4),
+              itemCount: invoice.items.length,
+              itemBuilder: (context, index) {
+                final item = invoice.items[index];
+                return Padding(
+                  key: ValueKey(item.itemId),
+                  padding: const EdgeInsets.only(bottom: 3),
+                  child: Semantics(
+                    checked: item.isLoaded,
+                    label: '${item.name}, ${item.bagsCount} ${bagLabel(item.bagsCount)}',
+                    child: CustomPaint(
+                      painter: _LoadingMetalPainter(active: item.isLoaded),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: busy ? null : () => toggleLoaded(item),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minHeight: 50),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 7, 6, 7),
+                              child: Row(children: [
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 140),
+                                  width: 24, height: 24,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(4),
+                                    color: item.isLoaded ? const Color(0xFFFFB13F) : const Color(0xFF071017),
+                                    border: Border.all(
+                                      color: item.isLoaded ? const Color(0xFFEAA23C) : const Color(0xFF75818A),
+                                      width: 1.4),
+                                    boxShadow: item.isLoaded ? const [BoxShadow(
+                                      color: Color(0x305F390B), blurRadius: 8)] : null,
+                                  ),
+                                  child: item.isLoaded ? const Icon(Icons.check,
+                                    color: Color(0xFF15150E), size: 22) : null,
+                                ),
+                                Container(width: 1, height: 30,
+                                  margin: const EdgeInsets.symmetric(horizontal: 12),
+                                  color: const Color(0x405F6C72)),
+                                Expanded(child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(item.name, style: const TextStyle(
+                                      color: white, fontSize: 15, height: 1.15,
+                                      fontWeight: FontWeight.w500)),
+                                    const SizedBox(height: 4),
+                                    Text('${kg(item.unitWeightKg)} кг · ${item.bagsCount} ${bagLabel(item.bagsCount)}',
+                                      style: const TextStyle(color: Color(0xFF9EA6AC),
+                                        fontSize: 12, height: 1.1)),
+                                  ],
+                                )),
+                                IconButton(
+                                  tooltip: 'Сведения о товаре',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 36, minHeight: 40),
+                                  onPressed: busy ? null : () => showModalBottomSheet<void>(
+                                    context: context,
+                                    backgroundColor: const Color(0xFF0D171D),
+                                    builder: (sheetContext) => SafeArea(
+                                      child: Padding(padding: const EdgeInsets.all(20),
+                                        child: Column(mainAxisSize: MainAxisSize.min, children: [
+                                          Text(item.name, style: const TextStyle(color: white, fontSize: 20)),
+                                          const SizedBox(height: 12),
+                                          line('Мешков', '${item.bagsCount}'),
+                                          line('Вес мешка', '${kg(item.unitWeightKg)} кг'),
+                                          line('Общий вес', '${kg(item.calculatedWeightKg)} кг'),
+                                          action('Исправить позиции', () {
+                                            Navigator.pop(sheetContext);
+                                            perform('Сохранение…', () => commit(invoice.copy()..stage = 'review'));
+                                          }, icon: Icons.edit_outlined),
+                                          if (invoice.photos.isNotEmpty) photos(),
+                                        ]),
+                                      ),
+                                    ),
+                                  ),
+                                  icon: Icon(Icons.chevron_right, size: 27,
+                                    color: item.isLoaded ? gold : const Color(0xFF89959D)),
+                                ),
+                              ]),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        SafeArea(top: false, minimum: const EdgeInsets.fromLTRB(8, 3, 8, 8),
+          child: Semantics(button: true, label: 'Загрузка завершена',
+            child: CustomPaint(
+              painter: const _LoadingMetalPainter(active: true, button: true),
+              child: Material(color: Colors.transparent,
+                child: InkWell(onTap: busy ? null : finish,
+                  child: SizedBox(width: double.infinity, height: 62,
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      const Icon(Icons.check_circle, color: Color(0xFF171911), size: 32),
+                      const SizedBox(width: 12),
+                      Flexible(child: Text(busy ? 'Сохранение…' : 'Загрузка завершена',
+                        style: const TextStyle(color: Color(0xFF171911), fontSize: 18,
+                          fontWeight: FontWeight.w700))),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !busy && !showHistory && !review,
@@ -453,7 +654,7 @@ class _LoadingInvoiceScreenState extends State<LoadingInvoiceScreen> {
       child: Scaffold(
         resizeToAvoidBottomInset: false,
         backgroundColor: const Color(0xFF0B1115),
-        body: Stack(
+        body: loading && !showHistory ? loadingChecklist(context) : Stack(
           children: [
             const Positioned.fill(
               child: RepaintBoundary(
@@ -983,4 +1184,73 @@ class _LoadingItemDialogState extends State<_LoadingItemDialog> {
       ),
     ],
   );
+}
+
+// Chamfered steel edging is painted at the actual row size; text stays native.
+class _LoadingMetalPainter extends CustomPainter {
+  final bool active, button;
+  const _LoadingMetalPainter({required this.active, this.button = false});
+
+  Path outline(Rect r, double cut) => Path()
+    ..moveTo(r.left + cut, r.top)
+    ..lineTo(r.right - cut, r.top)
+    ..lineTo(r.right, r.top + cut)
+    ..lineTo(r.right, r.bottom - cut)
+    ..lineTo(r.right - cut, r.bottom)
+    ..lineTo(r.left + cut, r.bottom)
+    ..lineTo(r.left, r.bottom - cut)
+    ..lineTo(r.left, r.top + cut)
+    ..close();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final outer = outline(rect.deflate(1), 7);
+    canvas.drawPath(outer, Paint()..shader = const LinearGradient(
+      begin: Alignment.topLeft, end: Alignment.bottomRight,
+      colors: [Color(0xFF647079), Color(0xFF131B21), Color(0xFF394751), Color(0xFF0A0F13)],
+      stops: [0, .2, .8, 1],
+    ).createShader(rect));
+    final inner = outline(rect.deflate(3), 5);
+    canvas.drawPath(inner, Paint()..shader = LinearGradient(
+      begin: Alignment.topLeft, end: Alignment.bottomRight,
+      colors: button
+        ? const [Color(0xFFFFC46C), Color(0xFFE59628), Color(0xFFC77717), Color(0xFFF6AD45)]
+        : active
+          ? const [Color(0xFF382A18), Color(0xFF101719), Color(0xFF0A1116), Color(0xFF382919)]
+          : const [Color(0xFF101E27), Color(0xFF071219), Color(0xFF09151C)],
+    ).createShader(rect));
+    canvas.drawPath(inner, Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = .8
+      ..color = active ? const Color(0xFFBE9358) : const Color(0xFF52616C));
+    canvas.drawLine(Offset(10, 5), Offset(size.width - 10, 5),
+      Paint()..color = active ? const Color(0x55FFE0A5) : const Color(0x305D808F));
+    if (button) {
+      // Fine brushed-metal grain, stable across redraws.
+      canvas.save();
+      canvas.clipPath(inner);
+      final random = math.Random(37);
+      final grain = Paint()..strokeWidth = .45;
+      for (var i = 0; i < size.width * 2; i++) {
+        final x = random.nextDouble() * size.width;
+        final y = random.nextDouble() * size.height;
+        grain.color = i.isEven ? const Color(0x18FFF0C5) : const Color(0x147A3E09);
+        canvas.drawLine(Offset(x, y), Offset(x + random.nextDouble() * 8 + 1, y), grain);
+      }
+      canvas.restore();
+      for (final x in [11.0, size.width - 11]) {
+        for (final y in [11.0, size.height - 11]) {
+          canvas.drawCircle(Offset(x, y), 3.8, Paint()..color = const Color(0xFF111C22));
+          canvas.drawCircle(Offset(x, y), 2.2, Paint()..color = const Color(0xFF5F6970));
+          canvas.drawLine(Offset(x - 1, y + 1), Offset(x + 1, y - 1),
+            Paint()..color = const Color(0xFF131B20)..strokeWidth = 1);
+        }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _LoadingMetalPainter oldDelegate) =>
+      oldDelegate.active != active || oldDelegate.button != button;
 }
